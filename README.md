@@ -16,6 +16,7 @@ Let people sign in to Jellyfin 12 with one OpenID Connect (OIDC) sign-in service
 <!-- toc -->
 
 - [Features](#features)
+- [Prerequisites](#prerequisites)
 - [Quick Start](#quick-start)
 - [Configuration](#configuration)
 - [Provider Setup](#provider-setup)
@@ -35,6 +36,14 @@ Let people sign in to Jellyfin 12 with one OpenID Connect (OIDC) sign-in service
 - Create Jellyfin users when eligible people sign in for the first time
 - Match existing Jellyfin users by verified email address
 - Sign out from both Jellyfin and the sign-in service when supported
+
+## Prerequisites
+
+- Jellyfin 12 or later
+- An OIDC service with a configured client ID, client secret, and callback URL. See [Provider Setup](#provider-setup).
+- At least one allowed or administrator group configured in the plugin.
+- Existing Jellyfin users must have usernames that case-insensitively match their verified OIDC email before their first OIDC sign-in.
+- An administrator group before disabling local passwords for every Jellyfin user. Test the OIDC flow in a separate browser session before signing out.
 
 ## Quick Start
 
