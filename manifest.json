@@ -1,13 +1,21 @@
 [
   {
     "category": "Authentication",
-    "description": "Secure OIDC authorization-code login with PKCE, verified-email matching, provisioning, and group-based administrator access.\n",
+    "description": "Simple OpenID Connect sign-in for Jellyfin 12+, with one Identity Provider, group-based access, and Jellyfin-controlled permissions and viewing activity.\n",
     "guid": "4c5b9b96-80cd-4c3d-9e3d-23fa4ebf6ce4",
     "imageUrl": "https://raw.githubusercontent.com/edmogeor/jellyfin-plugin-oidc/main/assets/thumb.png",
     "name": "OIDC Authentication",
     "overview": "Authenticate Jellyfin Users through one OpenID Connect Identity Provider.",
     "owner": "jellyfin",
     "versions": [
+      {
+        "changelog": "\n- Align the plugin and repository descriptions and list supported configuration-page languages.\n- Validate HTTPS URLs directly in the OIDC configuration form.\n- Add a localized Client Secret visibility toggle.\n\n",
+        "checksum": "c2c99b09c17730f4d0927e13a4407e5d",
+        "sourceUrl": "https://github.com/edmogeor/jellyfin-plugin-oidc/releases/download/v0.1.2.0/oidc-authentication_0.1.2.0.zip",
+        "targetAbi": "12.0.0.0",
+        "timestamp": "2026-09-13T20:14:07Z",
+        "version": "0.1.2.0"
+      },
       {
         "changelog": "\n- Require an HTTPS public URL for OIDC sign-in and callback requests.\n\n",
         "checksum": "7f07ce64195aca66be702c695cc7f073",
