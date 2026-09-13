@@ -39,23 +39,23 @@ Let people sign in to Jellyfin 12 with one OpenID Connect (OIDC) sign-in service
 
 ## Quick Start
 
-1. Install the plugin in Jellyfin 12, then restart Jellyfin.
-2. In your OIDC service, create a confidential client. Add this callback URL:
+1. In **Dashboard > Plugins > Repositories**, add this repository URL:
+
+   ```text
+   https://raw.githubusercontent.com/edmogeor/jellyfin-plugin-oidc/manifest-release/manifest.json
+   ```
+
+2. Install the plugin in Jellyfin 12, then restart Jellyfin.
+3. In your OIDC service, create a confidential client. Add this callback URL:
 
    ```text
    https://jellyfin.example.com/oidc/callback
    ```
 
-3. Open **Dashboard > Plugins > OIDC Authentication**. Enter the issuer URL, client ID, client secret, and at least one allowed or administrator group.
-4. Turn on OIDC and save your changes.
+4. Open **Dashboard > Plugins > OIDC Authentication**. Enter the issuer URL, client ID, client secret, and at least one allowed or administrator group.
+5. Turn on OIDC and save your changes.
 
 If Jellyfin is behind a reverse proxy or has more than one public address, set **Public Jellyfin URL override** to its public HTTPS address. Otherwise, the plugin uses the address in the browser.
-
-After the first release, add this repository URL in **Dashboard > Plugins > Repositories** to install updates through Jellyfin:
-
-```text
-https://raw.githubusercontent.com/edmogeor/jellyfin-plugin-oidc/manifest-release/manifest.json
-```
 
 ## Configuration
 
