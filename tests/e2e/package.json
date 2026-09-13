@@ -1,8 +1,8 @@
 {
   "private": true,
   "scripts": {
-    "format": "prettier --write specs playwright.config.mjs package.json compose.yaml keycloak/realm.json README.md",
-    "format:check": "prettier --check specs playwright.config.mjs package.json compose.yaml keycloak/realm.json README.md",
+    "format": "prettier --write specs playwright.config.mjs package.json compose.yaml keycloak/realm.json",
+    "format:check": "prettier --check specs playwright.config.mjs package.json compose.yaml keycloak/realm.json",
     "lint": "oxlint specs playwright.config.mjs",
     "prepare": "git config core.hooksPath .githooks",
     "test": "playwright test"
