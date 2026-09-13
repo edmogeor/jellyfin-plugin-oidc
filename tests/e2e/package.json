@@ -1,12 +1,20 @@
 {
   "private": true,
   "scripts": {
+    "format": "prettier --write specs playwright.config.mjs package.json compose.yaml keycloak/realm.json README.md",
+    "format:check": "prettier --check specs playwright.config.mjs package.json compose.yaml keycloak/realm.json README.md",
     "lint": "oxlint specs playwright.config.mjs",
-    "test": "playwright test",
-    "test:headed": "PLAYWRIGHT_HEADED=1 playwright test"
+    "prepare": "git config core.hooksPath .githooks",
+    "test": "playwright test"
+  },
+  "lint-staged": {
+    "*.cs": "dotnet csharpier format",
+    "*.{html,json,md,mjs,yaml,yml}": "prettier --write"
   },
   "devDependencies": {
     "@playwright/test": "1.55.0",
-    "oxlint": "^1.81.0"
+    "lint-staged": "^17.5.0",
+    "oxlint": "^1.81.0",
+    "prettier": "^3.9.6"
   }
 }

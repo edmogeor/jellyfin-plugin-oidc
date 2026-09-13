@@ -1,0 +1,4 @@
+#!/usr/bin/env sh
+dotnet tool restore >/dev/null
+cd tests/e2e
+npx lint-staged

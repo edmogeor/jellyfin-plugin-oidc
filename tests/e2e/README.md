@@ -12,10 +12,10 @@ npx playwright install chromium
 Run the headless e2e suite with the reset script:
 
 ```sh
-./run.sh
+./test.sh
 ```
 
-`run.sh` removes persisted Docker state before rebuilding and configuring the stack. Do not run `npm test` directly against an existing stack because a prior test or manual change can leave a different password-login mode configured.
+`test.sh` removes persisted Docker state before rebuilding and configuring the stack. Do not run `npm test` directly against an existing stack because a prior test or manual change can leave a different password-login mode configured.
 
 Start or refresh the test server for manual testing without deleting state:
 
@@ -23,19 +23,17 @@ Start or refresh the test server for manual testing without deleting state:
 ./up.sh
 ```
 
-Run the browser tests visibly against a manually started stack with `npm run test:headed`.
-
 Open `https://localhost:8443/web/index.html`. The generated development certificate is self-signed, so accept its warning once or import `tests/e2e/.tls/ca.crt` into your browser's trust store.
 
-Use the Jellyfin dashboard to inspect or change the plugin settings at **Dashboard, Plugins, OIDC Authentication**. The initial local Jellyfin administrator is `root` with an empty password, and OIDC is configured with password login allowed. Keep the stack running after `./run.sh` to test manually in the same browser.
+Use the Jellyfin dashboard to inspect or change the plugin settings at **Dashboard, Plugins, OIDC Authentication**. The initial local Jellyfin administrator is `root` with an empty password, and OIDC is configured with password login allowed. Keep the stack running after `./test.sh` to test manually in the same browser.
 
 Select **Login with SSO** to see the Keycloak browser flow, then sign in with the seeded test user below.
 
-| Setting | Value |
-| --- | --- |
-| Test user | `oidc-test` |
-| Password | `oidc-test-password` |
+| Setting        | Value                    |
+| -------------- | ------------------------ |
+| Test user      | `oidc-test`              |
+| Password       | `oidc-test-password`     |
 | Verified email | `oidc-test@example.test` |
-| Allowed group | `jellyfin-users` |
+| Allowed group  | `jellyfin-users`         |
 
 Remove all test state with `docker compose down -v`.

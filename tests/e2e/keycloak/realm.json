@@ -43,7 +43,13 @@
       "firstName": "OIDC",
       "lastName": "Test",
       "groups": ["jellyfin-users", "jellyfin-admins"],
-      "credentials": [{ "type": "password", "value": "oidc-test-password", "temporary": false }]
+      "credentials": [
+        {
+          "type": "password",
+          "value": "oidc-test-password",
+          "temporary": false
+        }
+      ]
     }
   ]
 }
