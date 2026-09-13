@@ -1,8 +1,8 @@
 <div align="center">
   <h1>OIDC Authentication for Jellyfin</h1>
   <p>
-    <a href="https://github.com/edmogeor/jellyfin-plugin-oidc/actions/workflows/test.yml">
-      <img src="https://github.com/edmogeor/jellyfin-plugin-oidc/actions/workflows/test.yml/badge.svg?branch=main" alt="CI" />
+    <a href="https://github.com/edmogeor/jellyfin-plugin-oidc/actions/workflows/ci.yml">
+      <img src="https://github.com/edmogeor/jellyfin-plugin-oidc/actions/workflows/ci.yml/badge.svg?branch=main" alt="CI" />
     </a>
     <a href="https://www.gnu.org/licenses/gpl-3.0.html">
       <img src="https://img.shields.io/badge/License-GPL--3.0--or--later-blue.svg" alt="License: GPL-3.0-or-later" />
@@ -48,6 +48,12 @@ Let people sign in to Jellyfin 12 with one OpenID Connect (OIDC) sign-in service
 4. Turn on OIDC and save your changes.
 
 If Jellyfin is behind a reverse proxy or has more than one public address, set **Public Jellyfin URL override** to its public HTTPS address. Otherwise, the plugin uses the address in the browser.
+
+After the first release, add this repository URL in **Dashboard > Plugins > Repositories** to install updates through Jellyfin:
+
+```text
+https://raw.githubusercontent.com/edmogeor/jellyfin-plugin-oidc/manifest-release/manifest.json
+```
 
 ## Configuration
 

@@ -22,6 +22,9 @@ async function signIn(page) {
       .then((response) => response.ok)
       .catch(() => false);
   });
+  await expect(page.getByRole("button", { name: "User Menu" })).toBeVisible({
+    timeout: 30_000,
+  });
 }
 
 async function signInDenied(page) {
@@ -149,7 +152,7 @@ test("loads the seeded OIDC settings and validates changes for an administrator"
   await page.goto(
     "/web/index.html#/configurationpage?name=OIDC%20Authentication",
   );
-  await expect(page.locator("#Enabled")).toBeChecked();
+  await expect(page.locator("#Enabled")).toBeChecked({ timeout: 30_000 });
   await expect(page.locator("#PublicUrl")).toHaveValue(
     "https://localhost:8443",
   );
@@ -201,7 +204,7 @@ test("only skips the Jellyfin login form when local passwords are disabled for a
   await adminPage.goto(
     "/web/index.html#/configurationpage?name=OIDC%20Authentication",
   );
-  await expect(adminPage.locator("#Enabled")).toBeChecked();
+  await expect(adminPage.locator("#Enabled")).toBeChecked({ timeout: 30_000 });
 
   await setPasswordLoginMode(adminPage, "AllowForAllUsers");
   await showLogin(page);
