@@ -35,7 +35,6 @@ Let people sign in to Jellyfin 12 with one OpenID Connect (OIDC) sign-in service
 - Create Jellyfin users when eligible people sign in for the first time
 - Match existing Jellyfin users by verified email address
 - Sign out from both Jellyfin and the sign-in service when supported
-- Keep secrets out of browser settings and logs
 
 ## Quick Start
 
