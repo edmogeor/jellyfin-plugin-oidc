@@ -38,8 +38,8 @@
   "rpInitiatedLogoutHelp": "Meldet auch beim Anbieter ab. Fügen Sie <Öffentliche Jellyfin-URL>/web/index.html zu dessen Post-Logout-Weiterleitungs-URIs hinzu.",
   "groupValidation": "Geben Sie eine Benutzergruppe, eine Administratorgruppe oder beides ein.",
   "httpsUrlValidation": "Geben Sie eine HTTPS-URL ein.",
-  "localPasswordWarning": "Die lokale Passwortanmeldung wird für {0} deaktiviert. Testen Sie nach dem Speichern die OIDC-Anmeldung in einer separaten Browsersitzung, bevor Sie sich abmelden.",
-  "localPasswordWarningTitle": "Änderung der Passwortanmeldung bestätigen",
-  "allJellyfinUsers": "alle Jellyfin-Benutzer",
-  "linkedJellyfinUsers": "verknüpfte Jellyfin-Benutzer"
+  "localPasswordWarning": "Die lokale Passwortanmeldung wird für {0} deaktiviert. Prüfen Sie vor dem Speichern, ob die OIDC-Anmeldung funktioniert.",
+  "localPasswordWarningTitle": "Sie könnten ausgesperrt werden",
+  "allJellyfinUsers": "alle Benutzer",
+  "linkedJellyfinUsers": "verknüpfte Benutzer"
 }

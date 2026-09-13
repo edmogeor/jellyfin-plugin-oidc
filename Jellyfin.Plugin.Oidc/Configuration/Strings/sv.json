@@ -38,8 +38,8 @@
   "rpInitiatedLogoutHelp": "Logga även ut hos leverantören. Lägg till <Offentlig Jellyfin-URL>/web/index.html i dess URI:er för omdirigering efter utloggning.",
   "groupValidation": "Ange en användargrupp, en administratörsgrupp eller båda.",
   "httpsUrlValidation": "Ange en HTTPS-URL.",
-  "localPasswordWarning": "Inloggning med lokalt lösenord kommer att inaktiveras för {0}. När du har sparat ska du testa OIDC-inloggning i en separat webbläsarsession innan du loggar ut.",
-  "localPasswordWarningTitle": "Bekräfta ändring av lösenordsinloggning",
-  "allJellyfinUsers": "alla Jellyfin-användare",
-  "linkedJellyfinUsers": "länkade Jellyfin-användare"
+  "localPasswordWarning": "Inloggning med lokalt lösenord kommer att inaktiveras för {0}. Kontrollera att OIDC-inloggning fungerar innan du sparar.",
+  "localPasswordWarningTitle": "Du kan bli utelåst",
+  "allJellyfinUsers": "alla användare",
+  "linkedJellyfinUsers": "länkade användare"
 }

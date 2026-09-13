@@ -38,8 +38,8 @@
   "rpInitiatedLogoutHelp": "Also sign out at the provider. Add <Public Jellyfin URL>/web/index.html to its post-logout redirect URIs.",
   "groupValidation": "Enter a User Group, an Administrator Group, or both.",
   "httpsUrlValidation": "Enter an HTTPS URL.",
-  "localPasswordWarning": "Local password sign-in will be disabled for {0}. After you save, test OIDC sign-in in a separate browser session before signing out.",
-  "localPasswordWarningTitle": "Confirm password login change",
-  "allJellyfinUsers": "all Jellyfin Users",
-  "linkedJellyfinUsers": "linked Jellyfin Users"
+  "localPasswordWarning": "Local password sign-in will be disabled for {0}. Verify OIDC sign-in is working before saving.",
+  "localPasswordWarningTitle": "You could be locked out",
+  "allJellyfinUsers": "all users",
+  "linkedJellyfinUsers": "linked users"
 }

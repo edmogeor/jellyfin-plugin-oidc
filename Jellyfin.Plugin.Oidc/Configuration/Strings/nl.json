@@ -38,8 +38,8 @@
   "rpInitiatedLogoutHelp": "Meld ook af bij de provider. Voeg <Openbare Jellyfin-URL>/web/index.html toe aan de post-logout-omleidings-URI's.",
   "groupValidation": "Voer een gebruikersgroep, een beheerdersgroep of beide in.",
   "httpsUrlValidation": "Voer een HTTPS-URL in.",
-  "localPasswordWarning": "Aanmelden met een lokaal wachtwoord wordt uitgeschakeld voor {0}. Test na het opslaan OIDC-aanmelding in een aparte browsersessie voordat u zich afmeldt.",
-  "localPasswordWarningTitle": "Wijziging van aanmelding met wachtwoord bevestigen",
-  "allJellyfinUsers": "alle Jellyfin-gebruikers",
-  "linkedJellyfinUsers": "gekoppelde Jellyfin-gebruikers"
+  "localPasswordWarning": "Aanmelden met een lokaal wachtwoord wordt uitgeschakeld voor {0}. Controleer vóór het opslaan of OIDC-aanmelding werkt.",
+  "localPasswordWarningTitle": "U kunt worden buitengesloten",
+  "allJellyfinUsers": "alle gebruikers",
+  "linkedJellyfinUsers": "gekoppelde gebruikers"
 }

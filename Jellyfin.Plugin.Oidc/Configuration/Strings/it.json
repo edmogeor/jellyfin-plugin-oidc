@@ -38,8 +38,8 @@
   "rpInitiatedLogoutHelp": "Disconnette anche dal provider. Aggiungere <URL pubblico Jellyfin>/web/index.html agli URI di reindirizzamento dopo la disconnessione.",
   "groupValidation": "Immettere un gruppo utenti, un gruppo amministratori o entrambi.",
   "httpsUrlValidation": "Immettere un URL HTTPS.",
-  "localPasswordWarning": "L'accesso con password locale verrà disabilitato per {0}. Dopo il salvataggio, provare l'accesso OIDC in una sessione del browser separata prima di disconnettersi.",
-  "localPasswordWarningTitle": "Conferma modifica accesso con password",
-  "allJellyfinUsers": "tutti gli utenti Jellyfin",
-  "linkedJellyfinUsers": "utenti Jellyfin collegati"
+  "localPasswordWarning": "L'accesso con password locale verrà disabilitato per {0}. Verificare che l'accesso OIDC funzioni prima di salvare.",
+  "localPasswordWarningTitle": "Potresti rimanere senza accesso",
+  "allJellyfinUsers": "tutti gli utenti",
+  "linkedJellyfinUsers": "utenti collegati"
 }

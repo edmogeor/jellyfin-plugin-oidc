@@ -38,8 +38,8 @@
   "rpInitiatedLogoutHelp": "También cierra la sesión en el proveedor. Añada <URL pública de Jellyfin>/web/index.html a sus URI de redirección posteriores al cierre de sesión.",
   "groupValidation": "Introduzca un grupo de usuarios, un grupo de administradores o ambos.",
   "httpsUrlValidation": "Introduzca una URL HTTPS.",
-  "localPasswordWarning": "El inicio de sesión con contraseña local se desactivará para {0}. Después de guardar, pruebe el inicio de sesión OIDC en otra sesión del navegador antes de cerrar sesión.",
-  "localPasswordWarningTitle": "Confirmar cambio de inicio de sesión con contraseña",
-  "allJellyfinUsers": "todos los usuarios de Jellyfin",
-  "linkedJellyfinUsers": "usuarios vinculados de Jellyfin"
+  "localPasswordWarning": "El inicio de sesión con contraseña local se desactivará para {0}. Compruebe que el inicio de sesión OIDC funciona antes de guardar.",
+  "localPasswordWarningTitle": "Podría quedarse sin acceso",
+  "allJellyfinUsers": "todos los usuarios",
+  "linkedJellyfinUsers": "usuarios vinculados"
 }

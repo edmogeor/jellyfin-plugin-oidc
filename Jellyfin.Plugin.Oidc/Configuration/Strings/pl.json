@@ -38,8 +38,8 @@
   "rpInitiatedLogoutHelp": "Wyloguj także u dostawcy. Dodaj <Publiczny adres URL Jellyfin>/web/index.html do jego identyfikatorów URI przekierowania po wylogowaniu.",
   "groupValidation": "Wprowadź grupę użytkowników, grupę administratorów lub obie.",
   "httpsUrlValidation": "Wprowadź adres URL HTTPS.",
-  "localPasswordWarning": "Logowanie lokalnym hasłem zostanie wyłączone dla {0}. Po zapisaniu przetestuj logowanie OIDC w osobnej sesji przeglądarki przed wylogowaniem.",
-  "localPasswordWarningTitle": "Potwierdź zmianę logowania hasłem",
-  "allJellyfinUsers": "wszyscy użytkownicy Jellyfin",
-  "linkedJellyfinUsers": "powiązani użytkownicy Jellyfin"
+  "localPasswordWarning": "Logowanie lokalnym hasłem zostanie wyłączone dla {0}. Przed zapisaniem sprawdź, czy logowanie OIDC działa.",
+  "localPasswordWarningTitle": "Możesz utracić dostęp",
+  "allJellyfinUsers": "wszystkich użytkowników",
+  "linkedJellyfinUsers": "powiązanych użytkowników"
 }

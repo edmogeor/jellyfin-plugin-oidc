@@ -38,8 +38,8 @@
   "rpInitiatedLogoutHelp": "Также выйдите у поставщика. Добавьте <Публичный URL Jellyfin>/web/index.html в его URI перенаправления после выхода.",
   "groupValidation": "Введите группу пользователей, группу администраторов или обе.",
   "httpsUrlValidation": "Введите URL-адрес HTTPS.",
-  "localPasswordWarning": "Вход с локальным паролем будет отключен для {0}. После сохранения проверьте вход через OIDC в отдельной сессии браузера, прежде чем выйти.",
-  "localPasswordWarningTitle": "Подтвердите изменение входа с паролем",
-  "allJellyfinUsers": "всех пользователей Jellyfin",
-  "linkedJellyfinUsers": "связанных пользователей Jellyfin"
+  "localPasswordWarning": "Вход с локальным паролем будет отключен для {0}. Перед сохранением убедитесь, что вход через OIDC работает.",
+  "localPasswordWarningTitle": "Вы можете потерять доступ",
+  "allJellyfinUsers": "всех пользователей",
+  "linkedJellyfinUsers": "связанных пользователей"
 }

@@ -38,8 +38,8 @@
   "rpInitiatedLogoutHelp": "Log også ud hos udbyderen. Føj <Offentlig Jellyfin-URL>/web/index.html til dens URI'er for omdirigering efter logout.",
   "groupValidation": "Indtast en brugergruppe, en administratorgruppe eller begge dele.",
   "httpsUrlValidation": "Angiv en HTTPS-URL.",
-  "localPasswordWarning": "Login med lokal adgangskode deaktiveres for {0}. Når du har gemt, skal du teste OIDC-login i en separat browsersession, før du logger ud.",
-  "localPasswordWarningTitle": "Bekræft ændring af adgangskodelogin",
-  "allJellyfinUsers": "alle Jellyfin-brugere",
-  "linkedJellyfinUsers": "tilknyttede Jellyfin-brugere"
+  "localPasswordWarning": "Login med lokal adgangskode deaktiveres for {0}. Bekræft, at OIDC-login fungerer, før du gemmer.",
+  "localPasswordWarningTitle": "Du kan blive låst ude",
+  "allJellyfinUsers": "alle brugere",
+  "linkedJellyfinUsers": "tilknyttede brugere"
 }

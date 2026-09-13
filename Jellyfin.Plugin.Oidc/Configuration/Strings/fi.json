@@ -38,8 +38,8 @@
   "rpInitiatedLogoutHelp": "Kirjaudu ulos myös palveluntarjoajalta. Lisää <Julkinen Jellyfin-URL>/web/index.html sen uloskirjautumisen jälkeisiin uudelleenohjaus-URI-osoitteisiin.",
   "groupValidation": "Anna käyttäjäryhmä, järjestelmänvalvojaryhmä tai molemmat.",
   "httpsUrlValidation": "Anna HTTPS-URL.",
-  "localPasswordWarning": "Paikallisella salasanalla kirjautuminen poistetaan käytöstä kohteelle {0}. Testaa tallentamisen jälkeen OIDC-kirjautuminen erillisessä selainistunnossa ennen uloskirjautumista.",
-  "localPasswordWarningTitle": "Vahvista salasanakirjautumisen muutos",
-  "allJellyfinUsers": "kaikille Jellyfin-käyttäjille",
-  "linkedJellyfinUsers": "linkitetyille Jellyfin-käyttäjille"
+  "localPasswordWarning": "Paikallisella salasanalla kirjautuminen poistetaan käytöstä kohteelle {0}. Varmista ennen tallentamista, että OIDC-kirjautuminen toimii.",
+  "localPasswordWarningTitle": "Saatat menettää käyttöoikeuden",
+  "allJellyfinUsers": "kaikille käyttäjille",
+  "linkedJellyfinUsers": "linkitetyille käyttäjille"
 }

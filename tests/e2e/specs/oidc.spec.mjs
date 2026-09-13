@@ -265,11 +265,11 @@ test("loads the seeded OIDC settings and validates changes for an administrator"
     .selectOption("DisableForLinkedUsersOnly");
   await page.locator("#SaveButton").click();
   await expect(
-    page.getByRole("heading", { name: "Confirm password login change" }),
+    page.getByRole("heading", { name: "You could be locked out" }),
   ).toBeVisible();
   await expect(
     page.getByText(
-      "test OIDC sign-in in a separate browser session before signing out.",
+      "Local password sign-in will be disabled for linked users. Verify OIDC sign-in is working before saving.",
     ),
   ).toBeVisible();
   await page.getByRole("button", { name: "Cancel" }).click();

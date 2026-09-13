@@ -38,8 +38,8 @@
   "rpInitiatedLogoutHelp": "Déconnecte également du fournisseur. Ajoutez <URL publique de Jellyfin>/web/index.html à ses URI de redirection après déconnexion.",
   "groupValidation": "Saisissez un groupe d'utilisateurs, un groupe d'administrateurs ou les deux.",
   "httpsUrlValidation": "Saisissez une URL HTTPS.",
-  "localPasswordWarning": "La connexion par mot de passe local sera désactivée pour {0}. Après l'enregistrement, testez la connexion OIDC dans une session de navigateur distincte avant de vous déconnecter.",
-  "localPasswordWarningTitle": "Confirmer la modification de la connexion par mot de passe",
-  "allJellyfinUsers": "tous les utilisateurs Jellyfin",
-  "linkedJellyfinUsers": "les utilisateurs Jellyfin liés"
+  "localPasswordWarning": "La connexion par mot de passe local sera désactivée pour {0}. Vérifiez que la connexion OIDC fonctionne avant d'enregistrer.",
+  "localPasswordWarningTitle": "Vous risquez de perdre l'accès",
+  "allJellyfinUsers": "tous les utilisateurs",
+  "linkedJellyfinUsers": "les utilisateurs liés"
 }

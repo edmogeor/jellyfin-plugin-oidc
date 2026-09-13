@@ -1,3 +1,7 @@
+## [0.1.3.0]
+
+- Clarify the local-password warning and localize its lockout risk.
+
 ## [0.1.2.0]
 
 - Align the plugin and repository descriptions and list supported configuration-page languages.
