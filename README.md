@@ -5,13 +5,16 @@
     <a href="https://github.com/edmogeor/jellyfin-plugin-oidc/actions/workflows/ci.yml">
       <img src="https://github.com/edmogeor/jellyfin-plugin-oidc/actions/workflows/ci.yml/badge.svg?branch=main" alt="CI" />
     </a>
+    <a href="https://github.com/edmogeor/jellyfin-plugin-oidc/releases">
+      <img src="https://img.shields.io/github/v/release/edmogeor/jellyfin-plugin-oidc" alt="Latest release" />
+    </a>
     <a href="https://www.gnu.org/licenses/gpl-3.0.html">
       <img src="https://img.shields.io/badge/License-GPL--3.0--or--later-blue.svg" alt="License: GPL-3.0-or-later" />
     </a>
   </p>
 </div>
 
-Let users sign in to Jellyfin 12 with one OpenID Connect (OIDC) sign-in service. Jellyfin keeps control of user permissions and viewing activity.
+Simple OIDC sign-in for Jellyfin 12, with easy configuration and support for one OpenID Connect provider. Jellyfin keeps control of user permissions and viewing activity.
 
 <!-- toc -->
 
@@ -24,6 +27,7 @@ Let users sign in to Jellyfin 12 with one OpenID Connect (OIDC) sign-in service.
 - [Password Login](#password-login)
 - [Logout](#logout)
 - [Development](#development)
+- [Donations](#donations)
 - [License](#license)
 
 <!-- tocstop -->
@@ -172,6 +176,12 @@ make test
 | `make up`        | Start the e2e stack for manual testing.                   |
 
 The e2e stack runs Jellyfin 12, Keycloak, and Caddy at `https://localhost:8443`.
+
+## Donations
+
+Feel free to donate if you'd like to support development.
+
+<a href="https://www.buymeacoffee.com/edmogeor" target="_blank"><img src="https://cdn.buymeacoffee.com/buttons/v2/default-yellow.png" alt="Buy Me A Coffee" style="height: 60px !important;width: 217px !important;" /></a>
 
 ## License
 
