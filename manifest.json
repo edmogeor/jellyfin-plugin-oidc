@@ -9,6 +9,14 @@
     "owner": "jellyfin",
     "versions": [
       {
+        "changelog": "\n- Clarify the local-password warning and localize its lockout risk.\n- Avoid rewriting unchanged synchronized profile images.\n\n",
+        "checksum": "7bda122cccba54106d9ed1cbd1634b24",
+        "sourceUrl": "https://github.com/edmogeor/jellyfin-plugin-oidc/releases/download/v0.1.3.0/oidc-authentication_0.1.3.0.zip",
+        "targetAbi": "12.0.0.0",
+        "timestamp": "2026-09-13T20:41:35Z",
+        "version": "0.1.3.0"
+      },
+      {
         "changelog": "\n- Align the plugin and repository descriptions and list supported configuration-page languages.\n- Validate HTTPS URLs directly in the OIDC configuration form.\n- Add a localized Client Secret visibility toggle.\n\n",
         "checksum": "c2c99b09c17730f4d0927e13a4407e5d",
         "sourceUrl": "https://github.com/edmogeor/jellyfin-plugin-oidc/releases/download/v0.1.2.0/oidc-authentication_0.1.2.0.zip",
