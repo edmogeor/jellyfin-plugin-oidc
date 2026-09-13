@@ -11,7 +11,7 @@
   </p>
 </div>
 
-Let people sign in to Jellyfin 12 with one OpenID Connect (OIDC) sign-in service. Jellyfin keeps control of user permissions and viewing activity.
+Let users sign in to Jellyfin 12 with one OpenID Connect (OIDC) sign-in service. Jellyfin keeps control of user permissions and viewing activity.
 
 <!-- toc -->
 
@@ -33,7 +33,7 @@ Let people sign in to Jellyfin 12 with one OpenID Connect (OIDC) sign-in service
 - Sign in with an OIDC service that supports standard discovery and can return verified email and flat group claims
 - Show a configurable sign-in button, or go straight to the sign-in service when local passwords are off
 - Allow access and administrator rights based on groups
-- Create Jellyfin users when eligible people sign in for the first time
+- Create Jellyfin users when eligible users sign in for the first time
 - Match existing Jellyfin users by verified email address
 - Sign out from both Jellyfin and the sign-in service when supported
 
@@ -69,14 +69,14 @@ If Jellyfin is behind a reverse proxy or has more than one public address, set *
 
 | Setting                      | Required                   | Default             | Description                                                                                   |
 | ---------------------------- | -------------------------- | ------------------- | --------------------------------------------------------------------------------------------- |
-| Enable OIDC                  | Yes                        | Off                 | Lets people who meet your group rules sign in.                                                |
+| Enable OIDC                  | Yes                        | Off                 | Lets users who meet your group rules sign in.                                                 |
 | Public Jellyfin URL override | No                         | Browser address     | The public HTTPS address to use for callbacks and sign-out.                                   |
 | Issuer URL                   | Yes                        | -                   | The HTTPS address of your OIDC service.                                                       |
 | Client ID                    | Yes                        | -                   | The client ID from your OIDC service.                                                         |
 | Client secret                | Yes                        | -                   | The client secret from your OIDC service.                                                     |
 | Allowed groups               | At least one group setting | -                   | Comma-separated groups that can sign in. New Jellyfin users can be created for their members. |
 | Administrator groups         | At least one group setting | -                   | Comma-separated groups that can sign in as Jellyfin administrators.                           |
-| Group claim                  | No                         | `groups`            | The top-level claim that lists a person's groups.                                             |
+| Group claim                  | No                         | `groups`            | The top-level claim that lists a user's groups.                                               |
 | Additional requested scopes  | No                         | -                   | Space-separated scopes requested in addition to `openid email profile`.                       |
 | Login button text            | No                         | `Login with SSO`    | The text on the Jellyfin sign-in button.                                                      |
 | Password login mode          | No                         | Allow for all users | Choose who can use local passwords.                                                           |
@@ -88,7 +88,7 @@ The plugin supports one OIDC service and simple, top-level profile and group dat
 
 The plugin needs a confidential authorization-code client with the callback URL from the quick start. It requires top-level `sub`, `email`, and `email_verified` claims and a top-level group claim containing strings or a JSON string array.
 
-| Identity Provider | Setup                                                                                                                                                                                      |
+| Provider          | Setup                                                                                                                                                                                      |
 | ----------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | Keycloak          | Add a Group Membership protocol mapper that emits a flat `groups` claim to the ID token or UserInfo endpoint. Disable full group paths unless those paths are the configured group values. |
 | Authentik         | Ensure the configured provider returns `groups`, and map a verified source attribute to `email_verified`.                                                                                  |
@@ -101,14 +101,14 @@ Do not add a scope solely because its name matches the group claim. Some provide
 ## Sign In
 
 > [!NOTE]
-> To sign in, a person needs a verified email address and a matching allowed or administrator group.
+> To sign in, a user needs a verified email address and a matching allowed or administrator group.
 
-1. The plugin first looks for the person's existing Jellyfin user.
+1. The plugin first looks for the user's existing Jellyfin user.
 2. If it finds no match, it looks for a Jellyfin username that matches the verified email address.
 3. If it still finds no match, it creates a Jellyfin user with the verified email address as the username.
 4. It then updates administrator rights from the administrator groups.
 
-If a person's verified email address changes, the plugin updates the linked Jellyfin username. It keeps the same Jellyfin user and its viewing activity. It does not merge users.
+If a user's verified email address changes, the plugin updates the linked Jellyfin username. It keeps the same Jellyfin user and its viewing activity. It does not merge users.
 
 ## Password Login
 
@@ -146,7 +146,7 @@ This does not delete Jellyfin users or Identity Links.
 
 ## Logout
 
-Turn on **RP-Initiated Logout** to sign out from your OIDC service when the person signs out of Jellyfin. Add this post-logout redirect URL to your OIDC service:
+Turn on **RP-Initiated Logout** to sign out from your OIDC service when the user signs out of Jellyfin. Add this post-logout redirect URL to your OIDC service:
 
 ```text
 https://jellyfin.example.com/web/index.html
