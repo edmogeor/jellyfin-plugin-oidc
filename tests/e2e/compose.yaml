@@ -1,6 +1,6 @@
 services:
   plugin-build:
-    image: mcr.microsoft.com/dotnet/sdk:10.0
+    image: mcr.microsoft.com/dotnet/sdk:10.0@sha256:60a2b2230a0d052bc54c0d453e97e331219ed503c5411470ee226859420e693c
     working_dir: /src
     volumes:
       - ../..:/src:ro
@@ -8,7 +8,7 @@ services:
     command: sh -c 'rm -rf /work && cp -a /src /work && rm -rf /work/Jellyfin.Plugin.Oidc/bin /work/Jellyfin.Plugin.Oidc/obj && dotnet publish /work/Jellyfin.Plugin.Oidc/Jellyfin.Plugin.Oidc.csproj -c Release -o /output'
 
   keycloak-server:
-    image: quay.io/keycloak/keycloak:26.3.2
+    image: quay.io/keycloak/keycloak:26.3.2@sha256:031845445213387a7b252d9b0898f401a1bbf7cd8b42400f014b9dfec0825991
     environment:
       KC_BOOTSTRAP_ADMIN_USERNAME: admin
       KC_BOOTSTRAP_ADMIN_PASSWORD: admin
@@ -26,7 +26,7 @@ services:
       retries: 60
 
   jellyfin-server:
-    image: jellyfin/jellyfin:12
+    image: jellyfin/jellyfin:12@sha256:97150310f89f908abbf6fa9640ccc36f9bfa9e5e987775db310b3b70c2d11602
     depends_on:
       plugin-build:
         condition: service_completed_successfully
@@ -45,7 +45,7 @@ services:
       - ./.tls:/tls:ro
 
   caddy:
-    image: caddy:2.10-alpine
+    image: caddy:2.10-alpine@sha256:d8c17a862962def15cde69863a3a463f25a2664942eafd7bdbf050e9c3116b83
     depends_on:
       - jellyfin-server
       - keycloak-server
@@ -59,7 +59,7 @@ services:
       - ./.tls:/tls:ro
 
   configure:
-    image: python:3.13-alpine
+    image: python:3.13-alpine@sha256:46ee549c88617e9bc8acb843a326f1a5c0fa5608d7f9703509efe6d53b55f318
     depends_on:
       - jellyfin-server
       - keycloak-server

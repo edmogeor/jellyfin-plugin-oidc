@@ -1,0 +1,26 @@
+name: CodeQL
+
+on:
+  pull_request:
+    paths-ignore:
+      - "**.md"
+  push:
+    paths-ignore:
+      - "**.md"
+  schedule:
+    - cron: "17 3 * * 1"
+
+permissions:
+  contents: read
+  security-events: write
+
+jobs:
+  analyze:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4
+      - uses: github/codeql-action/init@c20e34f438d671fc35777cc9820dd7adf8252874 # v3
+        with:
+          languages: csharp, javascript-typescript
+      - uses: github/codeql-action/autobuild@c20e34f438d671fc35777cc9820dd7adf8252874 # v3
+      - uses: github/codeql-action/analyze@c20e34f438d671fc35777cc9820dd7adf8252874 # v3
