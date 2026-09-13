@@ -17,7 +17,7 @@ Let people sign in to Jellyfin 12 with one OpenID Connect (OIDC) sign-in service
 - [Features](#features)
 - [Quick Start](#quick-start)
 - [Configuration](#configuration)
-- [What Happens At Sign-In](#what-happens-at-sign-in)
+- [Sign In](#sign-in)
 - [Password Login](#password-login)
 - [Logout](#logout)
 - [Development](#development)
@@ -65,13 +65,13 @@ If Jellyfin is behind a reverse proxy or has more than one public address, set *
 | Password login mode | No | Allow for all users | Choose who can use local passwords. |
 | RP-Initiated Logout | No | Off | Also sign out from your OIDC service when it supports this. |
 
-The plugin supports one OIDC service. It uses only top-level `sub`, `email`, `email_verified`, and group claims. If your groups are nested, map them to a top-level claim in your OIDC service. You cannot set endpoint URLs by hand.
+The plugin supports one OIDC service and simple, top-level profile and group data. If your groups are nested, map them to a top-level claim in your OIDC service. You cannot set endpoint URLs by hand.
 
-## What Happens At Sign-In
+## Sign In
 
-To sign in, a person must have a `sub` value, a verified email address, and a matching allowed or administrator group.
+To sign in, a person needs a verified email address and a matching allowed or administrator group.
 
-1. The plugin first looks for the person who has the same `sub` value.
+1. The plugin first looks for the person's existing Jellyfin user.
 2. If it finds no match, it looks for a Jellyfin username that matches the verified email address.
 3. If it still finds no match, it creates a Jellyfin user with the verified email address as the username.
 4. It then updates administrator rights from the administrator groups.
