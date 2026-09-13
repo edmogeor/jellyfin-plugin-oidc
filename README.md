@@ -121,6 +121,29 @@ If a person's verified email address changes, the plugin updates the linked Jell
 > [!WARNING]
 > When you change this setting, the plugin updates every Jellyfin user. Before you turn off local passwords for everyone, set an administrator group. Test OIDC sign-in in another browser session before you sign out.
 
+### Emergency Recovery
+
+If an OIDC outage or configuration mistake prevents every administrator from signing in, a Docker host administrator can restore local-password access. This requires an existing Jellyfin administrator password, it cannot recover the random passwords created for provisioned Jellyfin users.
+
+1. Stop Jellyfin.
+2. In the persistent config directory, change `<Enabled>true</Enabled>` to `<Enabled>false</Enabled>` in `plugins/configurations/Jellyfin.Plugin.Oidc.xml`.
+3. If `/config` is bind-mounted from the Docker host, run this on the host. Replace the paths with yours:
+
+   ```sh
+   cp -a /host/path/to/jellyfin/config /host/path/to/jellyfin/config.backup
+   sqlite3 /host/path/to/jellyfin/config/data/jellyfin.db <<'SQL'
+   UPDATE Users
+   SET AuthenticationProviderId = 'Jellyfin.Server.Implementations.Users.DefaultAuthenticationProvider'
+   WHERE AuthenticationProviderId = 'Jellyfin.Plugin.Oidc.Identity.OidcPasswordDisabledProvider';
+   SQL
+   ```
+
+   When `/config` is a named Docker volume, run the same SQL from a one-off SQLite container with that volume mounted instead.
+
+4. Start Jellyfin, sign in with the known local administrator password, and correct the OIDC configuration before enabling it again.
+
+This does not delete Jellyfin users or Identity Links.
+
 ## Logout
 
 Turn on **RP-Initiated Logout** to sign out from your OIDC service when the person signs out of Jellyfin. Add this post-logout redirect URL to your OIDC service:
