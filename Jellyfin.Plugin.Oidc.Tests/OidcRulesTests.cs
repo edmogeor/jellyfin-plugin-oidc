@@ -1,4 +1,7 @@
+using System.Collections.Generic;
+using System.Linq;
 using System.Security.Claims;
+using System.Text.Json;
 using Jellyfin.Plugin.Oidc.Configuration;
 using Jellyfin.Plugin.Oidc.Identity;
 using Microsoft.AspNetCore.Http;
@@ -8,6 +11,30 @@ namespace Jellyfin.Plugin.Oidc.Tests;
 
 public sealed class OidcRulesTests
 {
+    [Fact]
+    public void Configuration_strings_are_embedded_json_with_matching_keys()
+    {
+        var assembly = typeof(PluginConfiguration).Assembly;
+        using var englishStream = assembly
+            .GetManifestResourceStream("Jellyfin.Plugin.Oidc.Configuration.Strings.en-us.json");
+
+        Assert.NotNull(englishStream);
+        var expectedKeys = GetJsonKeys(englishStream);
+        foreach (var resourceName in assembly.GetManifestResourceNames().Where(name => name.StartsWith("Jellyfin.Plugin.Oidc.Configuration.Strings.", StringComparison.Ordinal)))
+        {
+            using var stream = assembly.GetManifestResourceStream(resourceName);
+            Assert.NotNull(stream);
+            Assert.Equal(expectedKeys, GetJsonKeys(stream));
+        }
+    }
+
+    private static string[] GetJsonKeys(Stream stream)
+    {
+        using var document = JsonDocument.Parse(stream);
+        Assert.Equal(JsonValueKind.Object, document.RootElement.ValueKind);
+        return document.RootElement.EnumerateObject().Select(property => property.Name).Order().ToArray();
+    }
+
     [Theory]
     [InlineData("https://jellyfin.example.test", "https://identity.example.test", "client", "secret", "users", "", PasswordLoginMode.AllowForAllUsers, null)]
     [InlineData("", "https://identity.example.test", "client", "secret", "", "admins", PasswordLoginMode.AllowForAllUsers, null)]

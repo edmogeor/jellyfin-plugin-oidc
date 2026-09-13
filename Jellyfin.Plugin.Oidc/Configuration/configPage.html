@@ -1,34 +1,57 @@
 <!DOCTYPE html>
 <html lang="en">
-    <head><meta charset="utf-8"><title>OIDC Authentication</title></head>
+    <head><meta charset="utf-8"><title data-i18n="pageTitle"></title></head>
 <body>
     <div id="OidcConfigPage" data-role="page" class="page type-interior pluginConfigurationPage configPage" data-require="emby-input,emby-button,emby-select,emby-checkbox">
-        <div data-role="content"><div class="content-primary"><h1>OIDC Authentication</h1><form id="OidcConfigForm" class="configForm">
-            <div class="checkboxContainer checkboxContainer-withDescription"><label><input id="Enabled" type="checkbox" is="emby-checkbox" /><span>Enable OIDC</span></label><div class="fieldDescription checkboxFieldDescription">Lets eligible users sign in with the provider. It matches existing Jellyfin Users by username and verified email from the provider.</div></div>
+        <div data-role="content"><div class="content-primary"><h1 data-i18n="pageTitle"></h1><form id="OidcConfigForm" class="configForm">
+            <div class="checkboxContainer checkboxContainer-withDescription"><label><input id="Enabled" type="checkbox" is="emby-checkbox" /><span>${EnablePlugin} <span data-i18n="protocolName"></span></span></label><div class="fieldDescription checkboxFieldDescription" data-i18n="enabledHelp"></div></div>
             <div class="verticalSection">
-                <h2>Connection</h2>
-                <div class="inputContainer inputContainer-withDescription"><input id="PublicUrl" type="url" is="emby-input" label="Public Jellyfin URL override" placeholder="https://jellyfin.example.com" /><div class="fieldDescription">Leave empty to use the browser address. Set this when Jellyfin is behind a reverse proxy or has more than one public address.</div></div>
-                <div class="inputContainer inputContainer-withDescription"><input id="IssuerUrl" type="url" required is="emby-input" label="Issuer URL *" placeholder="https://identity.example.com" /><div class="fieldDescription">The provider's OpenID Connect issuer URL.</div></div>
-                <div class="inputContainer inputContainer-withDescription"><input id="ClientId" type="text" required is="emby-input" label="Client ID *" /><div class="fieldDescription">The client ID registered with the provider.</div></div>
-                <div class="inputContainer inputContainer-withDescription"><input id="ClientSecret" type="password" required is="emby-input" label="Client secret *" /><div class="fieldDescription">The secret for this client ID.</div></div>
+                <h2 data-i18n="connectionHeading"></h2>
+                <div class="inputContainer inputContainer-withDescription"><input id="PublicUrl" type="url" is="emby-input" data-i18n-label="publicUrlLabel" data-i18n-placeholder="publicUrlPlaceholder" /><div class="fieldDescription" data-i18n="publicUrlHelp"></div></div>
+                <div class="inputContainer inputContainer-withDescription"><input id="IssuerUrl" type="url" required is="emby-input" data-i18n-label="issuerUrlLabel" data-i18n-placeholder="issuerUrlPlaceholder" /><div class="fieldDescription" data-i18n="issuerUrlHelp"></div></div>
+                <div class="inputContainer inputContainer-withDescription"><input id="ClientId" type="text" required is="emby-input" data-i18n-label="clientIdLabel" /><div class="fieldDescription" data-i18n="clientIdHelp"></div></div>
+                <div class="inputContainer inputContainer-withDescription"><input id="ClientSecret" type="password" required is="emby-input" data-i18n-label="clientSecretLabel" /><div class="fieldDescription" data-i18n="clientSecretHelp"></div></div>
             </div>
             <div class="verticalSection">
-                <h2>Access</h2>
-                <div class="inputContainer inputContainer-withDescription"><input id="UserGroup" type="text" is="emby-input" label="Allowed groups" /><div class="fieldDescription">List provider groups, separated by commas. Members can sign in and get a Jellyfin User if needed.</div></div>
-                <div class="inputContainer inputContainer-withDescription"><input id="AdministratorGroup" type="text" is="emby-input" label="Administrator groups" /><div class="fieldDescription">List provider groups, separated by commas. Members can sign in as Jellyfin administrators.</div></div>
-                <div class="inputContainer inputContainer-withDescription"><input id="GroupClaim" type="text" is="emby-input" label="Group claim" /><div class="fieldDescription">Use a top-level claim that contains a string or an array of strings. Configure nested claims at the provider.</div></div>
-                <div class="inputContainer inputContainer-withDescription"><input id="AdditionalScopes" type="text" is="emby-input" label="Additional requested scopes" placeholder="groups" /><div class="fieldDescription">List scopes separated by spaces. The plugin also requests <code>openid email profile</code>. For example, Authelia needs <code>groups</code> to return group membership.</div></div>
+                <h2 data-i18n="accessHeading"></h2>
+                <div class="inputContainer inputContainer-withDescription"><input id="UserGroup" type="text" is="emby-input" data-i18n-label="userGroupLabel" /><div class="fieldDescription" data-i18n="userGroupHelp"></div></div>
+                <div class="inputContainer inputContainer-withDescription"><input id="AdministratorGroup" type="text" is="emby-input" data-i18n-label="administratorGroupLabel" /><div class="fieldDescription" data-i18n="administratorGroupHelp"></div></div>
+                <div class="inputContainer inputContainer-withDescription"><input id="GroupClaim" type="text" is="emby-input" data-i18n-label="groupClaimLabel" /><div class="fieldDescription" data-i18n="groupClaimHelp"></div></div>
+                <div class="inputContainer inputContainer-withDescription"><input id="AdditionalScopes" type="text" is="emby-input" data-i18n-label="additionalScopesLabel" data-i18n-placeholder="additionalScopesPlaceholder" /><div class="fieldDescription" data-i18n="additionalScopesHelp"></div></div>
             </div>
             <div class="verticalSection">
-                <h2>Sign-in</h2>
-                <div class="inputContainer inputContainer-withDescription"><input id="LoginButtonText" type="text" is="emby-input" label="Login button text" /><div class="fieldDescription">The text shown on the Jellyfin login page.</div></div>
-                <div class="selectContainer"><select id="PasswordLoginMode" is="emby-select" class="emby-select" label="Password login mode"><option value="AllowForAllUsers">Allow for all users</option><option value="DisableForLinkedUsersOnly">Disable for linked users only</option><option value="DisableForAllUsers">Disable for all users</option></select><div class="fieldDescription">Choose whether Jellyfin Users can also sign in with local passwords.</div></div>
-                <div class="checkboxContainer checkboxContainer-withDescription"><label><input id="SynchronizeProfileImages" type="checkbox" is="emby-checkbox" /><span>Synchronize profile images</span></label><div class="fieldDescription checkboxFieldDescription">Update a Jellyfin User's profile image when they sign in, using the provider's <code>picture</code> claim.</div></div>
-                <div class="checkboxContainer checkboxContainer-withDescription"><label><input id="RpInitiatedLogout" type="checkbox" is="emby-checkbox" /><span>RP-Initiated Logout</span></label><div class="fieldDescription checkboxFieldDescription">Also sign out at the provider. Add <code>&lt;Public Jellyfin URL&gt;/web/index.html</code> to its post-logout redirect URIs.</div></div>
+                <h2>${ButtonSignIn}</h2>
+                <div class="inputContainer inputContainer-withDescription"><input id="LoginButtonText" type="text" is="emby-input" data-i18n-label="loginButtonTextLabel" /><div class="fieldDescription" data-i18n="loginButtonTextHelp"></div></div>
+                <div class="selectContainer"><select id="PasswordLoginMode" is="emby-select" class="emby-select" data-i18n-label="passwordLoginModeLabel"><option value="AllowForAllUsers" data-i18n="allowForAllUsers"></option><option value="DisableForLinkedUsersOnly" data-i18n="disableForLinkedUsersOnly"></option><option value="DisableForAllUsers" data-i18n="disableForAllUsers"></option></select><div class="fieldDescription" data-i18n="passwordLoginModeHelp"></div></div>
+                <div class="checkboxContainer checkboxContainer-withDescription"><label><input id="SynchronizeProfileImages" type="checkbox" is="emby-checkbox" /><span data-i18n="synchronizeProfileImagesLabel"></span></label><div class="fieldDescription checkboxFieldDescription" data-i18n="synchronizeProfileImagesHelp"></div></div>
+                <div class="checkboxContainer checkboxContainer-withDescription"><label><input id="RpInitiatedLogout" type="checkbox" is="emby-checkbox" /><span data-i18n="rpInitiatedLogoutLabel"></span></label><div class="fieldDescription checkboxFieldDescription" data-i18n="rpInitiatedLogoutHelp"></div></div>
             </div>
-            <div><button id="SaveButton" is="emby-button" type="submit" class="raised button-submit block" disabled><span>Save</span></button></div>
+            <div><button id="SaveButton" is="emby-button" type="submit" class="raised button-submit block" disabled><span>${Save}</span></button></div>
         </form></div></div>
         <script>
+            const locale = document.documentElement.lang.toLowerCase();
+            const locales = [locale, locale.split('-')[0], 'en-us'].filter((value, index, values) => values.indexOf(value) === index);
+            let dictionary;
+            const loadDictionary = async () => {
+                for (const locale of locales) {
+                    const response = await fetch('/oidc/strings/' + encodeURIComponent(locale));
+                    if (response.ok) return response.json();
+                }
+
+                throw new Error('No OIDC configuration translation dictionary is available.');
+            };
+            const translate = (key, ...values) => dictionary[key].replace(/\{(\d+)\}/g, (_, index) => values[index]);
+            const localize = () => {
+                document.title = translate('pageTitle');
+                document.querySelectorAll('[data-i18n]').forEach(element => { element.textContent = translate(element.dataset.i18n); });
+                document.querySelectorAll('[data-i18n-placeholder]').forEach(element => { element.placeholder = translate(element.dataset.i18nPlaceholder); });
+                document.querySelectorAll('[data-i18n-label]').forEach(element => {
+                    const text = translate(element.dataset.i18nLabel);
+                    element.setAttribute('label', text);
+                    if (element.labelElement) element.labelElement.textContent = text;
+                });
+            };
+
             const pluginId = '4c5b9b96-80cd-4c3d-9e3d-23fa4ebf6ce4';
             const fields = ['Enabled', 'PublicUrl', 'IssuerUrl', 'ClientId', 'ClientSecret', 'UserGroup', 'AdministratorGroup', 'GroupClaim', 'AdditionalScopes', 'LoginButtonText', 'PasswordLoginMode', 'SynchronizeProfileImages', 'RpInitiatedLogout'];
             let savedConfiguration;
@@ -38,12 +61,15 @@
                 savedConfiguration = Object.fromEntries(fields.map(name => [name, config[name]]));
                 fields.forEach(name => { document.querySelector('#' + name)[name === 'Enabled' || name === 'SynchronizeProfileImages' || name === 'RpInitiatedLogout' ? 'checked' : 'value'] = config[name]; }); updateSaveButton();
             });
-            document.querySelector('#OidcConfigPage').addEventListener('pageshow', loadConfiguration);
-            loadConfiguration();
+            document.querySelector('#OidcConfigPage').addEventListener('pageshow', () => {
+                if (dictionary) localize();
+                loadConfiguration();
+            });
+            loadDictionary().then(strings => { dictionary = strings; localize(); loadConfiguration(); });
             const form = document.querySelector('#OidcConfigForm');
             const validateGroups = () => {
                 const userGroup = document.querySelector('#UserGroup');
-                userGroup.setCustomValidity(userGroup.value.trim() || document.querySelector('#AdministratorGroup').value.trim() ? '' : 'Enter a User Group, an Administrator Group, or both.');
+                userGroup.setCustomValidity(userGroup.value.trim() || document.querySelector('#AdministratorGroup').value.trim() ? '' : translate('groupValidation'));
             };
             const save = () => {
                 Dashboard.showLoadingMsg();
@@ -58,8 +84,8 @@
                 if (!form.reportValidity()) return;
                 const mode = value('PasswordLoginMode');
                 if (mode !== savedConfiguration.PasswordLoginMode && mode !== 'AllowForAllUsers') {
-                    const users = mode === 'DisableForAllUsers' ? 'all Jellyfin Users' : 'linked Jellyfin Users';
-                    Dashboard.confirm(`Local password sign-in will be disabled for ${users}. After you save, test OIDC sign-in in a separate browser session before signing out.`, 'Confirm password login change', confirmed => { if (confirmed) save(); });
+                    const users = mode === 'DisableForAllUsers' ? translate('allJellyfinUsers') : translate('linkedJellyfinUsers');
+                    Dashboard.confirm(translate('localPasswordWarning', users), translate('localPasswordWarningTitle'), confirmed => { if (confirmed) save(); });
                     return;
                 }
                 save();

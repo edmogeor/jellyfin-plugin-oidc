@@ -236,6 +236,36 @@ test("loads the seeded OIDC settings and validates changes for an administrator"
   await page.getByRole("button", { name: "Cancel" }).click();
 });
 
+test("localizes the OIDC configuration page", async ({ page }) => {
+  await signIn(page);
+  await page.getByRole("button", { name: "User Menu" }).click();
+  await page.getByRole("menuitem", { name: "Settings" }).click();
+  await page.getByRole("link", { name: "Display" }).click();
+  await page.getByRole("combobox", { name: /Display language/ }).click();
+  await page.getByRole("option", { name: "Deutsch" }).click();
+  const saved = page.waitForResponse(
+    (response) =>
+      response.request().method() === "POST" &&
+      /\/Users\/[^/]+\/Configuration$/.test(new URL(response.url()).pathname),
+  );
+  await page.getByRole("button", { name: "Save" }).click();
+  await saved;
+  await page.reload();
+  await page.waitForFunction(() => document.documentElement.lang === "de");
+
+  await page.goto(
+    "/web/index.html#/configurationpage?name=OIDC%20Authentication",
+  );
+
+  await expect(page.getByRole("heading", { name: "Verbindung" })).toBeVisible();
+  await expect(page.locator('label[for="IssuerUrl"]')).toHaveText(
+    "Issuer-URL *",
+  );
+  await expect(
+    page.getByText("Zugelassene Gruppen", { exact: true }),
+  ).toBeVisible();
+});
+
 test("only skips the Jellyfin login form when local passwords are disabled for all users", async ({
   browser,
   page,

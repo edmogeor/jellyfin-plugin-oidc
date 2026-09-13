@@ -55,6 +55,17 @@ public sealed class OidcController : ControllerBase
         return Content(reader.ReadToEnd(), "application/javascript");
     }
 
+    /// <summary>Serves a plugin configuration-page translation dictionary.</summary>
+    [AllowAnonymous]
+    [HttpGet("strings/{locale}")]
+    [Produces("application/json")]
+    public IActionResult Strings(string locale)
+    {
+        var resourceName = $"Jellyfin.Plugin.Oidc.Configuration.Strings.{locale}.json";
+        var stream = typeof(OidcController).Assembly.GetManifestResourceStream(resourceName);
+        return stream is null ? NotFound() : File(stream, "application/json");
+    }
+
     /// <summary>Starts the authorization-code flow.</summary>
     [HttpGet("start")]
     public IActionResult Start([FromQuery] string? returnUrl = null)
