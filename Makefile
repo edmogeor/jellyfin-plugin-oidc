@@ -27,7 +27,7 @@ test-unit:
 	dotnet test Jellyfin.Plugin.Oidc.Tests/Jellyfin.Plugin.Oidc.Tests.csproj
 
 test-e2e:
-	./tests/e2e/test.sh
+	cd tests/e2e && ./test.sh
 
 up:
-	./tests/e2e/up.sh
+	cd tests/e2e && ./up.sh
