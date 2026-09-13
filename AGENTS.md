@@ -23,6 +23,12 @@ Run `make check` after code or configuration changes. Run the relevant test targ
 - Use CSharpier for C# and Prettier for e2e JavaScript, JSON, YAML, and HTML. The pre-commit hook formats staged supported files.
 - GitHub Actions runs `make check` and the test suites for code, configuration, tooling, or test changes. Markdown-only pushes and pull requests skip CI.
 
+## Releases
+
+- Bump `build.yaml` and add a matching top-level `CHANGELOG.md` entry before release.
+- Use the Jellyfin version format `X.Y.Z.W`; bump the patch component for backward-compatible fixes, for example `0.1.0.0` to `0.1.1.0`.
+- Push a matching `vX.Y.Z.W` tag to trigger the release workflow. It verifies the tag, runs the test suite, packages the plugin, creates or updates the GitHub release, and publishes the manifest.
+
 ## Commits
 
 Use a conventional prefix and imperative summary:

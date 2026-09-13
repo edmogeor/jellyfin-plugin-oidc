@@ -1,3 +1,7 @@
+## [0.1.1.0]
+
+- Require an HTTPS public URL for OIDC sign-in and callback requests.
+
 ## [0.1.0.0]
 
 - OpenID Connect authorization-code sign-in with PKCE for Jellyfin Users.

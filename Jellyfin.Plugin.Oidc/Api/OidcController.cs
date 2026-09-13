@@ -7,6 +7,7 @@ using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.WebUtilities;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 
 namespace Jellyfin.Plugin.Oidc.Api;
@@ -18,12 +19,14 @@ public sealed class OidcController : ControllerBase
 {
     private readonly IOptionsMonitor<OpenIdConnectOptions> _options;
     private readonly IDataProtector _logoutTokenProtector;
+    private readonly ILogger<OidcController> _logger;
 
     /// <summary>Initializes a new instance of the <see cref="OidcController"/> class.</summary>
-    public OidcController(IOptionsMonitor<OpenIdConnectOptions> options, IDataProtectionProvider dataProtectionProvider)
+    public OidcController(IOptionsMonitor<OpenIdConnectOptions> options, IDataProtectionProvider dataProtectionProvider, ILogger<OidcController> logger)
     {
         _options = options;
         _logoutTokenProtector = dataProtectionProvider.CreateProtector(OidcConstants.LogoutTokenProtectorPurpose);
+        _logger = logger;
     }
 
     /// <summary>Returns the non-secret settings needed by Jellyfin Web's injected script.</summary>
@@ -70,9 +73,16 @@ public sealed class OidcController : ControllerBase
     [HttpGet("start")]
     public IActionResult Start([FromQuery] string? returnUrl = null)
     {
-        if (EnabledConfiguration() is null)
+        var configuration = EnabledConfiguration();
+        if (configuration is null)
         {
             return NotFound();
+        }
+
+        if (!PublicUrls.UsesHttps(Request, configuration))
+        {
+            _logger.LogWarning("OIDC sign-in start rejected because the public request URL is not HTTPS.");
+            return BadRequest("OIDC sign-in requires an HTTPS public URL.");
         }
 
         return Challenge(new AuthenticationProperties { RedirectUri = ReturnUrls.Local(returnUrl) ? returnUrl : "/" }, OidcOptions.Scheme);

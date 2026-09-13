@@ -37,7 +37,7 @@ OIDC is disabled by default. Enabled configuration requires:
 - At least one configured User Group or Administrator Group.
 - An Administrator Group when local password login is disabled for all Jellyfin Users.
 
-The Public Jellyfin URL override is optional. When unset, callback and logout URLs use the browser request origin and path base. Use an HTTPS override behind a reverse proxy or when Jellyfin has multiple public addresses.
+The Public Jellyfin URL override is optional. When unset, callback and logout URLs use the browser request origin and path base. OIDC start and callback requests require an effective HTTPS public URL. Use an HTTPS override behind a reverse proxy or when Jellyfin has multiple public addresses.
 
 The plugin always requests `openid`, `email`, and `profile`. Additional requested scopes are optional and space-separated. Configure them only when the Identity Provider requires a scope to return an otherwise supported claim, such as Authelia's `groups` scope.
 
@@ -75,6 +75,7 @@ With RP-initiated logout enabled, a browser session with a protected ID token is
 ## Security Boundaries
 
 - Only local relative return URLs are accepted. Absolute URLs, protocol-relative URLs, and backslash paths are rejected.
+- OIDC start and callback requests require an effective HTTPS public URL.
 - Verified email is the only email matching key. `preferred_username` is never an identity key.
 - Client secrets, access tokens, authorization codes, and complete ID tokens must not be logged or sent to browser configuration endpoints.
 - The browser receives only non-secret login label, password-mode, and logout settings.

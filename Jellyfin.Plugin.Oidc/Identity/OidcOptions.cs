@@ -58,6 +58,18 @@ public sealed class OidcOptions : IConfigureNamedOptions<OpenIdConnectOptions>
             context.ProtocolMessage.RedirectUri = PublicUrls.Get(context.Request, configuration) + OidcConstants.CallbackPath;
             return Task.CompletedTask;
         };
+        options.Events.OnMessageReceived = context =>
+        {
+            if (PublicUrls.UsesHttps(context.Request, configuration))
+            {
+                return Task.CompletedTask;
+            }
+
+            _logger.LogWarning("OIDC callback rejected because the public request URL is not HTTPS.");
+            context.Response.StatusCode = StatusCodes.Status400BadRequest;
+            context.HandleResponse();
+            return context.Response.WriteAsync("OIDC sign-in requires an HTTPS public URL.");
+        };
         options.Events.OnTokenValidated = context =>
         {
             if (!string.IsNullOrEmpty(context.TokenEndpointResponse?.IdToken))
@@ -152,6 +164,12 @@ public static class ReturnUrls
 /// <summary>Resolves the public origin, using an explicit proxy override when configured.</summary>
 public static class PublicUrls
 {
+    /// <summary>Returns whether the configured or request-derived public URL uses HTTPS.</summary>
+    public static bool UsesHttps(Microsoft.AspNetCore.Http.HttpRequest request, PluginConfiguration configuration)
+        => !string.IsNullOrWhiteSpace(configuration.PublicUrl)
+            ? Uri.TryCreate(configuration.PublicUrl, UriKind.Absolute, out var uri) && uri.Scheme == Uri.UriSchemeHttps
+            : request.IsHttps;
+
     /// <summary>Gets the public origin for a browser request.</summary>
     public static string Get(Microsoft.AspNetCore.Http.HttpRequest request, PluginConfiguration configuration)
         => string.IsNullOrWhiteSpace(configuration.PublicUrl)

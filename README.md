@@ -67,14 +67,14 @@ Simple OIDC sign-in for Jellyfin 12, with easy configuration and support for one
 4. Open **Dashboard > Plugins > OIDC Authentication**. Enter the issuer URL, client ID, client secret, and at least one allowed or administrator group.
 5. Turn on OIDC and save your changes.
 
-If Jellyfin is behind a reverse proxy or has more than one public address, set **Public Jellyfin URL override** to its public HTTPS address. Otherwise, the plugin uses the address in the browser.
+OIDC sign-in requires an HTTPS public URL. If Jellyfin is behind a reverse proxy or has more than one public address, set **Public Jellyfin URL override** to its public HTTPS address. Otherwise, the plugin uses the HTTPS address in the browser.
 
 ## Configuration
 
 | Setting                      | Required                   | Default             | Description                                                                                   |
 | ---------------------------- | -------------------------- | ------------------- | --------------------------------------------------------------------------------------------- |
 | Enable OIDC                  | Yes                        | Off                 | Lets users who meet your group rules sign in.                                                 |
-| Public Jellyfin URL override | No                         | Browser address     | The public HTTPS address to use for callbacks and sign-out.                                   |
+| Public Jellyfin URL override | No                         | Browser HTTPS address | The public HTTPS address to use for callbacks and sign-out.                                 |
 | Issuer URL                   | Yes                        | -                   | The HTTPS address of your OIDC service.                                                       |
 | Client ID                    | Yes                        | -                   | The client ID from your OIDC service.                                                         |
 | Client secret                | Yes                        | -                   | The client secret from your OIDC service.                                                     |

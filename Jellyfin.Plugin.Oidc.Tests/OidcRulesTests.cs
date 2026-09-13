@@ -219,6 +219,18 @@ public sealed class OidcRulesTests
         Assert.Equal("https://jellyfin.example.test:8096/jellyfin", PublicUrls.Get(context.Request, new PluginConfiguration()));
     }
 
+    [Theory]
+    [InlineData("https", "", true)]
+    [InlineData("http", "", false)]
+    [InlineData("http", "https://jellyfin.example.test", true)]
+    public void Public_url_must_effectively_use_https(string scheme, string publicUrl, bool expected)
+    {
+        var context = new DefaultHttpContext();
+        context.Request.Scheme = scheme;
+
+        Assert.Equal(expected, PublicUrls.UsesHttps(context.Request, new PluginConfiguration { PublicUrl = publicUrl }));
+    }
+
     [Fact]
     public void Public_url_override_has_no_trailing_slash()
     {
