@@ -12,12 +12,9 @@
         if (!stack) return;
         const button = document.createElement('button');
         button.type = 'button'; button.setAttribute('is', 'emby-button'); button.className = 'raised cancel block';
-        button.style.cssText = 'align-items:center;display:flex;gap:.5em;justify-content:center';
         button.dataset.oidcLogin = 'true'; button.setAttribute('aria-label', window.oidcButtonText || 'Login with SSO');
-        const icon = document.createElement('span');
-        icon.className = 'material-icons'; icon.textContent = 'vpn_key'; icon.setAttribute('aria-hidden', 'true');
         const label = document.createElement('span'); label.textContent = window.oidcButtonText || 'Login with SSO';
-        button.append(icon, label);
+        button.append(label);
         button.onclick = () => {
             button.disabled = true;
             button.setAttribute('aria-label', 'Redirecting...');
