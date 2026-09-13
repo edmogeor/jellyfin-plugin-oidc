@@ -70,7 +70,7 @@ jobs:
           output: dist
           version: ${{ steps.version.outputs.value }}
       - run: md5sum dist/*.zip > dist/plugin.md5
-      - run: gh release view "$GITHUB_REF_NAME" || gh release create "$GITHUB_REF_NAME" dist/*.zip dist/plugin.md5 --notes-file release-notes.md --title "Version ${{ steps.version.outputs.value }}"
+      - run: gh release view "$GITHUB_REF_NAME" || gh release create "$GITHUB_REF_NAME" dist/*.zip dist/plugin.md5 --notes-file release-notes.md
         env:
           GH_TOKEN: ${{ github.token }}
       - uses: Kevinjil/jellyfin-plugin-repo-action@296850372cd569cbcc040e834222a5afed861485
