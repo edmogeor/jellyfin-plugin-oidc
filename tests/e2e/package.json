@@ -12,7 +12,7 @@
     "*.{html,json,md,mjs,yaml,yml}": "prettier --write"
   },
   "devDependencies": {
-    "@playwright/test": "1.55.0",
+    "@playwright/test": "1.63.0",
     "lint-staged": "^17.5.0",
     "oxlint": "^1.81.0",
     "prettier": "^3.9.6"
