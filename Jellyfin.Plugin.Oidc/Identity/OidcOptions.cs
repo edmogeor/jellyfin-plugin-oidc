@@ -165,22 +165,22 @@ public static class ReturnUrls
 public static class PublicUrls
 {
     /// <summary>Returns whether the configured or request-derived public URL uses HTTPS.</summary>
-    public static bool UsesHttps(Microsoft.AspNetCore.Http.HttpRequest request, PluginConfiguration configuration)
+    public static bool UsesHttps(HttpRequest request, PluginConfiguration configuration)
         => !string.IsNullOrWhiteSpace(configuration.PublicUrl)
             ? Uri.TryCreate(configuration.PublicUrl, UriKind.Absolute, out var uri) && uri.Scheme == Uri.UriSchemeHttps
             : request.IsHttps;
 
     /// <summary>Gets the public origin for a browser request.</summary>
-    public static string Get(Microsoft.AspNetCore.Http.HttpRequest request, PluginConfiguration configuration)
+    public static string Get(HttpRequest request, PluginConfiguration configuration)
         => string.IsNullOrWhiteSpace(configuration.PublicUrl)
             ? $"{request.Scheme}://{request.Host}{request.PathBase}".TrimEnd('/')
             : configuration.PublicUrl.TrimEnd('/');
 
     /// <summary>Gets the registered post-logout return URL.</summary>
-    public static string LogoutReturnUrl(Microsoft.AspNetCore.Http.HttpRequest request, PluginConfiguration configuration)
+    public static string LogoutReturnUrl(HttpRequest request, PluginConfiguration configuration)
         => Get(request, configuration) + OidcConstants.WebIndexPath;
 
     /// <summary>Gets the OIDC cookie path for the public Jellyfin URL.</summary>
-    public static string OidcPath(Microsoft.AspNetCore.Http.HttpRequest request, PluginConfiguration configuration)
+    public static string OidcPath(HttpRequest request, PluginConfiguration configuration)
         => new Uri(Get(request, configuration)).AbsolutePath.TrimEnd('/') + "/oidc";
 }

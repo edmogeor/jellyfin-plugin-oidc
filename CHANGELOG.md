@@ -1,3 +1,5 @@
+## [0.1.4.0]
+
 ## [0.1.3.0]
 
 - Clarify the local-password warning and localize its lockout risk.

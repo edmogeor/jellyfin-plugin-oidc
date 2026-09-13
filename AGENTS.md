@@ -6,7 +6,7 @@ Read `CONTEXT.md` before changing authentication, identity, or configuration beh
 
 - `make setup` installs local tooling.
 - `make format` applies CSharpier and Prettier.
-- `make lint` runs Roslyn analyzers and oxlint.
+- `make lint` runs Roslyn analyzers, InspectCode, and oxlint.
 - `make check` verifies formatting and linting.
 - `make test-unit` runs unit tests.
 - `make test-e2e` resets Docker state and runs e2e tests.

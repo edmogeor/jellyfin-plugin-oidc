@@ -2,7 +2,6 @@ using Jellyfin.Plugin.Oidc.Identity;
 using MediaBrowser.Controller;
 using MediaBrowser.Controller.Authentication;
 using MediaBrowser.Controller.Plugins;
-using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
@@ -10,6 +9,8 @@ using Microsoft.Extensions.Options;
 namespace Jellyfin.Plugin.Oidc;
 
 /// <summary>Registers OIDC services at Jellyfin startup.</summary>
+// Jellyfin discovers service registrators by reflection.
+// ReSharper disable once UnusedType.Global
 public sealed class ServiceRegistrator : IPluginServiceRegistrator
 {
     /// <inheritdoc />

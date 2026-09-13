@@ -1,7 +1,5 @@
 using System.Security.Claims;
 using System.Security.Cryptography;
-using Jellyfin.Database.Implementations.Entities;
-using Jellyfin.Database.Implementations.Enums;
 using Jellyfin.Plugin.Oidc.Configuration;
 using MediaBrowser.Controller.Library;
 using MediaBrowser.Model.Cryptography;

@@ -30,7 +30,8 @@ jobs:
           cache-dependency-path: tests/e2e/package-lock.json
       - run: npm ci
         working-directory: tests/e2e
-      - run: make check
+      - name: Run formatters and linters
+        run: make check
 
   unit:
     runs-on: ubuntu-latest

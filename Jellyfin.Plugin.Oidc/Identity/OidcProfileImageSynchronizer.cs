@@ -44,13 +44,14 @@ public sealed class OidcProfileImageSynchronizer
         {
             var allowIssuerAddress = Uri.TryCreate(issuerUrl, UriKind.Absolute, out var issuer)
                 && string.Equals(uri.Host, issuer.Host, StringComparison.OrdinalIgnoreCase);
-            using var handler = new SocketsHttpHandler
-            {
-                AllowAutoRedirect = false,
-                ConnectCallback = (context, cancellationToken) => ConnectAsync(context, allowIssuerAddress, cancellationToken),
-                UseProxy = false,
-            };
-            using var client = new HttpClient(handler) { Timeout = TimeSpan.FromSeconds(10) };
+            using var handler = new SocketsHttpHandler();
+            handler.AllowAutoRedirect = false;
+            handler.ConnectCallback = (context, cancellationToken) => ConnectAsync(context, allowIssuerAddress, cancellationToken);
+            handler.UseProxy = false;
+            // A per-request handler enforces the picture-host boundary.
+            // ReSharper disable once ShortLivedHttpClient
+            using var client = new HttpClient(handler);
+            client.Timeout = TimeSpan.FromSeconds(10);
             using var request = new HttpRequestMessage(HttpMethod.Get, uri);
             if (user.ProfileImage is not null && string.Equals(link.ProfileImageUrl, pictureUrl, StringComparison.Ordinal))
             {
@@ -177,9 +178,7 @@ public sealed class OidcProfileImageSynchronizer
                 && !(bytes[0] == 192 && bytes[1] == 168)
                 && !(bytes[0] == 100 && bytes[1] is >= 64 and <= 127)
                 && bytes[0] < 224,
-            AddressFamily.InterNetworkV6 => !address.IsIPv6LinkLocal
-                && !address.IsIPv6SiteLocal
-                && !address.IsIPv6Multicast
+            AddressFamily.InterNetworkV6 => address is not ({ IsIPv6LinkLocal: true } or { IsIPv6SiteLocal: true } or { IsIPv6Multicast: true })
                 && (bytes[0] & 0xfe) != 0xfc,
             _ => false,
         };

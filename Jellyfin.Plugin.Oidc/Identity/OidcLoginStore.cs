@@ -6,7 +6,7 @@ namespace Jellyfin.Plugin.Oidc.Identity;
 public sealed class OidcLoginStore
 {
     private const int MaximumLogins = 1024;
-    private readonly object _gate = new();
+    private readonly Lock _gate = new();
     private readonly Dictionary<string, Login> _logins = [];
 
     /// <summary>Creates an expiring login ticket for a Jellyfin User.</summary>

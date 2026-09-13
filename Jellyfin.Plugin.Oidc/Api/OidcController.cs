@@ -140,5 +140,8 @@ public sealed class OidcController : ControllerBase
     }
 
     /// <summary>Non-secret settings used by the browser integration.</summary>
+    // JSON serialization reads these endpoint fields.
+    // ReSharper disable NotAccessedPositionalProperty.Global
     public sealed record WebConfiguration(string LoginButtonText, string PasswordLoginMode, bool RpInitiatedLogout);
+    // ReSharper restore NotAccessedPositionalProperty.Global
 }

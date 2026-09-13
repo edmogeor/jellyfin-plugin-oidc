@@ -1,5 +1,3 @@
-using System.Collections.Generic;
-using System.Linq;
 using System.Security.Claims;
 using System.Text.Json;
 using Jellyfin.Plugin.Oidc.Configuration;
@@ -96,7 +94,7 @@ public sealed class OidcRulesTests
         ]));
 
         Assert.True(IdentityClaims.TryCreate(principal, configuration, out var identity));
-        Assert.True(identity!.IsAdministrator);
+        Assert.True(identity.IsAdministrator);
     }
 
     [Fact]
@@ -211,10 +209,15 @@ public sealed class OidcRulesTests
     [Fact]
     public void Public_url_uses_the_request_origin_without_an_override()
     {
-        var context = new DefaultHttpContext();
-        context.Request.Scheme = "https";
-        context.Request.Host = new HostString("jellyfin.example.test", 8096);
-        context.Request.PathBase = "/jellyfin";
+        var context = new DefaultHttpContext
+        {
+            Request =
+            {
+                Scheme = "https",
+                Host = new HostString("jellyfin.example.test", 8096),
+                PathBase = "/jellyfin",
+            },
+        };
 
         Assert.Equal("https://jellyfin.example.test:8096/jellyfin", PublicUrls.Get(context.Request, new PluginConfiguration()));
     }
@@ -225,8 +228,7 @@ public sealed class OidcRulesTests
     [InlineData("http", "https://jellyfin.example.test", true)]
     public void Public_url_must_effectively_use_https(string scheme, string publicUrl, bool expected)
     {
-        var context = new DefaultHttpContext();
-        context.Request.Scheme = scheme;
+        var context = new DefaultHttpContext { Request = { Scheme = scheme } };
 
         Assert.Equal(expected, PublicUrls.UsesHttps(context.Request, new PluginConfiguration { PublicUrl = publicUrl }));
     }

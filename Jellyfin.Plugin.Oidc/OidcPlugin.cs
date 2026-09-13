@@ -11,6 +11,8 @@ using Microsoft.Extensions.Logging;
 namespace Jellyfin.Plugin.Oidc;
 
 /// <summary>The OIDC authentication plugin.</summary>
+// Jellyfin instantiates plugins by reflection.
+// ReSharper disable once ClassNeverInstantiated.Global
 public sealed class OidcPlugin : BasePlugin<PluginConfiguration>, IHasWebPages
 {
     private readonly ILogger<OidcPlugin> _logger;
@@ -58,7 +60,7 @@ public sealed class OidcPlugin : BasePlugin<PluginConfiguration>, IHasWebPages
     /// <inheritdoc />
     public IEnumerable<PluginPageInfo> GetPages() =>
     [
-        new PluginPageInfo
+        new()
         {
             Name = Name,
             DisplayName = Name,

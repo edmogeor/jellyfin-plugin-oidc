@@ -47,7 +47,7 @@ public sealed class WebInjectionStartupFilter : IStartupFilter
                 }
 
                 bufferedBody.Position = 0;
-                using var reader = new StreamReader(bufferedBody, Encoding.UTF8, true, leaveOpen: true);
+                using var reader = new StreamReader(bufferedBody, Encoding.UTF8, leaveOpen: true);
                 var html = await reader.ReadToEndAsync(context.RequestAborted).ConfigureAwait(false);
                 if (context.Request.Query.TryGetValue("oidcTicket", out var ticket)
                     && context.RequestServices.GetRequiredService<OidcLoginStore>().TryTake(ticket.ToString(), out var userId, out _))

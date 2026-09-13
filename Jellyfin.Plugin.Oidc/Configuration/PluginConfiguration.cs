@@ -16,6 +16,8 @@ public enum PasswordLoginMode
 }
 
 /// <summary>A durable binding between an Identity Provider subject and a Jellyfin User.</summary>
+// Persisted identity links are populated by Jellyfin's serializer.
+// ReSharper disable PropertyCanBeMadeInitOnly.Global
 public sealed class IdentityLink
 {
     /// <summary>Gets or sets the OIDC issuer that owns the subject.</summary>
@@ -36,8 +38,13 @@ public sealed class IdentityLink
     /// <summary>Gets or sets the last-modified time returned for the synchronized profile image.</summary>
     public DateTimeOffset? ProfileImageLastModified { get; set; }
 }
+// ReSharper restore PropertyCanBeMadeInitOnly.Global
 
 /// <summary>Plugin configuration.</summary>
+// Persisted configuration is populated by Jellyfin's serializer.
+// ReSharper disable PropertyCanBeMadeInitOnly.Global
+// ReSharper disable AutoPropertyCanBeMadeGetOnly.Global
+// ReSharper disable UnusedAutoPropertyAccessor.Global
 public sealed class PluginConfiguration : BasePluginConfiguration
 {
     /// <summary>Gets or sets a value indicating whether OIDC routes and UI are active.</summary>
