@@ -30,8 +30,8 @@ public sealed class OidcController : ControllerBase
     [HttpGet("config")]
     public ActionResult<WebConfiguration> Config()
     {
-        var configuration = OidcPlugin.Instance?.Configuration;
-        if (configuration is null || !configuration.Enabled || OidcConfigurationValidator.Validate(configuration) is not null)
+        var configuration = EnabledConfiguration();
+        if (configuration is null)
         {
             return NotFound();
         }
@@ -59,8 +59,7 @@ public sealed class OidcController : ControllerBase
     [HttpGet("start")]
     public IActionResult Start([FromQuery] string? returnUrl = null)
     {
-        var configuration = OidcPlugin.Instance?.Configuration;
-        if (configuration is null || !configuration.Enabled || OidcConfigurationValidator.Validate(configuration) is not null)
+        if (EnabledConfiguration() is null)
         {
             return NotFound();
         }
@@ -103,6 +102,14 @@ public sealed class OidcController : ControllerBase
         {
             return Redirect(loginPage);
         }
+    }
+
+    private static PluginConfiguration? EnabledConfiguration()
+    {
+        var configuration = OidcPlugin.Instance?.Configuration;
+        return configuration is not null && configuration.Enabled && OidcConfigurationValidator.Validate(configuration) is null
+            ? configuration
+            : null;
     }
 
     /// <summary>Non-secret settings used by the browser integration.</summary>

@@ -38,17 +38,26 @@ async function signInDenied(page) {
   await expect(page).toHaveURL(/oidcError=1/, { timeout: 30_000 });
 }
 
+async function setConfigurationValue(page, property, value) {
+  return page.evaluate(
+    async ([property, value]) => {
+      const config = await ApiClient.getPluginConfiguration(
+        "4c5b9b96-80cd-4c3d-9e3d-23fa4ebf6ce4",
+      );
+      const originalValue = config[property];
+      config[property] = value;
+      await ApiClient.updatePluginConfiguration(
+        "4c5b9b96-80cd-4c3d-9e3d-23fa4ebf6ce4",
+        config,
+      );
+      return originalValue;
+    },
+    [property, value],
+  );
+}
+
 async function setPasswordLoginMode(page, mode) {
-  await page.evaluate(async (passwordLoginMode) => {
-    const config = await ApiClient.getPluginConfiguration(
-      "4c5b9b96-80cd-4c3d-9e3d-23fa4ebf6ce4",
-    );
-    config.PasswordLoginMode = passwordLoginMode;
-    await ApiClient.updatePluginConfiguration(
-      "4c5b9b96-80cd-4c3d-9e3d-23fa4ebf6ce4",
-      config,
-    );
-  }, mode);
+  await setConfigurationValue(page, "PasswordLoginMode", mode);
 }
 
 async function showLogin(page) {
@@ -84,6 +93,13 @@ async function providerUser(request, headers) {
   const [user] = await response.json();
   expect(user).toBeTruthy();
   return user;
+}
+
+async function updateProviderUser(request, headers, user) {
+  return request.put(
+    `https://oidc.localhost:8443/keycloak/admin/realms/jellyfin/users/${user.id}`,
+    { headers, data: user },
+  );
 }
 
 async function providerGroup(request, headers, name) {
@@ -138,18 +154,11 @@ test("synchronizes a profile image from the OIDC picture claim", async ({
   await signIn(page);
   expect((await currentUser(page)).PrimaryImageTag).toBeFalsy();
 
-  const original = await page.evaluate(async () => {
-    const config = await ApiClient.getPluginConfiguration(
-      "4c5b9b96-80cd-4c3d-9e3d-23fa4ebf6ce4",
-    );
-    const originalValue = config.SynchronizeProfileImages;
-    config.SynchronizeProfileImages = true;
-    await ApiClient.updatePluginConfiguration(
-      "4c5b9b96-80cd-4c3d-9e3d-23fa4ebf6ce4",
-      config,
-    );
-    return originalValue;
-  });
+  const original = await setConfigurationValue(
+    page,
+    "SynchronizeProfileImages",
+    true,
+  );
 
   try {
     const profileImageContext = await browser.newContext({
@@ -160,16 +169,7 @@ test("synchronizes a profile image from the OIDC picture claim", async ({
     expect((await currentUser(profileImagePage)).PrimaryImageTag).toBeTruthy();
     await profileImageContext.close();
   } finally {
-    await page.evaluate(async (originalValue) => {
-      const config = await ApiClient.getPluginConfiguration(
-        "4c5b9b96-80cd-4c3d-9e3d-23fa4ebf6ce4",
-      );
-      config.SynchronizeProfileImages = originalValue;
-      await ApiClient.updatePluginConfiguration(
-        "4c5b9b96-80cd-4c3d-9e3d-23fa4ebf6ce4",
-        config,
-      );
-    }, original);
+    await setConfigurationValue(page, "SynchronizeProfileImages", original);
   }
 });
 
@@ -324,10 +324,7 @@ test("keeps an Identity Link when the Identity Provider email changes", async ({
 
   try {
     user.email = changedEmail;
-    const update = await request.put(
-      `https://oidc.localhost:8443/keycloak/admin/realms/jellyfin/users/${user.id}`,
-      { headers, data: user },
-    );
+    const update = await updateProviderUser(request, headers, user);
     expect(update.ok()).toBe(true);
 
     const updatedContext = await browser.newContext({
@@ -341,10 +338,7 @@ test("keeps an Identity Link when the Identity Provider email changes", async ({
     await updatedContext.close();
   } finally {
     user.email = originalEmail;
-    const restore = await request.put(
-      `https://oidc.localhost:8443/keycloak/admin/realms/jellyfin/users/${user.id}`,
-      { headers, data: user },
-    );
+    const restore = await updateProviderUser(request, headers, user);
     expect(restore.ok()).toBe(true);
   }
 });
@@ -458,27 +452,13 @@ test("denies a verified email that belongs to another Jellyfin User", async ({
 
   try {
     user.email = email;
-    expect(
-      (
-        await request.put(
-          `https://oidc.localhost:8443/keycloak/admin/realms/jellyfin/users/${user.id}`,
-          { headers, data: user },
-        )
-      ).ok(),
-    ).toBe(true);
+    expect((await updateProviderUser(request, headers, user)).ok()).toBe(true);
     const deniedContext = await browser.newContext({ ignoreHTTPSErrors: true });
     await signInDenied(await deniedContext.newPage());
     await deniedContext.close();
   } finally {
     user.email = originalEmail;
-    expect(
-      (
-        await request.put(
-          `https://oidc.localhost:8443/keycloak/admin/realms/jellyfin/users/${user.id}`,
-          { headers, data: user },
-        )
-      ).ok(),
-    ).toBe(true);
+    expect((await updateProviderUser(request, headers, user)).ok()).toBe(true);
     expect(
       (
         await request.delete(`https://localhost:8443/Users/${localUser.Id}`, {
@@ -528,18 +508,11 @@ test("requests Identity Provider logout when RP-initiated logout is enabled", as
 }) => {
   const adminPage = await browser.newPage();
   await signIn(adminPage);
-  const original = await adminPage.evaluate(async () => {
-    const config = await ApiClient.getPluginConfiguration(
-      "4c5b9b96-80cd-4c3d-9e3d-23fa4ebf6ce4",
-    );
-    const originalValue = config.RpInitiatedLogout;
-    config.RpInitiatedLogout = true;
-    await ApiClient.updatePluginConfiguration(
-      "4c5b9b96-80cd-4c3d-9e3d-23fa4ebf6ce4",
-      config,
-    );
-    return originalValue;
-  });
+  const original = await setConfigurationValue(
+    adminPage,
+    "RpInitiatedLogout",
+    true,
+  );
 
   try {
     const logoutContext = await browser.newContext({ ignoreHTTPSErrors: true });
@@ -562,16 +535,7 @@ test("requests Identity Provider logout when RP-initiated logout is enabled", as
     );
     await logoutContext.close();
   } finally {
-    await adminPage.evaluate(async (originalValue) => {
-      const config = await ApiClient.getPluginConfiguration(
-        "4c5b9b96-80cd-4c3d-9e3d-23fa4ebf6ce4",
-      );
-      config.RpInitiatedLogout = originalValue;
-      await ApiClient.updatePluginConfiguration(
-        "4c5b9b96-80cd-4c3d-9e3d-23fa4ebf6ce4",
-        config,
-      );
-    }, original);
+    await setConfigurationValue(adminPage, "RpInitiatedLogout", original);
     await adminPage.close();
   }
 });
