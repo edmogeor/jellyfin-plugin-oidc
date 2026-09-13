@@ -1,5 +1,5 @@
 <div align="center">
-  <img src="assets/oidc-authentication.png" width="160" alt="OIDC Authentication" />
+  <img src="assets/thumb.png" width="160" alt="OIDC Authentication" />
   <h1>OIDC Authentication for Jellyfin</h1>
   <p>
     <a href="https://github.com/edmogeor/jellyfin-plugin-oidc/actions/workflows/ci.yml">
