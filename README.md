@@ -1,4 +1,5 @@
 <div align="center">
+  <img src="assets/oidc-authentication.png" width="160" alt="OIDC Authentication" />
   <h1>OIDC Authentication for Jellyfin</h1>
   <p>
     <a href="https://github.com/edmogeor/jellyfin-plugin-oidc/actions/workflows/ci.yml">
@@ -58,20 +59,20 @@ https://raw.githubusercontent.com/edmogeor/jellyfin-plugin-oidc/manifest-release
 
 ## Configuration
 
-| Setting | Required | Default | Description |
-| --- | --- | --- | --- |
-| Enable OIDC | Yes | Off | Lets people who meet your group rules sign in. |
-| Public Jellyfin URL override | No | Browser address | The public HTTPS address to use for callbacks and sign-out. |
-| Issuer URL | Yes | - | The HTTPS address of your OIDC service. |
-| Client ID | Yes | - | The client ID from your OIDC service. |
-| Client secret | Yes | - | The client secret from your OIDC service. |
-| Allowed groups | At least one group setting | - | Comma-separated groups that can sign in. New Jellyfin users can be created for their members. |
-| Administrator groups | At least one group setting | - | Comma-separated groups that can sign in as Jellyfin administrators. |
-| Group claim | No | `groups` | The top-level claim that lists a person's groups. |
-| Additional requested scopes | No | - | Space-separated scopes requested in addition to `openid email profile`. |
-| Login button text | No | `Login with SSO` | The text on the Jellyfin sign-in button. |
-| Password login mode | No | Allow for all users | Choose who can use local passwords. |
-| RP-Initiated Logout | No | Off | Also sign out from your OIDC service when it supports this. |
+| Setting                      | Required                   | Default             | Description                                                                                   |
+| ---------------------------- | -------------------------- | ------------------- | --------------------------------------------------------------------------------------------- |
+| Enable OIDC                  | Yes                        | Off                 | Lets people who meet your group rules sign in.                                                |
+| Public Jellyfin URL override | No                         | Browser address     | The public HTTPS address to use for callbacks and sign-out.                                   |
+| Issuer URL                   | Yes                        | -                   | The HTTPS address of your OIDC service.                                                       |
+| Client ID                    | Yes                        | -                   | The client ID from your OIDC service.                                                         |
+| Client secret                | Yes                        | -                   | The client secret from your OIDC service.                                                     |
+| Allowed groups               | At least one group setting | -                   | Comma-separated groups that can sign in. New Jellyfin users can be created for their members. |
+| Administrator groups         | At least one group setting | -                   | Comma-separated groups that can sign in as Jellyfin administrators.                           |
+| Group claim                  | No                         | `groups`            | The top-level claim that lists a person's groups.                                             |
+| Additional requested scopes  | No                         | -                   | Space-separated scopes requested in addition to `openid email profile`.                       |
+| Login button text            | No                         | `Login with SSO`    | The text on the Jellyfin sign-in button.                                                      |
+| Password login mode          | No                         | Allow for all users | Choose who can use local passwords.                                                           |
+| RP-Initiated Logout          | No                         | Off                 | Also sign out from your OIDC service when it supports this.                                   |
 
 The plugin supports one OIDC service and simple, top-level profile and group data. If your groups are nested, map them to a top-level claim in your OIDC service. You cannot set endpoint URLs by hand.
 
@@ -79,13 +80,13 @@ The plugin supports one OIDC service and simple, top-level profile and group dat
 
 The plugin needs a confidential authorization-code client with the callback URL from the quick start. It requires top-level `sub`, `email`, and `email_verified` claims and a top-level group claim containing strings or a JSON string array.
 
-| Identity Provider | Setup |
-| --- | --- |
-| Keycloak | Add a Group Membership protocol mapper that emits a flat `groups` claim to the ID token or UserInfo endpoint. Disable full group paths unless those paths are the configured group values. |
-| Authentik | Ensure the configured provider returns `groups`, and map a verified source attribute to `email_verified`. |
-| Authelia | Set **Additional requested scopes** to `groups`. Configure the client to return the standard email claims and use `groups` as the group claim. |
-| ZITADEL | Use an Action to project eligible project roles into a top-level flat string-array claim such as `groups`, then configure that claim here. The nested ZITADEL roles claim is unsupported. |
-| Pocket ID | Configure a flat group claim and verified email claims, then test sign-in before disabling local passwords. |
+| Identity Provider | Setup                                                                                                                                                                                      |
+| ----------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Keycloak          | Add a Group Membership protocol mapper that emits a flat `groups` claim to the ID token or UserInfo endpoint. Disable full group paths unless those paths are the configured group values. |
+| Authentik         | Ensure the configured provider returns `groups`, and map a verified source attribute to `email_verified`.                                                                                  |
+| Authelia          | Set **Additional requested scopes** to `groups`. Configure the client to return the standard email claims and use `groups` as the group claim.                                             |
+| ZITADEL           | Use an Action to project eligible project roles into a top-level flat string-array claim such as `groups`, then configure that claim here. The nested ZITADEL roles claim is unsupported.  |
+| Pocket ID         | Configure a flat group claim and verified email claims, then test sign-in before disabling local passwords.                                                                                |
 
 Do not add a scope solely because its name matches the group claim. Some providers expose groups without a scope, and some reject undeclared scopes.
 
@@ -103,11 +104,11 @@ If a person's verified email address changes, the plugin updates the linked Jell
 
 ## Password Login
 
-| Mode | Behavior |
-| --- | --- |
-| Allow for all users | Local passwords remain available. |
+| Mode                          | Behavior                                                                         |
+| ----------------------------- | -------------------------------------------------------------------------------- |
+| Allow for all users           | Local passwords remain available.                                                |
 | Disable for linked users only | Local passwords are unavailable for Jellyfin users who have signed in with OIDC. |
-| Disable for all users | Local passwords are unavailable for every Jellyfin User. |
+| Disable for all users         | Local passwords are unavailable for every Jellyfin User.                         |
 
 > [!WARNING]
 > When you change this setting, the plugin updates every Jellyfin user. Before you turn off local passwords for everyone, set an administrator group. Test OIDC sign-in in another browser session before you sign out.
@@ -130,14 +131,14 @@ make check
 make test
 ```
 
-| Command | Description |
-| --- | --- |
-| `make format` | Apply CSharpier and Prettier. |
-| `make lint` | Run Roslyn analyzers and oxlint. |
-| `make check` | Verify formatting and linting. |
-| `make test-unit` | Run the .NET unit suite. |
-| `make test-e2e` | Reset the Docker stack and run headless Playwright tests. |
-| `make up` | Start the e2e stack for manual testing. |
+| Command          | Description                                               |
+| ---------------- | --------------------------------------------------------- |
+| `make format`    | Apply CSharpier and Prettier.                             |
+| `make lint`      | Run Roslyn analyzers and oxlint.                          |
+| `make check`     | Verify formatting and linting.                            |
+| `make test-unit` | Run the .NET unit suite.                                  |
+| `make test-e2e`  | Reset the Docker stack and run headless Playwright tests. |
+| `make up`        | Start the e2e stack for manual testing.                   |
 
 The e2e stack runs Jellyfin 12, Keycloak, and Caddy at `https://localhost:8443`.
 
