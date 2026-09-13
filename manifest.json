@@ -9,6 +9,14 @@
     "owner": "jellyfin",
     "versions": [
       {
+        "changelog": "\n- Require an HTTPS public URL for OIDC sign-in and callback requests.\n\n",
+        "checksum": "7f07ce64195aca66be702c695cc7f073",
+        "sourceUrl": "https://github.com/edmogeor/jellyfin-plugin-oidc/releases/download/v0.1.1.0/oidc-authentication_0.1.1.0.zip",
+        "targetAbi": "12.0.0.0",
+        "timestamp": "2026-09-13T18:58:13Z",
+        "version": "0.1.1.0"
+      },
+      {
         "changelog": "\n- OpenID Connect authorization-code sign-in with PKCE for Jellyfin Users.\n- Identity Provider group-based sign-in, provisioning, administrator synchronization, and local-password policies.\n- Optional profile-image synchronization and RP-initiated logout.\n- Verified-email identity matching, durable Identity Links, and local-relative return URLs.\n- Secret-free browser configuration and logs.\n",
         "checksum": "18b125fe418fa883874b9c4e681ed466",
         "sourceUrl": "https://github.com/edmogeor/jellyfin-plugin-oidc/releases/download/v0.1.0.0/oidc-authentication_0.1.0.0.zip",
