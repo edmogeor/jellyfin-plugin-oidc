@@ -1,0 +1,14 @@
+name: General
+description: Discuss the Jellyfin OIDC plugin
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Discuss the plugin, share tips, or ask for advice. Do not include secrets, tokens, authorization codes, or complete ID tokens.
+  - type: textarea
+    id: body
+    attributes:
+      label: Discussion
+      description: What would you like to discuss?
+    validations:
+      required: true

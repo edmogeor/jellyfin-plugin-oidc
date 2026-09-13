@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Question or Discussion
+    url: https://github.com/edmogeor/jellyfin-plugin-oidc/discussions
+    about: Ask questions and discuss using the plugin here.
+  - name: Jellyfin Documentation
+    url: https://jellyfin.org/docs/
+    about: General Jellyfin questions are best answered in the official docs.

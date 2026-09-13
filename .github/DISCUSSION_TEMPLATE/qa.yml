@@ -1,0 +1,25 @@
+name: Q&A
+description: Ask about setting up or using the plugin
+body:
+  - type: input
+    id: jellyfin-version
+    attributes:
+      label: Jellyfin version
+      placeholder: 12.0.0
+  - type: input
+    id: plugin-version
+    attributes:
+      label: Plugin version
+      placeholder: 0.1.0.0
+  - type: input
+    id: provider
+    attributes:
+      label: Identity Provider
+      placeholder: Keycloak, Authentik, Authelia, or another OpenID Connect provider
+  - type: textarea
+    id: question
+    attributes:
+      label: Question
+      description: What do you need help with? Do not include secrets, tokens, authorization codes, or complete ID tokens.
+    validations:
+      required: true

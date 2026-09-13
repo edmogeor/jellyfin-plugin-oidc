@@ -1,0 +1,82 @@
+name: Bug Report
+description: Report a problem with the plugin
+title: "[Bug]: "
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for filing a report. Do not include client secrets, tokens, authorization codes, or complete ID tokens.
+  - type: checkboxes
+    id: preflight
+    attributes:
+      label: Preflight checklist
+      options:
+        - label: I have searched existing issues and this has not already been reported.
+          required: true
+        - label: I am using a supported Jellyfin and plugin version.
+          required: true
+  - type: textarea
+    id: description
+    attributes:
+      label: Describe the bug
+      description: Explain what happened.
+    validations:
+      required: true
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1. Configure the Identity Provider with '...'
+        2. Sign in as '...'
+        3. See error
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+      description: Explain what you expected to happen.
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: Relevant logs or screenshots
+      description: Redact secrets, tokens, authorization codes, and complete ID tokens.
+      render: shell
+  - type: textarea
+    id: configuration
+    attributes:
+      label: Plugin configuration
+      description: Include relevant non-secret settings. Redact the client secret and any tokens.
+      render: text
+    validations:
+      required: true
+  - type: input
+    id: plugin-version
+    attributes:
+      label: Plugin version
+      placeholder: 0.1.0.0
+    validations:
+      required: true
+  - type: input
+    id: jellyfin-version
+    attributes:
+      label: Jellyfin version
+      placeholder: 12.0.0
+    validations:
+      required: true
+  - type: input
+    id: provider
+    attributes:
+      label: Identity Provider
+      placeholder: Keycloak, Authentik, Authelia, or another OpenID Connect provider
+    validations:
+      required: true
+  - type: textarea
+    id: context
+    attributes:
+      label: Additional context
+      description: Include deployment details such as a reverse proxy when relevant.
