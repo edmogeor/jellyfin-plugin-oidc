@@ -1,24 +1,25 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="1920" height="1080" viewBox="0 0 1920 1080" role="img" aria-label="OIDC Authentication">
   <defs>
-    <linearGradient id="jellyfin" x1="120" y1="100" x2="1800" y2="980" gradientUnits="userSpaceOnUse">
+    <radialGradient id="background" cx="50%" cy="50%" r="70%">
+      <stop stop-color="#1b1b1b" />
+      <stop offset="1" stop-color="#101010" />
+    </radialGradient>
+    <linearGradient id="jellyfin" x1="3" y1="3" x2="22" y2="21" gradientUnits="userSpaceOnUse">
       <stop stop-color="#aa5cc3" />
       <stop offset="0.5" stop-color="#7866d5" />
       <stop offset="1" stop-color="#00a4dc" />
     </linearGradient>
-    <radialGradient id="glow" cx="0" cy="0" r="1" gradientTransform="translate(420 160) rotate(35) scale(1080)">
-      <stop stop-color="#ffffff" stop-opacity="0.2" />
-      <stop offset="1" stop-color="#ffffff" stop-opacity="0" />
-    </radialGradient>
   </defs>
-  <rect width="1920" height="1080" fill="url(#jellyfin)" />
-  <rect width="1920" height="1080" fill="url(#glow)" />
-  <g transform="translate(180 250) scale(28)" fill="none" stroke="#ffffff" stroke-linecap="round" stroke-linejoin="round" stroke-width="2">
-    <path d="M20 11v6" />
-    <path d="M20 13h2" />
-    <path d="M3 21v-2a4 4 0 0 1 4-4h6a4 4 0 0 1 2.072.578" />
-    <circle cx="10" cy="7" r="4" />
-    <circle cx="20" cy="19" r="2" />
+  <rect width="1920" height="1080" fill="url(#background)" />
+  <g transform="translate(0 -46)">
+    <g transform="translate(180 250) scale(28)" fill="none" stroke="url(#jellyfin)" stroke-linecap="round" stroke-linejoin="round" stroke-width="2">
+      <path d="M20 11v6" />
+      <path d="M20 13h2" />
+      <path d="M3 21v-2a4 4 0 0 1 4-4h6a4 4 0 0 1 2.072.578" />
+      <circle cx="10" cy="7" r="4" />
+      <circle cx="20" cy="19" r="2" />
+    </g>
+    <text x="900" y="495" fill="#ffffff" font-family="Inter, sans-serif" font-size="176" font-weight="700">OIDC</text>
+    <text x="900" y="665" fill="#ffffff" font-family="Inter, sans-serif" font-size="96" font-weight="400">Authentication</text>
   </g>
-  <text x="900" y="495" fill="#ffffff" font-family="Arial, sans-serif" font-size="176" font-weight="700">OIDC</text>
-  <text x="900" y="665" fill="#ffffff" font-family="Arial, sans-serif" font-size="96" font-weight="400">Authentication</text>
 </svg>
