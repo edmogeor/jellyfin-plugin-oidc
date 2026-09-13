@@ -40,7 +40,7 @@ public sealed class OidcOptions : IConfigureNamedOptions<OpenIdConnectOptions>
         options.Authority = configuration.IssuerUrl.TrimEnd('/');
         options.ClientId = configuration.ClientId.Trim();
         options.ClientSecret = configuration.ClientSecret;
-        options.CallbackPath = "/oidc/callback";
+        options.CallbackPath = OidcConstants.CallbackPath;
         options.MapInboundClaims = false;
         options.ResponseType = "code";
         options.UsePkce = true;
@@ -55,7 +55,7 @@ public sealed class OidcOptions : IConfigureNamedOptions<OpenIdConnectOptions>
 
         options.Events.OnRedirectToIdentityProvider = context =>
         {
-            context.ProtocolMessage.RedirectUri = PublicUrls.Get(context.Request, configuration) + "/oidc/callback";
+            context.ProtocolMessage.RedirectUri = PublicUrls.Get(context.Request, configuration) + OidcConstants.CallbackPath;
             return Task.CompletedTask;
         };
         options.Events.OnTokenValidated = context =>
@@ -85,7 +85,7 @@ public sealed class OidcOptions : IConfigureNamedOptions<OpenIdConnectOptions>
                 .Create(result.Value, ReturnUrls.Local(returnUrl) ? returnUrl! : "/");
             if (string.IsNullOrEmpty(ticket))
             {
-                context.Response.Redirect(PublicUrls.Get(context.Request, configuration) + "/web/index.html#!/login?oidcError=1");
+                context.Response.Redirect(PublicUrls.Get(context.Request, configuration) + OidcConstants.WebIndexPath + "#!/login?oidcError=1");
                 context.HandleResponse();
                 return;
             }
@@ -93,8 +93,8 @@ public sealed class OidcOptions : IConfigureNamedOptions<OpenIdConnectOptions>
             if (context.Properties!.Items.Remove("oidc_id_token", out var idToken) && !string.IsNullOrEmpty(idToken))
             {
                 var protector = context.HttpContext.RequestServices.GetRequiredService<IDataProtectionProvider>()
-                    .CreateProtector("Jellyfin.Plugin.Oidc.LogoutIdToken.v1");
-                context.Response.Cookies.Append("oidc_logout", protector.Protect(idToken), new CookieOptions
+                    .CreateProtector(OidcConstants.LogoutTokenProtectorPurpose);
+                context.Response.Cookies.Append(OidcConstants.LogoutCookieName, protector.Protect(idToken), new CookieOptions
                 {
                     HttpOnly = true,
                     Secure = true,
@@ -104,13 +104,13 @@ public sealed class OidcOptions : IConfigureNamedOptions<OpenIdConnectOptions>
             }
 
             context.Response.Headers["Referrer-Policy"] = "no-referrer";
-            context.Response.Redirect(PublicUrls.Get(context.Request, configuration) + "/web/index.html?oidcTicket=" + Uri.EscapeDataString(ticket));
+            context.Response.Redirect(PublicUrls.Get(context.Request, configuration) + OidcConstants.WebIndexPath + "?oidcTicket=" + Uri.EscapeDataString(ticket));
             context.HandleResponse();
         };
         options.Events.OnRemoteFailure = context =>
         {
             _logger.LogWarning("OIDC remote authentication failed.");
-            context.Response.Redirect(PublicUrls.Get(context.Request, configuration) + "/web/index.html#!/login?oidcError=1");
+            context.Response.Redirect(PublicUrls.Get(context.Request, configuration) + OidcConstants.WebIndexPath + "#!/login?oidcError=1");
             context.HandleResponse();
             return Task.CompletedTask;
         };
@@ -160,7 +160,7 @@ public static class PublicUrls
 
     /// <summary>Gets the registered post-logout return URL.</summary>
     public static string LogoutReturnUrl(Microsoft.AspNetCore.Http.HttpRequest request, PluginConfiguration configuration)
-        => Get(request, configuration) + "/web/index.html";
+        => Get(request, configuration) + OidcConstants.WebIndexPath;
 
     /// <summary>Gets the OIDC cookie path for the public Jellyfin URL.</summary>
     public static string OidcPath(Microsoft.AspNetCore.Http.HttpRequest request, PluginConfiguration configuration)

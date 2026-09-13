@@ -82,7 +82,7 @@ public sealed class WebInjectionStartupFilter : IStartupFilter
 
     private static bool IsIndexRequest(string? path)
     {
-        return path?.EndsWith("/web/index.html", StringComparison.OrdinalIgnoreCase) == true
+        return path?.EndsWith(OidcConstants.WebIndexPath, StringComparison.OrdinalIgnoreCase) == true
             || path?.EndsWith("/web/", StringComparison.OrdinalIgnoreCase) == true
             || string.Equals(path, "/web", StringComparison.OrdinalIgnoreCase);
     }
@@ -91,6 +91,6 @@ public sealed class WebInjectionStartupFilter : IStartupFilter
     {
         var result = JsonSerializer.Serialize(session, JsonSerializerOptions.Web);
         var address = JsonSerializer.Serialize(publicUrl);
-        return $"<script>const oidcSession={result};const oidcUser=oidcSession.user;const oidcServerId=oidcUser.serverId;const oidcPublicUrl={address};localStorage.setItem('_deviceId2',oidcSession.deviceId);oidcUser.enableAutoLogin=true;localStorage.setItem('user-'+oidcUser.id+'-'+oidcServerId,JSON.stringify(oidcUser));localStorage.setItem('jellyfin_credentials',JSON.stringify({{Servers:[{{Id:oidcServerId,ManualAddress:oidcPublicUrl,AccessToken:oidcSession.accessToken,UserId:oidcUser.id,DateLastAccessed:Date.now(),LastConnectionMode:2}}]}}));localStorage.setItem('enableAutoLogin','true');history.replaceState(null,'',oidcPublicUrl+'/web/index.html');</script>";
+        return $"<script>const oidcSession={result};const oidcUser=oidcSession.user;const oidcServerId=oidcUser.serverId;const oidcPublicUrl={address};localStorage.setItem('_deviceId2',oidcSession.deviceId);oidcUser.enableAutoLogin=true;localStorage.setItem('user-'+oidcUser.id+'-'+oidcServerId,JSON.stringify(oidcUser));localStorage.setItem('jellyfin_credentials',JSON.stringify({{Servers:[{{Id:oidcServerId,ManualAddress:oidcPublicUrl,AccessToken:oidcSession.accessToken,UserId:oidcUser.id,DateLastAccessed:Date.now(),LastConnectionMode:2}}]}}));localStorage.setItem('enableAutoLogin','true');history.replaceState(null,'',oidcPublicUrl+'{OidcConstants.WebIndexPath}');</script>";
     }
 }
