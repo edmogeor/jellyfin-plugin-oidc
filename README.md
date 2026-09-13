@@ -108,12 +108,12 @@ make test
 
 | Command | Description |
 | --- | --- |
-| `make format` | Format C# and test files. |
-| `make lint` | Check C# and test code for problems. |
-| `make check` | Check formatting and linting. |
-| `make test-unit` | Run the .NET unit tests. |
-| `make test-e2e` | Start a clean test environment and run browser tests. |
-| `make up` | Start the test environment for manual testing. |
+| `make format` | Apply CSharpier and Prettier. |
+| `make lint` | Run Roslyn analyzers and oxlint. |
+| `make check` | Verify formatting and linting. |
+| `make test-unit` | Run the .NET unit suite. |
+| `make test-e2e` | Reset the Docker stack and run headless Playwright tests. |
+| `make up` | Start the e2e stack for manual testing. |
 
 The e2e stack runs Jellyfin 12, Keycloak, and Caddy at `https://localhost:8443`.
 
