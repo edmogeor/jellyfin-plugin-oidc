@@ -83,7 +83,7 @@ The plugin supports one OIDC service and simple, top-level profile and group dat
 3. If it still finds no match, it creates a Jellyfin user with the verified email address as the username.
 4. It then updates administrator rights from the administrator groups.
 
-If a person's verified email address changes, the plugin keeps their existing Jellyfin user. It does not merge users or move viewing activity between them.
+If a person's verified email address changes, the plugin updates the linked Jellyfin username. It keeps the same Jellyfin user and its viewing activity. It does not merge users.
 
 ## Password Login
 
