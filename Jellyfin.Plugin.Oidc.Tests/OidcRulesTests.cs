@@ -199,6 +199,7 @@ public sealed class OidcRulesTests
         var userId = Guid.NewGuid();
         var ticket = store.Create(userId, "/items/1");
 
+        Assert.NotNull(ticket);
         Assert.True(store.TryTake(ticket, out var returnedUserId, out var returnUrl));
         Assert.Equal(userId, returnedUserId);
         Assert.Equal("/items/1", returnUrl);
@@ -211,5 +212,18 @@ public sealed class OidcRulesTests
         Assert.False(new OidcLoginStore().TryTake("missing", out var userId, out var returnUrl));
         Assert.Equal(Guid.Empty, userId);
         Assert.Equal("/", returnUrl);
+    }
+
+    [Fact]
+    public void Login_tickets_have_a_bounded_capacity()
+    {
+        var store = new OidcLoginStore();
+
+        for (var index = 0; index < 1024; index++)
+        {
+            Assert.NotNull(store.Create(Guid.NewGuid(), "/"));
+        }
+
+        Assert.Null(store.Create(Guid.NewGuid(), "/"));
     }
 }

@@ -9,6 +9,11 @@ https://localhost:8443, https://oidc.localhost:8443 {
         }
     }
 
+    handle /oidc-profile.png {
+        root * /tls
+        file_server
+    }
+
     handle {
         reverse_proxy jellyfin-server:8096
     }

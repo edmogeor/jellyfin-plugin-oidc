@@ -18,13 +18,13 @@ _Avoid_: SSO provider, OIDC provider.
 
 **Email Match**: A case-insensitive match between a verified Identity Provider email and a Jellyfin User username.
 
-**Identity Link**: A durable binding between an Identity Provider `sub` claim and a Jellyfin User.
+**Identity Link**: A durable binding between an Identity Provider issuer and `sub` claim and a Jellyfin User.
 
 ## Scope
 
 - One Identity Provider is supported.
 - The plugin uses OpenID Connect discovery, confidential authorization-code flow, PKCE, and HTTPS metadata.
-- Supported claims are top-level `sub`, `email`, `email_verified`, and a configurable top-level group claim. The group claim may be a string, JSON string array, or multiple claims.
+- Supported claims are top-level `sub`, `email`, `email_verified`, `picture`, and a configurable top-level group claim. The group claim may be a string, JSON string array, or multiple claims.
 - Nested group paths and manual endpoint overrides are unsupported. Map nested Identity Provider data to a top-level claim instead.
 - SAML, LDAP, OAuth-only flows, multiple providers, self-service linking, and Identity Provider-initiated sign-in are unsupported.
 
@@ -40,6 +40,8 @@ OIDC is disabled by default. Enabled configuration requires:
 The Public Jellyfin URL override is optional. When unset, callback and logout URLs use the browser request origin and path base. Use an HTTPS override behind a reverse proxy or when Jellyfin has multiple public addresses.
 
 Group lists are comma-separated exact values. Administrator Group membership grants access even when the User Group is empty. The default group claim is `groups`; the default login button label is `Login with SSO`.
+
+Profile image synchronization is disabled by default. When enabled, the standard `picture` claim updates the Jellyfin User profile image at sign-in.
 
 Password login modes are:
 
@@ -75,6 +77,7 @@ With RP-initiated logout enabled, a browser session with a protected ID token is
 - Client secrets, access tokens, authorization codes, and complete ID tokens must not be logged or sent to browser configuration endpoints.
 - The browser receives only non-secret login label, password-mode, and logout settings.
 - Provisioned local passwords are random and undisclosed.
+- When profile image synchronization is enabled, the optional `picture` claim must be an HTTPS URL resolving to a public address or the configured Identity Provider host. Its image is downloaded with redirects disabled and synchronized at sign-in.
 
 ## Development
 

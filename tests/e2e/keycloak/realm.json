@@ -30,6 +30,20 @@
             "access.token.claim": "true",
             "userinfo.token.claim": "true"
           }
+        },
+        {
+          "name": "picture",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-usermodel-attribute-mapper",
+          "consentRequired": false,
+          "config": {
+            "user.attribute": "picture",
+            "claim.name": "picture",
+            "jsonType.label": "String",
+            "id.token.claim": "false",
+            "access.token.claim": "false",
+            "userinfo.token.claim": "true"
+          }
         }
       ]
     }
@@ -42,6 +56,9 @@
       "emailVerified": true,
       "firstName": "OIDC",
       "lastName": "Test",
+      "attributes": {
+        "picture": ["https://oidc.localhost:8443/oidc-profile.png"]
+      },
       "groups": ["jellyfin-users", "jellyfin-admins"],
       "credentials": [
         {

@@ -1,4 +1,3 @@
-using System.Collections.Concurrent;
 using System.Security.Cryptography;
 
 namespace Jellyfin.Plugin.Oidc.Identity;
@@ -6,14 +5,29 @@ namespace Jellyfin.Plugin.Oidc.Identity;
 /// <summary>Single-use server-side handoff tickets created after OIDC validation.</summary>
 public sealed class OidcLoginStore
 {
-    private readonly ConcurrentDictionary<string, Login> _logins = new();
+    private const int MaximumLogins = 1024;
+    private readonly object _gate = new();
+    private readonly Dictionary<string, Login> _logins = [];
 
     /// <summary>Creates an expiring login ticket for a Jellyfin User.</summary>
-    public string Create(Guid userId, string returnUrl)
+    public string? Create(Guid userId, string returnUrl)
     {
-        var ticket = Convert.ToHexString(RandomNumberGenerator.GetBytes(32));
-        _logins[ticket] = new Login(userId, returnUrl, DateTimeOffset.UtcNow.AddMinutes(5));
-        return ticket;
+        lock (_gate)
+        {
+            var now = DateTimeOffset.UtcNow;
+            foreach (var expiredTicket in _logins.Where(pair => pair.Value.ExpiresAt < now).Select(pair => pair.Key).ToArray())
+            {
+                _logins.Remove(expiredTicket);
+            }
+            if (_logins.Count >= MaximumLogins)
+            {
+                return null;
+            }
+
+            var ticket = Convert.ToHexString(RandomNumberGenerator.GetBytes(32));
+            _logins[ticket] = new Login(userId, returnUrl, now.AddMinutes(5));
+            return ticket;
+        }
     }
 
     /// <summary>Consumes a valid login ticket.</summary>
@@ -21,14 +35,17 @@ public sealed class OidcLoginStore
     {
         userId = Guid.Empty;
         returnUrl = "/";
-        if (!_logins.TryRemove(ticket, out var login) || login.ExpiresAt < DateTimeOffset.UtcNow)
+        lock (_gate)
         {
-            return false;
-        }
+            if (!_logins.Remove(ticket, out var login) || login.ExpiresAt < DateTimeOffset.UtcNow)
+            {
+                return false;
+            }
 
-        userId = login.UserId;
-        returnUrl = login.ReturnUrl;
-        return true;
+            userId = login.UserId;
+            returnUrl = login.ReturnUrl;
+            return true;
+        }
     }
 
     private sealed record Login(Guid UserId, string ReturnUrl, DateTimeOffset ExpiresAt);

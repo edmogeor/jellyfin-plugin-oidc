@@ -53,6 +53,7 @@ public sealed class WebInjectionStartupFilter : IStartupFilter
                 if (context.Request.Query.TryGetValue("oidcTicket", out var ticket)
                     && context.RequestServices.GetRequiredService<OidcLoginStore>().TryTake(ticket.ToString(), out var userId, out _))
                 {
+                    context.Response.Headers["Referrer-Policy"] = "no-referrer";
                     var session = await context.RequestServices.GetRequiredService<ISessionManager>().AuthenticateDirect(new AuthenticationRequest
                     {
                         UserId = userId,

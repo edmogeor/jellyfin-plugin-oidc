@@ -18,6 +18,9 @@ public enum PasswordLoginMode
 /// <summary>A durable binding between an Identity Provider subject and a Jellyfin User.</summary>
 public sealed class IdentityLink
 {
+    /// <summary>Gets or sets the OIDC issuer that owns the subject.</summary>
+    public string Issuer { get; set; } = string.Empty;
+
     /// <summary>Gets or sets the OIDC subject.</summary>
     public string Subject { get; set; } = string.Empty;
 
@@ -60,6 +63,9 @@ public sealed class PluginConfiguration : BasePluginConfiguration
 
     /// <summary>Gets or sets a value indicating whether RP-initiated logout is requested when available.</summary>
     public bool RpInitiatedLogout { get; set; }
+
+    /// <summary>Gets or sets a value indicating whether profile images are synchronized from the OIDC picture claim.</summary>
+    public bool SynchronizeProfileImages { get; set; }
 
     /// <summary>Gets or sets Identity Links owned by this plugin.</summary>
     public List<IdentityLink> IdentityLinks { get; set; } = [];

@@ -15,13 +15,15 @@ public sealed class OidcUserProvisioner
     private readonly ICryptoProvider _cryptoProvider;
     private readonly ILogger<OidcUserProvisioner> _logger;
     private readonly SemaphoreSlim _gate = new(1, 1);
+    private readonly OidcProfileImageSynchronizer _profileImageSynchronizer;
     private readonly IUserManager _userManager;
 
     /// <summary>Initializes a new instance of the <see cref="OidcUserProvisioner"/> class.</summary>
-    public OidcUserProvisioner(IUserManager userManager, ICryptoProvider cryptoProvider, ILogger<OidcUserProvisioner> logger)
+    public OidcUserProvisioner(IUserManager userManager, ICryptoProvider cryptoProvider, OidcProfileImageSynchronizer profileImageSynchronizer, ILogger<OidcUserProvisioner> logger)
     {
         _userManager = userManager;
         _cryptoProvider = cryptoProvider;
+        _profileImageSynchronizer = profileImageSynchronizer;
         _logger = logger;
     }
 
@@ -38,11 +40,16 @@ public sealed class OidcUserProvisioner
         await _gate.WaitAsync().ConfigureAwait(false);
         try
         {
-            var link = configuration.IdentityLinks.SingleOrDefault(item => item.Subject == identity!.Subject);
+            var issuer = configuration.IssuerUrl.TrimEnd('/');
+            var link = configuration.IdentityLinks.SingleOrDefault(item => item.Subject == identity!.Subject && (item.Issuer == issuer || string.IsNullOrEmpty(item.Issuer)));
             var user = link is null ? null : _userManager.GetUserById(link.UserId);
             if (link is not null && user is null)
             {
                 configuration.IdentityLinks.Remove(link);
+            }
+            else if (link is not null && string.IsNullOrEmpty(link.Issuer))
+            {
+                link.Issuer = issuer;
             }
 
             var matches = _userManager.GetUsers()
@@ -82,7 +89,7 @@ public sealed class OidcUserProvisioner
 
             if (link is null)
             {
-                configuration.IdentityLinks.Add(new IdentityLink { Subject = identity!.Subject, UserId = user.Id });
+                configuration.IdentityLinks.Add(new IdentityLink { Issuer = issuer, Subject = identity!.Subject, UserId = user.Id });
             }
 
             var policy = _userManager.GetUserDto(user).Policy;
@@ -95,6 +102,17 @@ public sealed class OidcUserProvisioner
 
             OidcPlugin.Instance!.UpdateConfiguration(configuration);
             await PasswordLoginEnforcer.EnforceAsync(_userManager, user, configuration, _logger).ConfigureAwait(false);
+            user = _userManager.GetUserById(user.Id);
+            if (user is null)
+            {
+                return null;
+            }
+
+            if (configuration.SynchronizeProfileImages)
+            {
+                await _profileImageSynchronizer.SynchronizeAsync(user, principal.FindFirst("picture")?.Value, issuer).ConfigureAwait(false);
+            }
+
             return user.Id;
         }
         finally

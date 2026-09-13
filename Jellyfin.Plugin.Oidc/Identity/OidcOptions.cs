@@ -1,3 +1,4 @@
+using System.Security.Claims;
 using Jellyfin.Plugin.Oidc.Configuration;
 using Microsoft.AspNetCore.Authentication.OpenIdConnect;
 using Microsoft.AspNetCore.DataProtection;
@@ -50,21 +51,43 @@ public sealed class OidcOptions : IConfigureNamedOptions<OpenIdConnectOptions>
             context.ProtocolMessage.RedirectUri = PublicUrls.Get(context.Request, configuration) + "/oidc/callback";
             return Task.CompletedTask;
         };
-        options.Events.OnTokenValidated = async context =>
+        options.Events.OnTokenValidated = context =>
+        {
+            if (!string.IsNullOrEmpty(context.TokenEndpointResponse?.IdToken))
+            {
+                context.Properties!.Items["oidc_id_token"] = context.TokenEndpointResponse.IdToken;
+            }
+
+            return Task.CompletedTask;
+        };
+        options.Events.OnUserInformationReceived = context =>
+        {
+            var identity = (ClaimsIdentity)context.Principal!.Identity!;
+            CopyUserInfoClaim(context.User.RootElement, identity, "email");
+            CopyUserInfoClaim(context.User.RootElement, identity, "email_verified");
+            CopyUserInfoClaim(context.User.RootElement, identity, configuration.GroupClaim.Trim());
+            CopyUserInfoClaim(context.User.RootElement, identity, "picture");
+            return Task.CompletedTask;
+        };
+        options.Events.OnTicketReceived = async context =>
         {
             var provisioner = context.HttpContext.RequestServices.GetRequiredService<OidcUserProvisioner>();
             var result = await provisioner.ProvisionAsync(context.Principal!).ConfigureAwait(false);
-            if (result is null)
+            var returnUrl = context.Properties?.RedirectUri;
+            var ticket = result is null ? null : context.HttpContext.RequestServices.GetRequiredService<OidcLoginStore>()
+                .Create(result.Value, ReturnUrls.Local(returnUrl) ? returnUrl! : "/");
+            if (string.IsNullOrEmpty(ticket))
             {
-                context.Fail("Sign-in not permitted.");
+                context.Response.Redirect(PublicUrls.Get(context.Request, configuration) + "/web/index.html#!/login?oidcError=1");
+                context.HandleResponse();
                 return;
             }
 
-            if (!string.IsNullOrEmpty(context.TokenEndpointResponse?.IdToken))
+            if (context.Properties!.Items.Remove("oidc_id_token", out var idToken) && !string.IsNullOrEmpty(idToken))
             {
                 var protector = context.HttpContext.RequestServices.GetRequiredService<IDataProtectionProvider>()
                     .CreateProtector("Jellyfin.Plugin.Oidc.LogoutIdToken.v1");
-                context.Response.Cookies.Append("oidc_logout", protector.Protect(context.TokenEndpointResponse.IdToken), new CookieOptions
+                context.Response.Cookies.Append("oidc_logout", protector.Protect(idToken), new CookieOptions
                 {
                     HttpOnly = true,
                     Secure = true,
@@ -73,23 +96,9 @@ public sealed class OidcOptions : IConfigureNamedOptions<OpenIdConnectOptions>
                 });
             }
 
-            var returnUrl = context.Properties?.RedirectUri;
-            var ticket = context.HttpContext.RequestServices.GetRequiredService<OidcLoginStore>()
-                .Create(result.Value, ReturnUrls.Local(returnUrl) ? returnUrl! : "/");
-            context.Properties!.Items["oidc_ticket"] = ticket;
-        };
-        options.Events.OnTicketReceived = context =>
-        {
-            var ticket = context.Properties?.Items["oidc_ticket"];
-            if (string.IsNullOrEmpty(ticket))
-            {
-                context.Fail("Sign-in not permitted.");
-                return Task.CompletedTask;
-            }
-
+            context.Response.Headers["Referrer-Policy"] = "no-referrer";
             context.Response.Redirect(PublicUrls.Get(context.Request, configuration) + "/web/index.html?oidcTicket=" + Uri.EscapeDataString(ticket));
             context.HandleResponse();
-            return Task.CompletedTask;
         };
         options.Events.OnRemoteFailure = context =>
         {
@@ -97,6 +106,21 @@ public sealed class OidcOptions : IConfigureNamedOptions<OpenIdConnectOptions>
             context.HandleResponse();
             return Task.CompletedTask;
         };
+    }
+
+    private static void CopyUserInfoClaim(System.Text.Json.JsonElement userInfo, ClaimsIdentity identity, string claimType)
+    {
+        if (!userInfo.TryGetProperty(claimType, out var value))
+        {
+            return;
+        }
+
+        foreach (var claim in identity.FindAll(claimType).ToList())
+        {
+            identity.RemoveClaim(claim);
+        }
+
+        identity.AddClaim(new Claim(claimType, value.ValueKind == System.Text.Json.JsonValueKind.String ? value.GetString()! : value.GetRawText()));
     }
 }
 

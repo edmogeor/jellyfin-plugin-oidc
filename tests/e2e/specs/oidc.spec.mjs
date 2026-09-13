@@ -131,6 +131,48 @@ test("provisions the allowed OIDC test user and starts a Jellyfin session", asyn
   expect(user.Policy.IsAdministrator).toBe(true);
 });
 
+test("synchronizes a profile image from the OIDC picture claim", async ({
+  browser,
+  page,
+}) => {
+  await signIn(page);
+  expect((await currentUser(page)).PrimaryImageTag).toBeFalsy();
+
+  const original = await page.evaluate(async () => {
+    const config = await ApiClient.getPluginConfiguration(
+      "4c5b9b96-80cd-4c3d-9e3d-23fa4ebf6ce4",
+    );
+    const originalValue = config.SynchronizeProfileImages;
+    config.SynchronizeProfileImages = true;
+    await ApiClient.updatePluginConfiguration(
+      "4c5b9b96-80cd-4c3d-9e3d-23fa4ebf6ce4",
+      config,
+    );
+    return originalValue;
+  });
+
+  try {
+    const profileImageContext = await browser.newContext({
+      ignoreHTTPSErrors: true,
+    });
+    const profileImagePage = await profileImageContext.newPage();
+    await signIn(profileImagePage);
+    expect((await currentUser(profileImagePage)).PrimaryImageTag).toBeTruthy();
+    await profileImageContext.close();
+  } finally {
+    await page.evaluate(async (originalValue) => {
+      const config = await ApiClient.getPluginConfiguration(
+        "4c5b9b96-80cd-4c3d-9e3d-23fa4ebf6ce4",
+      );
+      config.SynchronizeProfileImages = originalValue;
+      await ApiClient.updatePluginConfiguration(
+        "4c5b9b96-80cd-4c3d-9e3d-23fa4ebf6ce4",
+        config,
+      );
+    }, original);
+  }
+});
+
 test("shows an OIDC sign-in error on the login page", async ({ page }) => {
   await page.goto("/web/index.html#!/login?oidcError=1");
   await expect(page.locator(".toast")).toHaveText(
@@ -157,6 +199,12 @@ test("loads the seeded OIDC settings and validates changes for an administrator"
   await expect(page.locator("#AdministratorGroup")).toHaveValue(
     "jellyfin-admins",
   );
+  await expect(page.locator("#SynchronizeProfileImages")).not.toBeChecked();
+  await expect(page.locator("#SaveButton")).toBeDisabled();
+
+  await page.getByText("Synchronize profile images", { exact: true }).click();
+  await expect(page.locator("#SaveButton")).toBeEnabled();
+  await page.getByText("Synchronize profile images", { exact: true }).click();
   await expect(page.locator("#SaveButton")).toBeDisabled();
 
   await page.locator("#IssuerUrl").fill("");

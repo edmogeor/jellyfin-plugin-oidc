@@ -22,19 +22,20 @@
                 <h2>Sign-in</h2>
                 <div class="inputContainer inputContainer-withDescription"><input id="LoginButtonText" type="text" is="emby-input" label="Login button text" /><div class="fieldDescription">The text shown on the Jellyfin login page.</div></div>
                 <div class="selectContainer"><select id="PasswordLoginMode" is="emby-select" class="emby-select" label="Password login mode"><option value="AllowForAllUsers">Allow for all users</option><option value="DisableForLinkedUsersOnly">Disable for linked users only</option><option value="DisableForAllUsers">Disable for all users</option></select><div class="fieldDescription">Choose whether Jellyfin Users can still sign in with local passwords.</div></div>
+                <div class="checkboxContainer checkboxContainer-withDescription"><label><input id="SynchronizeProfileImages" type="checkbox" is="emby-checkbox" /><span>Synchronize profile images</span></label><div class="fieldDescription checkboxFieldDescription">Set each Jellyfin User's profile image from the Identity Provider's <code>picture</code> claim at sign-in.</div></div>
                 <div class="checkboxContainer checkboxContainer-withDescription"><label><input id="RpInitiatedLogout" type="checkbox" is="emby-checkbox" /><span>RP-Initiated Logout</span></label><div class="fieldDescription checkboxFieldDescription">Also sign out at the Identity Provider. Register <code>&lt;Public Jellyfin URL&gt;/web/index.html</code> as its post-logout redirect URI.</div></div>
             </div>
             <div><button id="SaveButton" is="emby-button" type="submit" class="raised button-submit block" disabled><span>Save</span></button></div>
         </form></div></div>
         <script>
             const pluginId = '4c5b9b96-80cd-4c3d-9e3d-23fa4ebf6ce4';
-            const fields = ['Enabled', 'PublicUrl', 'IssuerUrl', 'ClientId', 'ClientSecret', 'UserGroup', 'AdministratorGroup', 'GroupClaim', 'LoginButtonText', 'PasswordLoginMode', 'RpInitiatedLogout'];
+            const fields = ['Enabled', 'PublicUrl', 'IssuerUrl', 'ClientId', 'ClientSecret', 'UserGroup', 'AdministratorGroup', 'GroupClaim', 'LoginButtonText', 'PasswordLoginMode', 'SynchronizeProfileImages', 'RpInitiatedLogout'];
             let savedConfiguration;
-            const value = name => document.querySelector('#' + name)[name === 'Enabled' || name === 'RpInitiatedLogout' ? 'checked' : 'value'];
+            const value = name => document.querySelector('#' + name)[name === 'Enabled' || name === 'SynchronizeProfileImages' || name === 'RpInitiatedLogout' ? 'checked' : 'value'];
             const updateSaveButton = () => { document.querySelector('#SaveButton').disabled = !savedConfiguration || fields.every(name => value(name) === savedConfiguration[name]); };
             const loadConfiguration = () => ApiClient.getPluginConfiguration(pluginId).then(config => {
                 savedConfiguration = Object.fromEntries(fields.map(name => [name, config[name]]));
-                fields.forEach(name => { document.querySelector('#' + name)[name === 'Enabled' || name === 'RpInitiatedLogout' ? 'checked' : 'value'] = config[name]; }); updateSaveButton();
+                fields.forEach(name => { document.querySelector('#' + name)[name === 'Enabled' || name === 'SynchronizeProfileImages' || name === 'RpInitiatedLogout' ? 'checked' : 'value'] = config[name]; }); updateSaveButton();
             });
             document.querySelector('#OidcConfigPage').addEventListener('pageshow', loadConfiguration);
             loadConfiguration();
