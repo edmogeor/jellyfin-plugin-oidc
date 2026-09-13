@@ -89,7 +89,8 @@ public sealed class OidcUserProvisioner
 
             if (link is null)
             {
-                configuration.IdentityLinks.Add(new IdentityLink { Issuer = issuer, Subject = identity.Subject, UserId = user.Id });
+                link = new IdentityLink { Issuer = issuer, Subject = identity.Subject, UserId = user.Id };
+                configuration.IdentityLinks.Add(link);
             }
 
             var policy = _userManager.GetUserDto(user).Policy;
@@ -100,7 +101,6 @@ public sealed class OidcUserProvisioner
                 _logger.LogInformation("Synchronized Jellyfin administrator status from OIDC group membership.");
             }
 
-            OidcPlugin.Instance!.UpdateConfiguration(configuration);
             await PasswordLoginEnforcer.EnforceAsync(_userManager, user, configuration, _logger).ConfigureAwait(false);
             user = _userManager.GetUserById(user.Id);
             if (user is null)
@@ -110,9 +110,10 @@ public sealed class OidcUserProvisioner
 
             if (configuration.SynchronizeProfileImages)
             {
-                await _profileImageSynchronizer.SynchronizeAsync(user, principal.FindFirst("picture")?.Value, issuer).ConfigureAwait(false);
+                await _profileImageSynchronizer.SynchronizeAsync(user, link, principal.FindFirst("picture")?.Value, issuer).ConfigureAwait(false);
             }
 
+            OidcPlugin.Instance!.UpdateConfiguration(configuration);
             return user.Id;
         }
         finally

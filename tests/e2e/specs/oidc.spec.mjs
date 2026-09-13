@@ -166,8 +166,19 @@ test("synchronizes a profile image from the OIDC picture claim", async ({
     });
     const profileImagePage = await profileImageContext.newPage();
     await signIn(profileImagePage);
-    expect((await currentUser(profileImagePage)).PrimaryImageTag).toBeTruthy();
+    const imageTag = (await currentUser(profileImagePage)).PrimaryImageTag;
+    expect(imageTag).toBeTruthy();
     await profileImageContext.close();
+
+    const unchangedImageContext = await browser.newContext({
+      ignoreHTTPSErrors: true,
+    });
+    const unchangedImagePage = await unchangedImageContext.newPage();
+    await signIn(unchangedImagePage);
+    expect((await currentUser(unchangedImagePage)).PrimaryImageTag).toBe(
+      imageTag,
+    );
+    await unchangedImageContext.close();
   } finally {
     await setConfigurationValue(page, "SynchronizeProfileImages", original);
   }

@@ -26,6 +26,15 @@ public sealed class IdentityLink
 
     /// <summary>Gets or sets the Jellyfin User ID.</summary>
     public Guid UserId { get; set; }
+
+    /// <summary>Gets or sets the source URL of the synchronized profile image.</summary>
+    public string ProfileImageUrl { get; set; } = string.Empty;
+
+    /// <summary>Gets or sets the ETag returned for the synchronized profile image.</summary>
+    public string ProfileImageETag { get; set; } = string.Empty;
+
+    /// <summary>Gets or sets the last-modified time returned for the synchronized profile image.</summary>
+    public DateTimeOffset? ProfileImageLastModified { get; set; }
 }
 
 /// <summary>Plugin configuration.</summary>

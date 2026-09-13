@@ -6,6 +6,7 @@ using MediaBrowser.Controller.Configuration;
 using MediaBrowser.Controller.Library;
 using MediaBrowser.Controller.Providers;
 using Microsoft.Extensions.Logging;
+using Jellyfin.Plugin.Oidc.Configuration;
 
 namespace Jellyfin.Plugin.Oidc.Identity;
 
@@ -32,7 +33,7 @@ public sealed class OidcProfileImageSynchronizer
     }
 
     /// <summary>Synchronizes a standard OIDC picture claim when it is a safe image URL.</summary>
-    public async Task SynchronizeAsync(User user, string? pictureUrl, string issuerUrl)
+    public async Task SynchronizeAsync(User user, IdentityLink link, string? pictureUrl, string issuerUrl)
     {
         if (!Uri.TryCreate(pictureUrl, UriKind.Absolute, out var uri) || uri.Scheme != Uri.UriSchemeHttps)
         {
@@ -50,7 +51,26 @@ public sealed class OidcProfileImageSynchronizer
                 UseProxy = false,
             };
             using var client = new HttpClient(handler) { Timeout = TimeSpan.FromSeconds(10) };
-            using var response = await client.GetAsync(uri, HttpCompletionOption.ResponseHeadersRead).ConfigureAwait(false);
+            using var request = new HttpRequestMessage(HttpMethod.Get, uri);
+            if (user.ProfileImage is not null && string.Equals(link.ProfileImageUrl, pictureUrl, StringComparison.Ordinal))
+            {
+                if (!string.IsNullOrEmpty(link.ProfileImageETag))
+                {
+                    request.Headers.TryAddWithoutValidation("If-None-Match", link.ProfileImageETag);
+                }
+
+                if (link.ProfileImageLastModified is not null)
+                {
+                    request.Headers.IfModifiedSince = link.ProfileImageLastModified;
+                }
+            }
+
+            using var response = await client.SendAsync(request, HttpCompletionOption.ResponseHeadersRead).ConfigureAwait(false);
+            if (response.StatusCode == HttpStatusCode.NotModified)
+            {
+                return;
+            }
+
             if (!response.IsSuccessStatusCode
                 || response.Content.Headers.ContentLength > MaximumImageBytes
                 || !Extension(response.Content.Headers.ContentType?.MediaType, out var extension))
@@ -87,6 +107,9 @@ public sealed class OidcProfileImageSynchronizer
             image.Position = 0;
             await _providerManager.SaveImage(image, response.Content.Headers.ContentType!.MediaType, user.ProfileImage.Path).ConfigureAwait(false);
             await _userManager.UpdateUserAsync(user).ConfigureAwait(false);
+            link.ProfileImageUrl = pictureUrl;
+            link.ProfileImageETag = response.Headers.ETag?.ToString() ?? string.Empty;
+            link.ProfileImageLastModified = response.Content.Headers.LastModified;
         }
         catch (Exception exception) when (exception is HttpRequestException or IOException or OperationCanceledException or SocketException)
         {
