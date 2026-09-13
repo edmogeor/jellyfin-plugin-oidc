@@ -99,7 +99,7 @@ public sealed class OidcOptions : IConfigureNamedOptions<OpenIdConnectOptions>
                     HttpOnly = true,
                     Secure = true,
                     SameSite = SameSiteMode.Lax,
-                    Path = "/oidc",
+                    Path = PublicUrls.OidcPath(context.Request, configuration),
                 });
             }
 
@@ -161,4 +161,8 @@ public static class PublicUrls
     /// <summary>Gets the registered post-logout return URL.</summary>
     public static string LogoutReturnUrl(Microsoft.AspNetCore.Http.HttpRequest request, PluginConfiguration configuration)
         => Get(request, configuration) + "/web/index.html";
+
+    /// <summary>Gets the OIDC cookie path for the public Jellyfin URL.</summary>
+    public static string OidcPath(Microsoft.AspNetCore.Http.HttpRequest request, PluginConfiguration configuration)
+        => new Uri(Get(request, configuration)).AbsolutePath.TrimEnd('/') + "/oidc";
 }

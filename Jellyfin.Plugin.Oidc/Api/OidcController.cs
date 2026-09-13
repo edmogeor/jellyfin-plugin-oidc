@@ -73,11 +73,17 @@ public sealed class OidcController : ControllerBase
     public async Task<IActionResult> Logout()
     {
         var protectedIdToken = Request.Cookies["oidc_logout"];
-        Response.Cookies.Delete("oidc_logout", new CookieOptions { Path = "/oidc" });
         var configuration = OidcPlugin.Instance?.Configuration;
+        Response.Cookies.Delete("oidc_logout", new CookieOptions
+        {
+            Path = configuration is null ? "/oidc" : PublicUrls.OidcPath(Request, configuration),
+        });
         if (configuration is null || !configuration.RpInitiatedLogout || string.IsNullOrEmpty(protectedIdToken))
         {
-            return Redirect("/web/index.html#!/login");
+            var loginReturn = configuration is null
+                ? "/web/index.html#!/login"
+                : PublicUrls.LogoutReturnUrl(Request, configuration) + "#!/login";
+            return Redirect(loginReturn);
         }
 
         var loginPage = PublicUrls.LogoutReturnUrl(Request, configuration);

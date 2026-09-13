@@ -1,5 +1,7 @@
 (() => {
-    const endpoint = '/oidc/start?returnUrl=' + encodeURIComponent(location.hash.startsWith('#!') ? location.hash.slice(2) : '/');
+    const oidcUrl = new URL('.', document.currentScript.src);
+    const serverUrl = new URL('../', oidcUrl);
+    const endpoint = oidcUrl + 'start?returnUrl=' + encodeURIComponent(location.hash.startsWith('#!') ? location.hash.slice(2) : '/');
     const isLoginPage = () => location.hash.includes('login');
     const hasOidcError = () => location.hash.includes('oidcError=1');
     const addLogin = () => {
@@ -39,15 +41,17 @@
         if (!logout || !window.oidcRpInitiatedLogout) return;
         event.preventDefault(); event.stopImmediatePropagation();
         const server = JSON.parse(localStorage.getItem('jellyfin_credentials') || '{}').Servers?.[0];
-        if (server?.AccessToken) await fetch('/Sessions/Logout', { method: 'POST', headers: { Authorization: `MediaBrowser Token="${server.AccessToken}"` } });
-        localStorage.clear(); location.assign('/oidc/logout');
+        if (server?.AccessToken) await fetch(serverUrl + 'Sessions/Logout', { method: 'POST', headers: { Authorization: `MediaBrowser Token="${server.AccessToken}"` } });
+        localStorage.clear(); location.assign(oidcUrl + 'logout');
     }, true);
-    fetch('/oidc/config').then(response => response.ok ? response.json() : null).then(config => {
+    fetch(oidcUrl + 'config').then(response => response.ok ? response.json() : null).then(config => {
         if (!config) return;
         window.oidcButtonText = config.LoginButtonText;
         window.oidcRpInitiatedLogout = config.RpInitiatedLogout;
         if (config.PasswordLoginMode === 'DisableForAllUsers' && !hasOidcError() && !sessionStorage.oidcStarted) {
-            sessionStorage.oidcStarted = 'true'; location.assign(endpoint); return;
+            const start = () => { sessionStorage.oidcStarted = 'true'; location.assign(endpoint); };
+            if (document.readyState === 'complete') start(); else addEventListener('load', start, { once: true });
+            return;
         }
         new MutationObserver(addLogin).observe(document.documentElement, { childList: true, subtree: true });
         addEventListener('hashchange', () => { addLogin(); showError(); });

@@ -13,8 +13,6 @@ namespace Jellyfin.Plugin.Oidc;
 /// <summary>Injects the small OIDC integration script into Jellyfin Web's index document only.</summary>
 public sealed class WebInjectionStartupFilter : IStartupFilter
 {
-    private const string ScriptTag = "<script src=\"/oidc/web.js\"></script>";
-
     /// <inheritdoc />
     public Action<IApplicationBuilder> Configure(Action<IApplicationBuilder> next)
     {
@@ -22,9 +20,10 @@ public sealed class WebInjectionStartupFilter : IStartupFilter
         {
             app.Use(async (context, nextMiddleware) =>
             {
+                var configuration = OidcPlugin.Instance?.Configuration;
                 if (!HttpMethods.IsGet(context.Request.Method)
                     || !IsIndexRequest(context.Request.Path.Value)
-                    || OidcPlugin.Instance?.Configuration.Enabled != true)
+                    || configuration is not { Enabled: true })
                 {
                     await nextMiddleware().ConfigureAwait(false);
                     return;
@@ -62,11 +61,12 @@ public sealed class WebInjectionStartupFilter : IStartupFilter
                         DeviceId = Guid.NewGuid().ToString("N"),
                         DeviceName = "Web Browser",
                     }).ConfigureAwait(false);
-                    html = html.Replace("</head>", SessionTag(session) + "</head>", StringComparison.OrdinalIgnoreCase);
+                    html = html.Replace("</head>", SessionTag(session, PublicUrls.Get(context.Request, configuration)) + "</head>", StringComparison.OrdinalIgnoreCase);
                 }
-                if (!html.Contains(ScriptTag, StringComparison.Ordinal))
+                var scriptTag = $"<script src=\"{PublicUrls.Get(context.Request, configuration)}/oidc/web.js\"></script>";
+                if (!html.Contains(scriptTag, StringComparison.Ordinal))
                 {
-                    html = html.Replace("</body>", ScriptTag + "</body>", StringComparison.OrdinalIgnoreCase);
+                    html = html.Replace("</body>", scriptTag + "</body>", StringComparison.OrdinalIgnoreCase);
                 }
 
                 var bytes = Encoding.UTF8.GetBytes(html);
@@ -87,9 +87,10 @@ public sealed class WebInjectionStartupFilter : IStartupFilter
             || string.Equals(path, "/web", StringComparison.OrdinalIgnoreCase);
     }
 
-    private static string SessionTag(AuthenticationResult session)
+    private static string SessionTag(AuthenticationResult session, string publicUrl)
     {
         var result = JsonSerializer.Serialize(session, JsonSerializerOptions.Web);
-        return $"<script>const oidcSession={result};const oidcUser=oidcSession.user;const oidcServerId=oidcUser.serverId;localStorage.setItem('_deviceId2',oidcSession.deviceId);oidcUser.enableAutoLogin=true;localStorage.setItem('user-'+oidcUser.id+'-'+oidcServerId,JSON.stringify(oidcUser));localStorage.setItem('jellyfin_credentials',JSON.stringify({{Servers:[{{Id:oidcServerId,ManualAddress:location.origin,AccessToken:oidcSession.accessToken,UserId:oidcUser.id,DateLastAccessed:Date.now(),LastConnectionMode:2}}]}}));localStorage.setItem('enableAutoLogin','true');history.replaceState(null,'','/web/index.html');</script>";
+        var address = JsonSerializer.Serialize(publicUrl);
+        return $"<script>const oidcSession={result};const oidcUser=oidcSession.user;const oidcServerId=oidcUser.serverId;const oidcPublicUrl={address};localStorage.setItem('_deviceId2',oidcSession.deviceId);oidcUser.enableAutoLogin=true;localStorage.setItem('user-'+oidcUser.id+'-'+oidcServerId,JSON.stringify(oidcUser));localStorage.setItem('jellyfin_credentials',JSON.stringify({{Servers:[{{Id:oidcServerId,ManualAddress:oidcPublicUrl,AccessToken:oidcSession.accessToken,UserId:oidcUser.id,DateLastAccessed:Date.now(),LastConnectionMode:2}}]}}));localStorage.setItem('enableAutoLogin','true');history.replaceState(null,'',oidcPublicUrl+'/web/index.html');</script>";
     }
 }

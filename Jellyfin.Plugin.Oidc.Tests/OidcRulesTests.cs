@@ -209,6 +209,14 @@ public sealed class OidcRulesTests
     }
 
     [Fact]
+    public void Oidc_cookie_path_preserves_the_public_url_path()
+    {
+        var context = new DefaultHttpContext();
+
+        Assert.Equal("/jellyfin/oidc", PublicUrls.OidcPath(context.Request, new PluginConfiguration { PublicUrl = "https://jellyfin.example.test/jellyfin" }));
+    }
+
+    [Fact]
     public void Login_tickets_are_single_use()
     {
         var store = new OidcLoginStore();
