@@ -69,7 +69,8 @@ The plugin supports one OIDC service and simple, top-level profile and group dat
 
 ## Sign In
 
-To sign in, a person needs a verified email address and a matching allowed or administrator group.
+> [!NOTE]
+> To sign in, a person needs a verified email address and a matching allowed or administrator group.
 
 1. The plugin first looks for the person's existing Jellyfin user.
 2. If it finds no match, it looks for a Jellyfin username that matches the verified email address.
