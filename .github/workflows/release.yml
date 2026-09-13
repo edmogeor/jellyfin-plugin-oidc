@@ -60,6 +60,9 @@ jobs:
             found { print }
             END { if (!found) exit 1 }
           ' CHANGELOG.md > release-notes.md
+      - name: Add release notes to plugin manifest
+        run: |
+          python3 -c 'from pathlib import Path; import json; path = Path("build.yaml"); config = path.read_text(); placeholder = "changelog: \"\""; assert config.count(placeholder) == 1; path.write_text(config.replace(placeholder, "changelog: {}".format(json.dumps(Path("release-notes.md").read_text().strip()))))'
       - id: package
         uses: oddstr13/jellyfin-plugin-repository-manager@9497a0a499416cc572ed2e07a391d9f943a37b4d
         with:
