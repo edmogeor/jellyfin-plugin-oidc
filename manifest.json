@@ -1,1 +1,13 @@
-[]
+[
+  {
+    "category": "Authentication",
+    "description": "Secure OIDC authorization-code login with PKCE, verified-email matching, provisioning, and group-based administrator access.\n",
+    "guid": "4c5b9b96-80cd-4c3d-9e3d-23fa4ebf6ce4",
+    "imageUrl": "https://raw.githubusercontent.com/edmogeor/jellyfin-plugin-oidc/main/assets/thumb.png",
+    "name": "OIDC Authentication",
+    "overview": "Authenticate Jellyfin Users through one OpenID Connect Identity Provider.",
+    "owner": "jellyfin",
+    "versions": [
+    ]
+  }
+]
