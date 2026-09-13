@@ -558,7 +558,7 @@ test("requests Identity Provider logout when RP-initiated logout is enabled", as
     expect(url.searchParams.get("client_id")).toBe("jellyfin");
     expect(url.searchParams.get("id_token_hint")).toBeTruthy();
     expect(url.searchParams.get("post_logout_redirect_uri")).toBe(
-      "https://localhost:8443/web/index.html#!/login",
+      "https://localhost:8443/web/index.html",
     );
     await logoutContext.close();
   } finally {

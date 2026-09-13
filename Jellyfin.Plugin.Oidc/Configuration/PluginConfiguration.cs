@@ -49,6 +49,9 @@ public sealed class PluginConfiguration : BasePluginConfiguration
     /// <summary>Gets or sets the top-level claim containing group values.</summary>
     public string GroupClaim { get; set; } = "groups";
 
+    /// <summary>Gets or sets optional space-separated OIDC scopes requested in addition to the standard scopes.</summary>
+    public string AdditionalScopes { get; set; } = string.Empty;
+
     /// <summary>Gets or sets the group permitted standard Jellyfin User access.</summary>
     public string UserGroup { get; set; } = string.Empty;
 

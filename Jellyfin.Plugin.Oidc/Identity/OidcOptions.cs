@@ -48,9 +48,10 @@ public sealed class OidcOptions : IConfigureNamedOptions<OpenIdConnectOptions>
         options.RequireHttpsMetadata = true;
         options.GetClaimsFromUserInfoEndpoint = true;
         options.Scope.Clear();
-        options.Scope.Add("openid");
-        options.Scope.Add("email");
-        options.Scope.Add("profile");
+        foreach (var scope in RequestedScopes(configuration))
+        {
+            options.Scope.Add(scope);
+        }
 
         options.Events.OnRedirectToIdentityProvider = context =>
         {
@@ -129,6 +130,12 @@ public sealed class OidcOptions : IConfigureNamedOptions<OpenIdConnectOptions>
 
         identity.AddClaim(new Claim(claimType, value.ValueKind == System.Text.Json.JsonValueKind.String ? value.GetString()! : value.GetRawText()));
     }
+
+    /// <summary>Gets the standard scopes plus administrator-configured provider scopes.</summary>
+    public static IEnumerable<string> RequestedScopes(PluginConfiguration configuration)
+        => new[] { "openid", "email", "profile" }
+            .Concat(configuration.AdditionalScopes.Split(' ', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries))
+            .Distinct(StringComparer.Ordinal);
 }
 
 /// <summary>Validates navigation targets before returning to Jellyfin Web.</summary>
@@ -150,4 +157,8 @@ public static class PublicUrls
         => string.IsNullOrWhiteSpace(configuration.PublicUrl)
             ? $"{request.Scheme}://{request.Host}{request.PathBase}".TrimEnd('/')
             : configuration.PublicUrl.TrimEnd('/');
+
+    /// <summary>Gets the registered post-logout return URL.</summary>
+    public static string LogoutReturnUrl(Microsoft.AspNetCore.Http.HttpRequest request, PluginConfiguration configuration)
+        => Get(request, configuration) + "/web/index.html";
 }

@@ -124,6 +124,14 @@ public sealed class OidcRulesTests
     }
 
     [Fact]
+    public void Requested_scopes_include_standard_and_configured_scopes()
+    {
+        var scopes = OidcOptions.RequestedScopes(new PluginConfiguration { AdditionalScopes = "groups openid custom" });
+
+        Assert.Equal(["openid", "email", "profile", "groups", "custom"], scopes);
+    }
+
+    [Fact]
     public void Group_membership_is_case_sensitive()
     {
         var principal = new ClaimsPrincipal(new ClaimsIdentity(
@@ -190,6 +198,14 @@ public sealed class OidcRulesTests
         var context = new DefaultHttpContext();
 
         Assert.Equal("https://jellyfin.example.test", PublicUrls.Get(context.Request, new PluginConfiguration { PublicUrl = "https://jellyfin.example.test/" }));
+    }
+
+    [Fact]
+    public void Logout_return_url_has_no_fragment()
+    {
+        var context = new DefaultHttpContext();
+
+        Assert.Equal("https://jellyfin.example.test/web/index.html", PublicUrls.LogoutReturnUrl(context.Request, new PluginConfiguration { PublicUrl = "https://jellyfin.example.test" }));
     }
 
     [Fact]

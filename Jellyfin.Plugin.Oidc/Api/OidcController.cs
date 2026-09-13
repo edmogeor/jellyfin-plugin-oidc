@@ -81,7 +81,7 @@ public sealed class OidcController : ControllerBase
             return Redirect("/web/index.html#!/login");
         }
 
-        var loginPage = PublicUrls.Get(Request, configuration) + "/web/index.html#!/login";
+        var loginPage = PublicUrls.LogoutReturnUrl(Request, configuration);
 
         try
         {

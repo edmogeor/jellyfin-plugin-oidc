@@ -17,6 +17,7 @@ Let people sign in to Jellyfin 12 with one OpenID Connect (OIDC) sign-in service
 - [Features](#features)
 - [Quick Start](#quick-start)
 - [Configuration](#configuration)
+- [Provider Setup](#provider-setup)
 - [Sign In](#sign-in)
 - [Password Login](#password-login)
 - [Logout](#logout)
@@ -27,7 +28,7 @@ Let people sign in to Jellyfin 12 with one OpenID Connect (OIDC) sign-in service
 
 ## Features
 
-- Sign in with any OIDC service that supports standard discovery
+- Sign in with an OIDC service that supports standard discovery and can return verified email and flat group claims
 - Show a configurable sign-in button, or go straight to the sign-in service when local passwords are off
 - Allow access and administrator rights based on groups
 - Create Jellyfin users when eligible people sign in for the first time
@@ -67,11 +68,26 @@ https://raw.githubusercontent.com/edmogeor/jellyfin-plugin-oidc/manifest-release
 | Allowed groups | At least one group setting | - | Comma-separated groups that can sign in. New Jellyfin users can be created for their members. |
 | Administrator groups | At least one group setting | - | Comma-separated groups that can sign in as Jellyfin administrators. |
 | Group claim | No | `groups` | The top-level claim that lists a person's groups. |
+| Additional requested scopes | No | - | Space-separated scopes requested in addition to `openid email profile`. |
 | Login button text | No | `Login with SSO` | The text on the Jellyfin sign-in button. |
 | Password login mode | No | Allow for all users | Choose who can use local passwords. |
 | RP-Initiated Logout | No | Off | Also sign out from your OIDC service when it supports this. |
 
 The plugin supports one OIDC service and simple, top-level profile and group data. If your groups are nested, map them to a top-level claim in your OIDC service. You cannot set endpoint URLs by hand.
+
+## Provider Setup
+
+The plugin needs a confidential authorization-code client with the callback URL from the quick start. It requires top-level `sub`, `email`, and `email_verified` claims and a top-level group claim containing strings or a JSON string array.
+
+| Identity Provider | Setup |
+| --- | --- |
+| Keycloak | Add a Group Membership protocol mapper that emits a flat `groups` claim to the ID token or UserInfo endpoint. Disable full group paths unless those paths are the configured group values. |
+| Authentik | Ensure the configured provider returns `groups`, and map a verified source attribute to `email_verified`. |
+| Authelia | Set **Additional requested scopes** to `groups`. Configure the client to return the standard email claims and use `groups` as the group claim. |
+| ZITADEL | Use an Action to project eligible project roles into a top-level flat string-array claim such as `groups`, then configure that claim here. The nested ZITADEL roles claim is unsupported. |
+| Pocket ID | Configure a flat group claim and verified email claims, then test sign-in before disabling local passwords. |
+
+Do not add a scope solely because its name matches the group claim. Some providers expose groups without a scope, and some reject undeclared scopes.
 
 ## Sign In
 

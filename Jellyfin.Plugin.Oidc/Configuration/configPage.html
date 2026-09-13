@@ -17,6 +17,7 @@
                 <div class="inputContainer inputContainer-withDescription"><input id="UserGroup" type="text" is="emby-input" label="Allowed groups" /><div class="fieldDescription">Comma-separated Identity Provider groups whose members can sign in and be Provisioned as Jellyfin Users.</div></div>
                 <div class="inputContainer inputContainer-withDescription"><input id="AdministratorGroup" type="text" is="emby-input" label="Administrator groups" /><div class="fieldDescription">Comma-separated Identity Provider groups that can sign in as Jellyfin administrators.</div></div>
                 <div class="inputContainer inputContainer-withDescription"><input id="GroupClaim" type="text" is="emby-input" label="Group claim" /><div class="fieldDescription">Only top-level string or string-array claims are supported. Map nested claims at the Identity Provider.</div></div>
+                <div class="inputContainer inputContainer-withDescription"><input id="AdditionalScopes" type="text" is="emby-input" label="Additional requested scopes" placeholder="groups" /><div class="fieldDescription">Space-separated scopes requested in addition to <code>openid email profile</code>. For example, Authelia requires <code>groups</code> to return group membership.</div></div>
             </div>
             <div class="verticalSection">
                 <h2>Sign-in</h2>
@@ -29,7 +30,7 @@
         </form></div></div>
         <script>
             const pluginId = '4c5b9b96-80cd-4c3d-9e3d-23fa4ebf6ce4';
-            const fields = ['Enabled', 'PublicUrl', 'IssuerUrl', 'ClientId', 'ClientSecret', 'UserGroup', 'AdministratorGroup', 'GroupClaim', 'LoginButtonText', 'PasswordLoginMode', 'SynchronizeProfileImages', 'RpInitiatedLogout'];
+            const fields = ['Enabled', 'PublicUrl', 'IssuerUrl', 'ClientId', 'ClientSecret', 'UserGroup', 'AdministratorGroup', 'GroupClaim', 'AdditionalScopes', 'LoginButtonText', 'PasswordLoginMode', 'SynchronizeProfileImages', 'RpInitiatedLogout'];
             let savedConfiguration;
             const value = name => document.querySelector('#' + name)[name === 'Enabled' || name === 'SynchronizeProfileImages' || name === 'RpInitiatedLogout' ? 'checked' : 'value'];
             const updateSaveButton = () => { document.querySelector('#SaveButton').disabled = !savedConfiguration || fields.every(name => value(name) === savedConfiguration[name]); };

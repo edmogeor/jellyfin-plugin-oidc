@@ -39,6 +39,8 @@ OIDC is disabled by default. Enabled configuration requires:
 
 The Public Jellyfin URL override is optional. When unset, callback and logout URLs use the browser request origin and path base. Use an HTTPS override behind a reverse proxy or when Jellyfin has multiple public addresses.
 
+The plugin always requests `openid`, `email`, and `profile`. Additional requested scopes are optional and space-separated. Configure them only when the Identity Provider requires a scope to return an otherwise supported claim, such as Authelia's `groups` scope.
+
 Group lists are comma-separated exact values. Administrator Group membership grants access even when the User Group is empty. The default group claim is `groups`; the default login button label is `Login with SSO`.
 
 Profile image synchronization is disabled by default. When enabled, the standard `picture` claim updates the Jellyfin User profile image at sign-in.
