@@ -41,7 +41,7 @@ public sealed class OidcUserProvisioner
         try
         {
             var issuer = configuration.IssuerUrl.TrimEnd('/');
-            var link = configuration.IdentityLinks.SingleOrDefault(item => item.Subject == identity!.Subject && (item.Issuer == issuer || string.IsNullOrEmpty(item.Issuer)));
+            var link = configuration.IdentityLinks.SingleOrDefault(item => item.Subject == identity.Subject && (item.Issuer == issuer || string.IsNullOrEmpty(item.Issuer)));
             var user = link is null ? null : _userManager.GetUserById(link.UserId);
             if (link is not null && user is null)
             {
@@ -53,7 +53,7 @@ public sealed class OidcUserProvisioner
             }
 
             var matches = _userManager.GetUsers()
-                .Where(candidate => string.Equals(candidate.Username, identity!.Email, StringComparison.OrdinalIgnoreCase))
+                .Where(candidate => string.Equals(candidate.Username, identity.Email, StringComparison.OrdinalIgnoreCase))
                 .ToList();
             if (user is null && matches.Count > 1)
             {
@@ -64,12 +64,12 @@ public sealed class OidcUserProvisioner
             user ??= matches.SingleOrDefault();
             if (user is null)
             {
-                user = await _userManager.CreateUserAsync(identity!.Email).ConfigureAwait(false);
+                user = await _userManager.CreateUserAsync(identity.Email).ConfigureAwait(false);
                 user.Password = _cryptoProvider.CreatePasswordHash(Convert.ToBase64String(RandomNumberGenerator.GetBytes(64))).ToString();
                 await _userManager.UpdateUserAsync(user).ConfigureAwait(false);
                 _logger.LogInformation("Provisioned Jellyfin User for an eligible OIDC identity.");
             }
-            else if (!string.Equals(user.Username, identity!.Email, StringComparison.OrdinalIgnoreCase))
+            else if (!string.Equals(user.Username, identity.Email, StringComparison.OrdinalIgnoreCase))
             {
                 if (matches.Any(candidate => candidate.Id != user.Id))
                 {
@@ -89,11 +89,11 @@ public sealed class OidcUserProvisioner
 
             if (link is null)
             {
-                configuration.IdentityLinks.Add(new IdentityLink { Issuer = issuer, Subject = identity!.Subject, UserId = user.Id });
+                configuration.IdentityLinks.Add(new IdentityLink { Issuer = issuer, Subject = identity.Subject, UserId = user.Id });
             }
 
             var policy = _userManager.GetUserDto(user).Policy;
-            if (policy.IsAdministrator != identity!.IsAdministrator)
+            if (policy.IsAdministrator != identity.IsAdministrator)
             {
                 policy.IsAdministrator = identity.IsAdministrator;
                 await _userManager.UpdatePolicyAsync(user.Id, policy).ConfigureAwait(false);

@@ -1,5 +1,6 @@
 using System.Security.Claims;
 using System.Text.Json;
+using System.Diagnostics.CodeAnalysis;
 using Jellyfin.Plugin.Oidc.Configuration;
 
 namespace Jellyfin.Plugin.Oidc.Identity;
@@ -11,7 +12,7 @@ public sealed record OidcIdentity(string Subject, string Email, bool IsAdministr
 public static class IdentityClaims
 {
     /// <summary>Validates the identity claims and configured group membership.</summary>
-    public static bool TryCreate(ClaimsPrincipal principal, PluginConfiguration configuration, out OidcIdentity? identity)
+    public static bool TryCreate(ClaimsPrincipal principal, PluginConfiguration configuration, [NotNullWhen(true)] out OidcIdentity? identity)
     {
         identity = null;
         var subject = ClaimValue(principal, "sub");
