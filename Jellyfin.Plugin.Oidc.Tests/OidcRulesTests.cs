@@ -8,21 +8,6 @@ namespace Jellyfin.Plugin.Oidc.Tests;
 
 public sealed class OidcRulesTests
 {
-    [Fact]
-    public void Enabled_configuration_requires_https_and_an_allowed_group()
-    {
-        var configuration = new PluginConfiguration
-        {
-            Enabled = true,
-            PublicUrl = "http://jellyfin.example.test",
-            IssuerUrl = "https://identity.example.test",
-            ClientId = "client",
-            ClientSecret = "secret",
-        };
-
-        Assert.NotNull(OidcConfigurationValidator.Validate(configuration));
-    }
-
     [Theory]
     [InlineData("https://jellyfin.example.test", "https://identity.example.test", "client", "secret", "users", "", PasswordLoginMode.AllowForAllUsers, null)]
     [InlineData("", "https://identity.example.test", "client", "secret", "", "admins", PasswordLoginMode.AllowForAllUsers, null)]

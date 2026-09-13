@@ -125,14 +125,7 @@ test("provisions the allowed OIDC test user and starts a Jellyfin session", asyn
 }) => {
   await signIn(page);
 
-  const user = await page.evaluate(async () => {
-    const server = JSON.parse(localStorage.getItem("jellyfin_credentials"))
-      .Servers[0];
-    const response = await fetch("/Users/Me", {
-      headers: { Authorization: `MediaBrowser Token="${server.AccessToken}"` },
-    });
-    return response.json();
-  });
+  const user = await currentUser(page);
 
   expect(user.Name).toBe("oidc-test@example.test");
   expect(user.Policy.IsAdministrator).toBe(true);
@@ -257,15 +250,7 @@ test("synchronizes a Jellyfin administrator role after the Identity Provider gro
     });
     const updatedPage = await updatedContext.newPage();
     await signIn(updatedPage);
-    const updatedUser = await updatedPage.evaluate(async () => {
-      const server = JSON.parse(localStorage.getItem("jellyfin_credentials"))
-        .Servers[0];
-      return fetch("/Users/Me", {
-        headers: {
-          Authorization: `MediaBrowser Token="${server.AccessToken}"`,
-        },
-      }).then((response) => response.json());
-    });
+    const updatedUser = await currentUser(updatedPage);
     expect(updatedUser.Policy.IsAdministrator).toBe(false);
     await updatedContext.close();
   } finally {
@@ -283,13 +268,7 @@ test("keeps an Identity Link when the Identity Provider email changes", async ({
   request,
 }) => {
   await signIn(page);
-  const originalUser = await page.evaluate(async () => {
-    const server = JSON.parse(localStorage.getItem("jellyfin_credentials"))
-      .Servers[0];
-    return fetch("/Users/Me", {
-      headers: { Authorization: `MediaBrowser Token="${server.AccessToken}"` },
-    }).then((response) => response.json());
-  });
+  const originalUser = await currentUser(page);
   const headers = await providerAdmin(request);
   const user = await providerUser(request, headers);
   const originalEmail = user.email;
@@ -308,15 +287,7 @@ test("keeps an Identity Link when the Identity Provider email changes", async ({
     });
     const updatedPage = await updatedContext.newPage();
     await signIn(updatedPage);
-    const updatedUser = await updatedPage.evaluate(async () => {
-      const server = JSON.parse(localStorage.getItem("jellyfin_credentials"))
-        .Servers[0];
-      return fetch("/Users/Me", {
-        headers: {
-          Authorization: `MediaBrowser Token="${server.AccessToken}"`,
-        },
-      }).then((response) => response.json());
-    });
+    const updatedUser = await currentUser(updatedPage);
     expect(updatedUser.Id).toBe(originalUser.Id);
     expect(updatedUser.Name).toBe(changedEmail);
     await updatedContext.close();

@@ -88,7 +88,7 @@ public sealed class WebInjectionStartupFilter : IStartupFilter
 
     private static string SessionTag(AuthenticationResult session)
     {
-        var result = JsonSerializer.Serialize(session, new JsonSerializerOptions(JsonSerializerDefaults.Web));
+        var result = JsonSerializer.Serialize(session, JsonSerializerOptions.Web);
         return $"<script>const oidcSession={result};const oidcUser=oidcSession.user;const oidcServerId=oidcUser.serverId;localStorage.setItem('_deviceId2',oidcSession.deviceId);oidcUser.enableAutoLogin=true;localStorage.setItem('user-'+oidcUser.id+'-'+oidcServerId,JSON.stringify(oidcUser));localStorage.setItem('jellyfin_credentials',JSON.stringify({{Servers:[{{Id:oidcServerId,ManualAddress:location.origin,AccessToken:oidcSession.accessToken,UserId:oidcUser.id,DateLastAccessed:Date.now(),LastConnectionMode:2}}]}}));localStorage.setItem('enableAutoLogin','true');history.replaceState(null,'','/web/index.html');</script>";
     }
 }

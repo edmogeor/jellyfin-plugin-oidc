@@ -24,11 +24,6 @@ public sealed class OidcOptions : IConfigureNamedOptions<OpenIdConnectOptions>
             return;
         }
 
-        // ASP.NET Core validates every registered handler even while OIDC is disabled. These
-        // inert HTTPS values keep the handler valid; the start endpoint remains unavailable.
-        options.Authority = "https://disabled.invalid";
-        options.ClientId = "disabled";
-
         var configuration = OidcPlugin.Instance?.Configuration;
         if (configuration is null || OidcConfigurationValidator.Validate(configuration) is not null)
         {
