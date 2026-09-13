@@ -1,3 +1,9 @@
+## [0.1.2.0]
+
+- Align the plugin and repository descriptions and list supported configuration-page languages.
+- Validate HTTPS URLs directly in the OIDC configuration form.
+- Add a localized Client Secret visibility toggle.
+
 ## [0.1.1.0]
 
 - Require an HTTPS public URL for OIDC sign-in and callback requests.

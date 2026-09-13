@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
-    <head><meta charset="utf-8"><title data-i18n="pageTitle"></title></head>
+    <head><meta charset="utf-8"><title data-i18n="pageTitle"></title><style>.oidc-client-secret { align-items: center; display: flex; gap: 0.5em; }.oidc-client-secret input { flex: 1; min-width: 0; }</style></head>
 <body>
     <div id="OidcConfigPage" data-role="page" class="page type-interior pluginConfigurationPage configPage" data-require="emby-input,emby-button,emby-select,emby-checkbox">
         <div data-role="content"><div class="content-primary"><h1 data-i18n="pageTitle"></h1><form id="OidcConfigForm" class="configForm">
@@ -10,7 +10,7 @@
                 <div class="inputContainer inputContainer-withDescription"><input id="PublicUrl" type="url" is="emby-input" data-i18n-label="publicUrlLabel" data-i18n-placeholder="publicUrlPlaceholder" /><div class="fieldDescription" data-i18n="publicUrlHelp"></div></div>
                 <div class="inputContainer inputContainer-withDescription"><input id="IssuerUrl" type="url" required is="emby-input" data-i18n-label="issuerUrlLabel" data-i18n-placeholder="issuerUrlPlaceholder" /><div class="fieldDescription" data-i18n="issuerUrlHelp"></div></div>
                 <div class="inputContainer inputContainer-withDescription"><input id="ClientId" type="text" required is="emby-input" data-i18n-label="clientIdLabel" /><div class="fieldDescription" data-i18n="clientIdHelp"></div></div>
-                <div class="inputContainer inputContainer-withDescription"><input id="ClientSecret" type="password" required is="emby-input" data-i18n-label="clientSecretLabel" /><div class="fieldDescription" data-i18n="clientSecretHelp"></div></div>
+                <div class="inputContainer inputContainer-withDescription"><div class="oidc-client-secret"><input id="ClientSecret" type="password" required is="emby-input" data-i18n-label="clientSecretLabel" /><button id="ClientSecretToggle" type="button" is="emby-button" class="raised cancel" data-oidc-client-secret-toggle data-visible="false" aria-controls="ClientSecret" aria-label="Show client secret" aria-pressed="false">Show</button></div><div class="fieldDescription" data-i18n="clientSecretHelp"></div></div>
             </div>
             <div class="verticalSection">
                 <h2 data-i18n="accessHeading"></h2>
@@ -65,12 +65,33 @@
                 if (dictionary) localize();
                 loadConfiguration();
             });
-            loadDictionary().then(strings => { dictionary = strings; localize(); loadConfiguration(); });
             const form = document.querySelector('#OidcConfigForm');
             const validateGroups = () => {
                 const userGroup = document.querySelector('#UserGroup');
                 userGroup.setCustomValidity(userGroup.value.trim() || document.querySelector('#AdministratorGroup').value.trim() ? '' : translate('groupValidation'));
             };
+            const validateHttpsUrl = name => {
+                const input = document.querySelector('#' + name);
+                try {
+                    input.setCustomValidity(!input.value || new URL(input.value).protocol === 'https:' ? '' : dictionary ? translate('httpsUrlValidation') : 'Enter an HTTPS URL.');
+                } catch {
+                    input.setCustomValidity(dictionary ? translate('httpsUrlValidation') : 'Enter an HTTPS URL.');
+                }
+            };
+            const clientSecret = document.querySelector('#ClientSecret');
+            const clientSecretToggle = document.querySelector('#ClientSecretToggle');
+            const updateClientSecretToggle = () => {
+                const visible = clientSecret.type === 'text';
+                const text = dictionary ? translate(visible ? 'hideClientSecret' : 'showClientSecret') : visible ? 'Hide' : 'Show';
+                clientSecretToggle.dataset.visible = visible;
+                clientSecretToggle.setAttribute('aria-label', text + ' ' + (dictionary ? translate('clientSecretLabel') : 'client secret'));
+                clientSecretToggle.setAttribute('aria-pressed', visible);
+                clientSecretToggle.textContent = text;
+            };
+            clientSecretToggle.addEventListener('click', () => {
+                clientSecret.type = clientSecret.type === 'password' ? 'text' : 'password';
+                updateClientSecretToggle();
+            });
             const save = () => {
                 Dashboard.showLoadingMsg();
                 ApiClient.getPluginConfiguration(pluginId).then(config => {
@@ -81,6 +102,8 @@
             form.addEventListener('submit', event => {
                 event.preventDefault();
                 validateGroups();
+                validateHttpsUrl('PublicUrl');
+                validateHttpsUrl('IssuerUrl');
                 if (!form.reportValidity()) return;
                 const mode = value('PasswordLoginMode');
                 if (mode !== savedConfiguration.PasswordLoginMode && mode !== 'AllowForAllUsers') {
@@ -92,8 +115,10 @@
             });
             fields.forEach(name => document.querySelector('#' + name).addEventListener('input', updateSaveButton));
             fields.forEach(name => document.querySelector('#' + name).addEventListener('change', updateSaveButton));
+            ['PublicUrl', 'IssuerUrl'].forEach(name => document.querySelector('#' + name).addEventListener('input', () => validateHttpsUrl(name)));
             document.querySelector('#UserGroup').addEventListener('input', validateGroups);
             document.querySelector('#AdministratorGroup').addEventListener('input', validateGroups);
+            loadDictionary().then(strings => { dictionary = strings; localize(); updateClientSecretToggle(); loadConfiguration(); });
         </script>
     </div>
 </body>

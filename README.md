@@ -14,7 +14,7 @@
   </p>
 </div>
 
-Simple OIDC sign-in for Jellyfin 12, with easy configuration and support for one OpenID Connect provider. Jellyfin keeps control of user permissions and viewing activity.
+Simple OpenID Connect sign-in for Jellyfin 12+, with one Identity Provider, group-based access, and Jellyfin-controlled permissions and viewing activity.
 
 <!-- toc -->
 
@@ -40,6 +40,7 @@ Simple OIDC sign-in for Jellyfin 12, with easy configuration and support for one
 - Create Jellyfin users when eligible users sign in for the first time
 - Match existing Jellyfin users by verified email address
 - Sign out from both Jellyfin and the sign-in service when supported
+- Localized OIDC configuration page: Danish, German, English (US), Spanish, Finnish, French, Italian, Japanese, Korean, Norwegian Bokmal, Dutch, Polish, Portuguese (Brazil), Russian, Swedish, and Chinese (Simplified)
 
 ## Prerequisites
 

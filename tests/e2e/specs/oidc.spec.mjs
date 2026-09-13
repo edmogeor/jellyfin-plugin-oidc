@@ -201,6 +201,17 @@ test("loads the seeded OIDC settings and validates changes for an administrator"
   );
   await expect(page.locator("#SynchronizeProfileImages")).not.toBeChecked();
   await expect(page.locator("#SaveButton")).toBeDisabled();
+  await expect(page.locator("#ClientSecret")).toHaveAttribute(
+    "type",
+    "password",
+  );
+  await page.locator("#ClientSecretToggle").click();
+  await expect(page.locator("#ClientSecret")).toHaveAttribute("type", "text");
+  await page.locator("#ClientSecretToggle").click();
+  await expect(page.locator("#ClientSecret")).toHaveAttribute(
+    "type",
+    "password",
+  );
 
   await page.getByText("Synchronize profile images", { exact: true }).click();
   await expect(page.locator("#SaveButton")).toBeEnabled();
@@ -216,9 +227,27 @@ test("loads the seeded OIDC settings and validates changes for an administrator"
       .evaluate((input) => input.validity.valueMissing),
   ).toBe(true);
 
+  await page.locator("#IssuerUrl").fill("http://identity.example.test");
+  await page.locator("#SaveButton").click();
+  expect(
+    await page
+      .locator("#IssuerUrl")
+      .evaluate((input) => input.validity.customError),
+  ).toBe(true);
+
   await page
     .locator("#IssuerUrl")
     .fill("https://oidc.localhost:8443/keycloak/realms/jellyfin");
+  await expect(page.locator("#SaveButton")).toBeDisabled();
+
+  await page.locator("#PublicUrl").fill("http://jellyfin.example.test");
+  await page.locator("#SaveButton").click();
+  expect(
+    await page
+      .locator("#PublicUrl")
+      .evaluate((input) => input.validity.customError),
+  ).toBe(true);
+  await page.locator("#PublicUrl").fill("https://localhost:8443");
   await expect(page.locator("#SaveButton")).toBeDisabled();
 
   await page
