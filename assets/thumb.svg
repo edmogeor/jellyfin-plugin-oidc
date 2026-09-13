@@ -19,7 +19,7 @@
       <circle cx="10" cy="7" r="4" />
       <circle cx="20" cy="19" r="2" />
     </g>
-    <text x="1320" y="495" fill="#ffffff" font-family="Inter, sans-serif" font-size="176" font-weight="700" text-anchor="middle">OIDC</text>
-    <text x="1320" y="665" fill="#ffffff" font-family="Inter, sans-serif" font-size="96" font-weight="400" text-anchor="middle">Authentication</text>
+    <text x="1320" y="560" fill="#ffffff" font-family="Inter, sans-serif" font-size="176" font-weight="700" text-anchor="middle">OIDC</text>
+    <text x="1320" y="705" fill="#ffffff" font-family="Inter, sans-serif" font-size="96" font-weight="400" text-anchor="middle">Authentication</text>
   </g>
 </svg>
