@@ -1,0 +1,49 @@
+{
+  "realm": "jellyfin",
+  "enabled": true,
+  "groups": [{ "name": "jellyfin-users" }, { "name": "jellyfin-admins" }],
+  "clients": [
+    {
+      "clientId": "jellyfin",
+      "name": "Jellyfin OIDC test",
+      "enabled": true,
+      "protocol": "openid-connect",
+      "publicClient": false,
+      "clientAuthenticatorType": "client-secret",
+      "secret": "oidc-test-secret",
+      "standardFlowEnabled": true,
+      "redirectUris": ["https://localhost:8443/oidc/callback"],
+      "attributes": {
+        "post.logout.redirect.uris": "https://localhost:8443/web/index.html"
+      },
+      "webOrigins": ["https://localhost:8443"],
+      "protocolMappers": [
+        {
+          "name": "groups",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-group-membership-mapper",
+          "consentRequired": false,
+          "config": {
+            "claim.name": "groups",
+            "full.path": "false",
+            "id.token.claim": "true",
+            "access.token.claim": "true",
+            "userinfo.token.claim": "true"
+          }
+        }
+      ]
+    }
+  ],
+  "users": [
+    {
+      "username": "oidc-test",
+      "enabled": true,
+      "email": "oidc-test@example.test",
+      "emailVerified": true,
+      "firstName": "OIDC",
+      "lastName": "Test",
+      "groups": ["jellyfin-users", "jellyfin-admins"],
+      "credentials": [{ "type": "password", "value": "oidc-test-password", "temporary": false }]
+    }
+  ]
+}

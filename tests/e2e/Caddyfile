@@ -1,0 +1,15 @@
+https://localhost:8443, https://oidc.localhost:8443 {
+    tls /tls/tls.crt /tls/tls.key
+
+    handle /keycloak/* {
+        reverse_proxy https://keycloak-server:8443 {
+            transport http {
+                tls_insecure_skip_verify
+            }
+        }
+    }
+
+    handle {
+        reverse_proxy jellyfin-server:8096
+    }
+}

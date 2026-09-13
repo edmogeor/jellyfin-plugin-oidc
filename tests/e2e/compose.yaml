@@ -1,0 +1,78 @@
+services:
+  plugin-build:
+    image: mcr.microsoft.com/dotnet/sdk:10.0
+    working_dir: /src
+    volumes:
+      - ../..:/src:ro
+      - plugin:/output
+    command: sh -c 'rm -rf /work && cp -a /src /work && rm -rf /work/Jellyfin.Plugin.Oidc/bin /work/Jellyfin.Plugin.Oidc/obj && dotnet publish /work/Jellyfin.Plugin.Oidc/Jellyfin.Plugin.Oidc.csproj -c Release -o /output'
+
+  keycloak-server:
+    image: quay.io/keycloak/keycloak:26.3.2
+    environment:
+      KC_BOOTSTRAP_ADMIN_USERNAME: admin
+      KC_BOOTSTRAP_ADMIN_PASSWORD: admin
+      KC_HOSTNAME: https://oidc.localhost:8443/keycloak
+      KC_HTTP_RELATIVE_PATH: /keycloak
+      KC_HTTP_ENABLED: "false"
+    volumes:
+      - ./keycloak/realm.json:/opt/keycloak/data/import/jellyfin-realm.json:ro
+      - ./.tls:/tls:ro
+    command: start-dev --import-realm --https-port=8443 --https-certificate-file=/tls/tls.crt --https-certificate-key-file=/tls/tls.key
+    healthcheck:
+      test: ["CMD-SHELL", "bash -c 'echo > /dev/tcp/localhost/8443'"]
+      interval: 2s
+      timeout: 2s
+      retries: 60
+
+  jellyfin-server:
+    image: jellyfin/jellyfin:12
+    depends_on:
+      plugin-build:
+        condition: service_completed_successfully
+    environment:
+      SSL_CERT_FILE: /tls/ca.crt
+    extra_hosts:
+      - "oidc.localhost:172.30.0.250"
+    healthcheck:
+      test: ["CMD", "curl", "--fail", "http://localhost:8096/health"]
+      interval: 2s
+      timeout: 2s
+      retries: 60
+    volumes:
+      - jellyfin-config:/config
+      - plugin:/config/plugins/oidc
+      - ./.tls:/tls:ro
+
+  caddy:
+    image: caddy:2.10-alpine
+    depends_on:
+      - jellyfin-server
+      - keycloak-server
+    ports:
+      - "8443:8443"
+    networks:
+      default:
+        ipv4_address: 172.30.0.250
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - ./.tls:/tls:ro
+
+  configure:
+    image: python:3.13-alpine
+    depends_on:
+      - jellyfin-server
+      - keycloak-server
+    volumes:
+      - ./configure.py:/configure.py:ro
+    command: python /configure.py
+
+volumes:
+  jellyfin-config:
+  plugin:
+
+networks:
+  default:
+    ipam:
+      config:
+        - subnet: 172.30.0.0/24

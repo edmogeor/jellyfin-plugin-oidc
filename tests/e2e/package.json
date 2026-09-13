@@ -1,0 +1,12 @@
+{
+  "private": true,
+  "scripts": {
+    "lint": "oxlint specs playwright.config.mjs",
+    "test": "playwright test",
+    "test:headed": "PLAYWRIGHT_HEADED=1 playwright test"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.55.0",
+    "oxlint": "^1.81.0"
+  }
+}

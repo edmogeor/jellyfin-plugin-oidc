@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head><meta charset="utf-8"><title>OIDC Authentication</title></head>
+<body>
+    <div id="OidcConfigPage" data-role="page" class="page type-interior pluginConfigurationPage configPage" data-require="emby-input,emby-button,emby-select,emby-checkbox">
+        <div data-role="content"><div class="content-primary"><h1>OIDC Authentication</h1><form id="OidcConfigForm" class="configForm">
+            <div class="checkboxContainer checkboxContainer-withDescription"><label><input id="Enabled" type="checkbox" is="emby-checkbox" /><span>Enable OIDC</span></label><div class="fieldDescription checkboxFieldDescription">Allows eligible Identity Provider users to sign in. For an existing Jellyfin User to sign in automatically, their username must match their verified Identity Provider email address.</div></div>
+            <div class="verticalSection">
+                <h2>Connection</h2>
+                <div class="inputContainer inputContainer-withDescription"><input id="PublicUrl" type="url" is="emby-input" label="Public Jellyfin URL override" placeholder="https://jellyfin.example.com" /><div class="fieldDescription">Leave empty to use the address in the browser request. Set this when Jellyfin is behind a reverse proxy or has multiple public addresses.</div></div>
+                <div class="inputContainer inputContainer-withDescription"><input id="IssuerUrl" type="url" required is="emby-input" label="Issuer URL *" placeholder="https://identity.example.com" /><div class="fieldDescription">The Identity Provider's OpenID Connect issuer URL.</div></div>
+                <div class="inputContainer inputContainer-withDescription"><input id="ClientId" type="text" required is="emby-input" label="Client ID *" /><div class="fieldDescription">The client registered with the Identity Provider.</div></div>
+                <div class="inputContainer inputContainer-withDescription"><input id="ClientSecret" type="password" required is="emby-input" label="Client secret *" /><div class="fieldDescription">The secret for the registered client.</div></div>
+            </div>
+            <div class="verticalSection">
+                <h2>Access</h2>
+                <div class="inputContainer inputContainer-withDescription"><input id="UserGroup" type="text" is="emby-input" label="Allowed groups" /><div class="fieldDescription">Comma-separated Identity Provider groups whose members can sign in and be Provisioned as Jellyfin Users.</div></div>
+                <div class="inputContainer inputContainer-withDescription"><input id="AdministratorGroup" type="text" is="emby-input" label="Administrator groups" /><div class="fieldDescription">Comma-separated Identity Provider groups that can sign in as Jellyfin administrators.</div></div>
+                <div class="inputContainer inputContainer-withDescription"><input id="GroupClaim" type="text" is="emby-input" label="Group claim" /><div class="fieldDescription">Only top-level string or string-array claims are supported. Map nested claims at the Identity Provider.</div></div>
+            </div>
+            <div class="verticalSection">
+                <h2>Sign-in</h2>
+                <div class="inputContainer inputContainer-withDescription"><input id="LoginButtonText" type="text" is="emby-input" label="Login button text" /><div class="fieldDescription">The text shown on the Jellyfin login page.</div></div>
+                <div class="selectContainer"><select id="PasswordLoginMode" is="emby-select" class="emby-select" label="Password login mode"><option value="AllowForAllUsers">Allow for all users</option><option value="DisableForLinkedUsersOnly">Disable for linked users only</option><option value="DisableForAllUsers">Disable for all users</option></select><div class="fieldDescription">Choose whether Jellyfin Users can still sign in with local passwords.</div></div>
+                <div class="checkboxContainer checkboxContainer-withDescription"><label><input id="RpInitiatedLogout" type="checkbox" is="emby-checkbox" /><span>RP-Initiated Logout</span></label><div class="fieldDescription checkboxFieldDescription">Also sign out at the Identity Provider. Register <code>&lt;Public Jellyfin URL&gt;/web/index.html</code> as its post-logout redirect URI.</div></div>
+            </div>
+            <div><button id="SaveButton" is="emby-button" type="submit" class="raised button-submit block" disabled><span>Save</span></button></div>
+        </form></div></div>
+        <script>
+            const pluginId = '4c5b9b96-80cd-4c3d-9e3d-23fa4ebf6ce4';
+            const fields = ['Enabled', 'PublicUrl', 'IssuerUrl', 'ClientId', 'ClientSecret', 'UserGroup', 'AdministratorGroup', 'GroupClaim', 'LoginButtonText', 'PasswordLoginMode', 'RpInitiatedLogout'];
+            let savedConfiguration;
+            const value = name => document.querySelector('#' + name)[name === 'Enabled' || name === 'RpInitiatedLogout' ? 'checked' : 'value'];
+            const updateSaveButton = () => { document.querySelector('#SaveButton').disabled = !savedConfiguration || fields.every(name => value(name) === savedConfiguration[name]); };
+            const loadConfiguration = () => ApiClient.getPluginConfiguration(pluginId).then(config => {
+                savedConfiguration = Object.fromEntries(fields.map(name => [name, config[name]]));
+                fields.forEach(name => { document.querySelector('#' + name)[name === 'Enabled' || name === 'RpInitiatedLogout' ? 'checked' : 'value'] = config[name]; }); updateSaveButton();
+            });
+            document.querySelector('#OidcConfigPage').addEventListener('pageshow', loadConfiguration);
+            loadConfiguration();
+            const form = document.querySelector('#OidcConfigForm');
+            const validateGroups = () => {
+                const userGroup = document.querySelector('#UserGroup');
+                userGroup.setCustomValidity(userGroup.value.trim() || document.querySelector('#AdministratorGroup').value.trim() ? '' : 'Enter a User Group, an Administrator Group, or both.');
+            };
+            const save = () => {
+                Dashboard.showLoadingMsg();
+                ApiClient.getPluginConfiguration(pluginId).then(config => {
+                    fields.forEach(name => { config[name] = value(name); });
+                    return ApiClient.updatePluginConfiguration(pluginId, config);
+                }).then(result => { savedConfiguration = Object.fromEntries(fields.map(name => [name, value(name)])); updateSaveButton(); return Dashboard.processPluginConfigurationUpdateResult(result); });
+            };
+            form.addEventListener('submit', event => {
+                event.preventDefault();
+                validateGroups();
+                if (!form.reportValidity()) return;
+                const mode = value('PasswordLoginMode');
+                if (mode !== savedConfiguration.PasswordLoginMode && mode !== 'AllowForAllUsers') {
+                    const users = mode === 'DisableForAllUsers' ? 'all Jellyfin Users' : 'linked Jellyfin Users';
+                    Dashboard.confirm(`Local password sign-in will be disabled for ${users}. After saving, test OIDC sign-in in a separate browser session before signing out.`, 'Confirm password login change', confirmed => { if (confirmed) save(); });
+                    return;
+                }
+                save();
+            });
+            fields.forEach(name => document.querySelector('#' + name).addEventListener('input', updateSaveButton));
+            fields.forEach(name => document.querySelector('#' + name).addEventListener('change', updateSaveButton));
+            document.querySelector('#UserGroup').addEventListener('input', validateGroups);
+            document.querySelector('#AdministratorGroup').addEventListener('input', validateGroups);
+        </script>
+    </div>
+</body>
+</html>
