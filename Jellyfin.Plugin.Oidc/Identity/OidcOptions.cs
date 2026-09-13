@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Authentication.OpenIdConnect;
 using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 
 namespace Jellyfin.Plugin.Oidc.Identity;
@@ -11,6 +12,11 @@ namespace Jellyfin.Plugin.Oidc.Identity;
 /// <summary>Configures the single OIDC handler from plugin configuration.</summary>
 public sealed class OidcOptions : IConfigureNamedOptions<OpenIdConnectOptions>
 {
+    private readonly ILogger<OidcOptions> _logger;
+
+    /// <summary>Initializes a new instance of the <see cref="OidcOptions"/> class.</summary>
+    public OidcOptions(ILogger<OidcOptions> logger) => _logger = logger;
+
     /// <summary>The dedicated plugin authentication scheme.</summary>
     public const string Scheme = "JellyfinOidc";
 
@@ -102,6 +108,7 @@ public sealed class OidcOptions : IConfigureNamedOptions<OpenIdConnectOptions>
         };
         options.Events.OnRemoteFailure = context =>
         {
+            _logger.LogWarning("OIDC remote authentication failed.");
             context.Response.Redirect(PublicUrls.Get(context.Request, configuration) + "/web/index.html#!/login?oidcError=1");
             context.HandleResponse();
             return Task.CompletedTask;

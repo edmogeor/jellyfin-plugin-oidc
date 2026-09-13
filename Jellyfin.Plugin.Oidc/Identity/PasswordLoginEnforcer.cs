@@ -25,6 +25,6 @@ public static class PasswordLoginEnforcer
         var policy = userManager.GetUserDto(user).Policy;
         policy.AuthenticationProviderId = disabled ? typeof(OidcPasswordDisabledProvider).FullName : DefaultProvider;
         await userManager.UpdatePolicyAsync(user.Id, policy).ConfigureAwait(false);
-        logger.LogInformation("Updated local credential availability for Jellyfin User {Username}.", user.Username);
+        logger.LogInformation("Updated local credential availability for a Jellyfin User.");
     }
 }

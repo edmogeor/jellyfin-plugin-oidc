@@ -90,7 +90,7 @@ public sealed class OidcProfileImageSynchronizer
         }
         catch (Exception exception) when (exception is HttpRequestException or IOException or OperationCanceledException or SocketException)
         {
-            _logger.LogWarning(exception, "OIDC profile image synchronization failed.");
+            _logger.LogWarning("OIDC profile image synchronization failed.");
         }
     }
 
