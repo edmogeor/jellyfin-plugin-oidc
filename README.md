@@ -87,7 +87,8 @@ If a person's verified email address changes, the plugin keeps their existing Je
 | Disable for linked users only | Local passwords are unavailable for Jellyfin users who have signed in with OIDC. |
 | Disable for all users | Local passwords are unavailable for every Jellyfin User. |
 
-When you change this setting, the plugin updates every Jellyfin user. Before you turn off local passwords for everyone, set an administrator group. Test OIDC sign-in in another browser session before you sign out.
+> [!WARNING]
+> When you change this setting, the plugin updates every Jellyfin user. Before you turn off local passwords for everyone, set an administrator group. Test OIDC sign-in in another browser session before you sign out.
 
 ## Logout
 
