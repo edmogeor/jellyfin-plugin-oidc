@@ -4,12 +4,12 @@ on:
   pull_request:
     paths-ignore:
       - "**.md"
-
-permissions:
-  contents: read
   push:
     paths-ignore:
       - "**.md"
+
+permissions:
+  contents: read
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
