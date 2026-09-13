@@ -201,6 +201,16 @@ test("loads the seeded OIDC settings and validates changes for an administrator"
   );
   await expect(page.locator("#SynchronizeProfileImages")).not.toBeChecked();
   await expect(page.locator("#SaveButton")).toBeDisabled();
+  expect(
+    await page.locator("#ClientSecretToggle").evaluate((button) => {
+      const input = document.querySelector("#ClientSecret");
+      return (
+        input &&
+        button.getBoundingClientRect().left >=
+          input.getBoundingClientRect().right
+      );
+    }),
+  ).toBe(true);
   await expect(page.locator("#ClientSecret")).toHaveAttribute(
     "type",
     "password",
