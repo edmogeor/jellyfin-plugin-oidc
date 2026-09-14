@@ -44,6 +44,7 @@ public sealed class OidcUserProvisioner
             if (link is not null && user is null)
             {
                 configuration.IdentityLinks.Remove(link);
+                link = null;
             }
             else if (link is not null && string.IsNullOrEmpty(link.Issuer))
             {

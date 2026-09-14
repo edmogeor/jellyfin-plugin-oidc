@@ -1,3 +1,7 @@
+## [0.1.4.0]
+
+- Restore the Identity Link when reprovisioning after its Jellyfin User was deleted.
+
 ## [0.1.3.0]
 
 - Clarify the local-password warning and localize its lockout risk.

@@ -573,6 +573,14 @@ test("reprovisions a Jellyfin User after its linked user is deleted", async ({
   const returningPage = await returningContext.newPage();
   await signIn(returningPage);
   expect((await currentUser(returningPage)).Id).not.toBe(user.Id);
+  expect(
+    await returningPage.evaluate(async () => {
+      const config = await ApiClient.getPluginConfiguration(
+        "4c5b9b96-80cd-4c3d-9e3d-23fa4ebf6ce4",
+      );
+      return config.IdentityLinks.length;
+    }),
+  ).toBe(1);
   await returningContext.close();
 });
 
