@@ -20,9 +20,6 @@ wait "$pull_pid" || fail
 docker compose up -d --wait --wait-timeout 120 --no-deps --force-recreate jellyfin-server || fail
 printf 'Configuring OIDC test settings...\n'
 docker compose run --rm configure || fail
-printf 'Restarting Jellyfin to load OIDC settings...\n'
-docker compose restart jellyfin-server || fail
-docker compose up -d --wait --wait-timeout 120 --no-deps jellyfin-server || fail
 printf 'Starting local TLS proxy at https://localhost:8443...\n'
 docker compose up -d --no-deps caddy || fail
 printf 'Waiting for the proxied Jellyfin server...\n'

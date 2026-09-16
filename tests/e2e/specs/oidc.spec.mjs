@@ -398,6 +398,8 @@ test("only skips the Jellyfin login form when local passwords are disabled for a
     "/web/index.html#/configurationpage?name=OIDC%20Authentication",
   );
   await expect(adminPage.locator("#Enabled")).toBeChecked({ timeout: 30_000 });
+  const restorePage = await browser.newPage();
+  await signIn(restorePage);
 
   try {
     await setPasswordLoginMode(adminPage, "AllowForAllUsers");
@@ -439,24 +441,31 @@ test("only skips the Jellyfin login form when local passwords are disabled for a
     expect(new URL(redirectResponse.headers().location).pathname).toBe(
       "/oidc/start",
     );
-    await page.goto("/oidc/logout");
-    await expect(page).toHaveURL(/oidcSignedOut=1/);
+    await adminPage.reload();
+    await adminPage.waitForFunction(
+      () => window.oidcRedirectSignInPageToProvider === true,
+      { timeout: 30_000 },
+    );
+    await adminPage.getByRole("button", { name: "User Menu" }).click();
+    await adminPage.getByRole("menuitem", { name: "Sign Out" }).click();
+    await expect(adminPage).toHaveURL(/oidcSignedOut=1/);
     await expect(
-      page.getByRole("heading", { name: "Signed Out" }),
+      adminPage.getByRole("heading", { name: "Signed Out" }),
     ).toBeVisible();
     await expect(
-      page.getByRole("button", { name: "Sign In with SSO" }),
+      adminPage.getByRole("button", { name: "Sign In with SSO" }),
     ).toBeVisible();
-    await expect(page.locator(".visualLoginForm")).toHaveCount(1);
-    await expect(page.locator(".readOnlyContent")).toHaveCount(1);
-    await expect(page.locator(".manualLoginForm")).toHaveCount(0);
+    await expect(adminPage.locator(".visualLoginForm")).toHaveCount(1);
+    await expect(adminPage.locator(".readOnlyContent")).toHaveCount(1);
+    await expect(adminPage.locator(".manualLoginForm")).toHaveCount(0);
   } finally {
     await setConfigurationValue(
-      adminPage,
+      restorePage,
       "RedirectSignInPageToProvider",
       false,
     );
-    await setPasswordLoginMode(adminPage, "AllowForAllUsers");
+    await setPasswordLoginMode(restorePage, "AllowForAllUsers");
+    await restorePage.close();
     await adminPage.close();
   }
 });

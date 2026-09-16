@@ -75,7 +75,8 @@
         setTimeout(() => message.remove(), 3600);
     };
     const enableLogout = () => addEventListener('click', async event => {
-        const logout = event.target.closest('.btnLogout');
+        const menuItem = event.target.closest('[role="menuitem"]');
+        const logout = menuItem?.querySelector('[data-testid="LogoutIcon"]') ? menuItem : null;
         if (!logout || (!window.oidcRpInitiatedLogout && !window.oidcRedirectSignInPageToProvider)) return;
         event.preventDefault(); event.stopImmediatePropagation();
         const server = JSON.parse(localStorage.getItem('jellyfin_credentials') || '{}').Servers?.[0];

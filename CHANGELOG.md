@@ -4,6 +4,7 @@
 - Keep the OIDC sign-in button while removing local-login controls without direct redirects.
 - Localize the redirect setting and OIDC signed-out title.
 - Prevent browsers from using stale OIDC login integration and configuration after a plugin update or settings change.
+- Show the OIDC signed-out page when using Jellyfin 12's User Menu logout control.
 
 ## [0.1.7.0]
 
