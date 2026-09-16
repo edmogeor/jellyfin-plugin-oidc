@@ -1,3 +1,7 @@
+## [0.1.5.0]
+
+- Package the OpenID Connect runtime dependencies required by Jellyfin.
+
 ## [0.1.4.0]
 
 - Restore the Identity Link when reprovisioning after its Jellyfin User was deleted.
