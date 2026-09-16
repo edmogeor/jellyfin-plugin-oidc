@@ -39,7 +39,7 @@ public sealed class OidcController : ControllerBase
             return NotFound();
         }
 
-        return new WebConfiguration(configuration.LoginButtonText, configuration.PasswordLoginMode.ToString(), configuration.RpInitiatedLogout);
+        return new WebConfiguration(configuration.LoginButtonText, configuration.PasswordLoginMode.ToString(), configuration.RedirectSignInPageToProvider, configuration.RpInitiatedLogout);
     }
 
     /// <summary>Serves the small Jellyfin Web integration script.</summary>
@@ -102,7 +102,7 @@ public sealed class OidcController : ControllerBase
         var loginPage = configuration is null
             ? OidcConstants.WebIndexPath
             : PublicUrls.LogoutReturnUrl(Request, configuration);
-        var localLogoutPage = configuration is { PasswordLoginMode: PasswordLoginMode.DisableForAllUsers, RpInitiatedLogout: false }
+        var localLogoutPage = configuration is { PasswordLoginMode: PasswordLoginMode.DisableForAllUsers, RedirectSignInPageToProvider: true, RpInitiatedLogout: false }
             ? loginPage + "?oidcSignedOut=1#!/login"
             : loginPage + "#!/login";
         if (configuration is null || !configuration.RpInitiatedLogout || string.IsNullOrEmpty(protectedIdToken))
@@ -124,7 +124,7 @@ public sealed class OidcController : ControllerBase
                 ["client_id"] = configuration.ClientId,
                 ["id_token_hint"] = idToken,
             };
-            if (configuration.PasswordLoginMode != PasswordLoginMode.DisableForAllUsers)
+            if (configuration.PasswordLoginMode != PasswordLoginMode.DisableForAllUsers || !configuration.RedirectSignInPageToProvider)
             {
                 parameters["post_logout_redirect_uri"] = loginPage;
             }
@@ -148,6 +148,6 @@ public sealed class OidcController : ControllerBase
     /// <summary>Non-secret settings used by the browser integration.</summary>
     // JSON serialization reads these endpoint fields.
     // ReSharper disable NotAccessedPositionalProperty.Global
-    public sealed record WebConfiguration(string LoginButtonText, string PasswordLoginMode, bool RpInitiatedLogout);
+    public sealed record WebConfiguration(string LoginButtonText, string PasswordLoginMode, bool RedirectSignInPageToProvider, bool RpInitiatedLogout);
     // ReSharper restore NotAccessedPositionalProperty.Global
 }

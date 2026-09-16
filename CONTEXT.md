@@ -68,9 +68,9 @@ Group membership is evaluated at OIDC sign-in. Removing all Allowed Groups denie
 
 ## Browser Integration And Logout
 
-The plugin redirects Jellyfin Web index requests directly to OIDC when local passwords are disabled for all users. It injects one small script for the OIDC button, generic sign-in failure, and optional Jellyfin logout interception.
+When local passwords are disabled for all users, an optional setting redirects Jellyfin Web index requests directly to OIDC. With that setting off, the injected script removes Jellyfin's local-login controls and retains the OIDC sign-in button. It also handles generic sign-in failure and optional Jellyfin logout interception.
 
-With RP-initiated logout enabled, a browser session with a protected ID token is redirected to the discovered Identity Provider end-session endpoint with `client_id` and `id_token_hint`. When local passwords are available, it also sends a Jellyfin login return URL; the Identity Provider must allow `<Public Jellyfin URL>/web/index.html` as a post-logout redirect URI. When local passwords are disabled for all Jellyfin Users, the Identity Provider owns the post-logout page. Without a token, enabled setting, or end-session endpoint, logout returns to Jellyfin login. When RP-initiated logout is disabled and local passwords are disabled for all Jellyfin Users, it instead shows an OIDC-only signed-out state, preventing an immediate sign-in loop.
+With RP-initiated logout enabled, a browser session with a protected ID token is redirected to the discovered Identity Provider end-session endpoint with `client_id` and `id_token_hint`. It sends a Jellyfin login return URL unless the direct-redirect setting is enabled while local passwords are disabled for all Jellyfin Users. The Identity Provider must allow `<Public Jellyfin URL>/web/index.html` as a post-logout redirect URI when that URL is sent. With direct redirect enabled, the Identity Provider owns the post-logout page. Without a token, enabled setting, or end-session endpoint, logout returns to Jellyfin login. When RP-initiated logout is disabled and direct redirect is enabled, it instead shows an OIDC-only signed-out state, preventing an immediate sign-in loop.
 
 ## Security Boundaries
 

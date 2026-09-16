@@ -35,7 +35,7 @@ Simple OpenID Connect sign-in for Jellyfin 12+, with one Identity Provider, grou
 ## Features
 
 - Sign in with an OIDC service that supports standard discovery and can return verified email and flat group claims
-- Show a configurable sign-in button, or go straight to the sign-in service when local passwords are off
+- Show a configurable sign-in button, with an optional direct redirect to the sign-in service when local passwords are off
 - Allow access and administrator rights based on groups
 - Create Jellyfin users when eligible users sign in for the first time
 - Match existing Jellyfin users by verified email address
@@ -85,6 +85,7 @@ OIDC sign-in requires an HTTPS public URL. If Jellyfin is behind a reverse proxy
 | Additional requested scopes  | No                         | -                   | Space-separated scopes requested in addition to `openid email profile`.                       |
 | Login button text            | No                         | `Sign In with SSO`  | The text on the Jellyfin sign-in button.                                                      |
 | Password login mode          | No                         | Allow for all users | Choose who can use local passwords.                                                           |
+| Redirect sign-in page to provider | No                    | Off                 | Directly redirect to the Identity Provider when passwords are disabled for all users.          |
 | RP-Initiated Logout          | No                         | Off                 | Also sign out from your OIDC service when it supports this.                                   |
 
 The plugin supports one OIDC service and simple, top-level profile and group data. If your groups are nested, map them to a top-level claim in your OIDC service. You cannot set endpoint URLs by hand.
@@ -122,6 +123,8 @@ If a user's verified email address changes, the plugin updates the linked Jellyf
 | Allow for all users           | Local passwords remain available.                                                |
 | Disable for linked users only | Local passwords are unavailable for Jellyfin users who have signed in with OIDC. |
 | Disable for all users         | Local passwords are unavailable for every Jellyfin User.                         |
+
+When local passwords are disabled for all users, **Redirect sign-in page to provider** is available. Off keeps the Jellyfin sign-in URL and shows only the OIDC sign-in button. On redirects directly to the Identity Provider and provides an OIDC-only signed-out page.
 
 > [!WARNING]
 > When you change this setting, the plugin updates every Jellyfin user. Before you turn off local passwords for everyone, set an administrator group. Test OIDC sign-in in another browser session before you sign out.

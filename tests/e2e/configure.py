@@ -61,6 +61,7 @@ configuration.update(
         "AdministratorGroup": "jellyfin-admins",
         "LoginButtonText": "Sign In with SSO",
         "PasswordLoginMode": "AllowForAllUsers",
+        "RedirectSignInPageToProvider": False,
         "RpInitiatedLogout": False,
     }
 )

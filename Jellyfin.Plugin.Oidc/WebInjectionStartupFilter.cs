@@ -30,7 +30,7 @@ public sealed class WebInjectionStartupFilter : IStartupFilter
                     return;
                 }
 
-                if (configuration.PasswordLoginMode == PasswordLoginMode.DisableForAllUsers
+                if (configuration is { PasswordLoginMode: PasswordLoginMode.DisableForAllUsers, RedirectSignInPageToProvider: true }
                     && !context.Request.Query.ContainsKey("oidcTicket")
                     && !context.Request.Query.ContainsKey("oidcError")
                     && !context.Request.Query.ContainsKey("oidcSignedOut"))

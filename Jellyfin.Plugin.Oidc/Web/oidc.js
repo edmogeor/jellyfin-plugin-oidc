@@ -6,6 +6,15 @@
     const hasOidcError = () => location.search.includes('oidcError=1') || location.hash.includes('oidcError=1');
     const isSignedOut = () => location.search.includes('oidcSignedOut=1');
     const loginLabel = () => window.oidcButtonText || 'Sign In with SSO';
+    const signedOutLabel = () => window.oidcSignedOutText || 'Signed Out';
+    const loadStrings = async () => {
+        const locale = document.documentElement.lang.toLowerCase();
+        for (const value of [locale, locale.split('-')[0], 'en-us']) {
+            const response = await fetch(oidcUrl + 'strings/' + encodeURIComponent(value));
+            if (response.ok) return response.json();
+        }
+        return {};
+    };
     const addLogin = (stack = document.querySelector('.readOnlyContent')) => {
         if (!isLoginPage()) {
             document.querySelector('[data-oidc-login]')?.remove();
@@ -43,12 +52,16 @@
         content.replaceChildren(status, stack);
         status.replaceChildren();
         const heading = document.createElement('h1');
-        heading.className = 'sectionTitle'; heading.style.marginTop = '1em'; heading.textContent = 'Signed Out';
+        heading.className = 'sectionTitle'; heading.style.marginTop = '1em'; heading.textContent = signedOutLabel();
         status.append(heading);
         stack.replaceChildren();
         addLogin(stack);
         login.style.visibility = 'visible';
         return true;
+    };
+    const removeLocalLogin = () => {
+        if (!isLoginPage()) return;
+        document.querySelectorAll('#loginPage .manualLoginForm, #loginPage .visualLoginForm, #loginPage .btnManual').forEach(element => element.remove());
     };
     const showError = () => {
         if (!isLoginPage() || !hasOidcError() || document.querySelector('[data-oidc-error]')) return;
@@ -63,19 +76,22 @@
     };
     const enableLogout = () => addEventListener('click', async event => {
         const logout = event.target.closest('.btnLogout');
-        if (!logout || (!window.oidcRpInitiatedLogout && window.oidcPasswordLoginMode !== 'DisableForAllUsers')) return;
+        if (!logout || (!window.oidcRpInitiatedLogout && !window.oidcRedirectSignInPageToProvider)) return;
         event.preventDefault(); event.stopImmediatePropagation();
         const server = JSON.parse(localStorage.getItem('jellyfin_credentials') || '{}').Servers?.[0];
         if (server?.AccessToken) await fetch(serverUrl + 'Sessions/Logout', { method: 'POST', headers: { Authorization: `MediaBrowser Token="${server.AccessToken}"` } });
         localStorage.clear(); location.assign(oidcUrl + 'logout');
     }, true);
-    fetch(oidcUrl + 'config').then(response => response.ok ? response.json() : null).then(config => {
+    fetch(oidcUrl + 'config').then(response => response.ok ? response.json() : null).then(async config => {
         if (!config) return;
         window.oidcButtonText = config.LoginButtonText;
         window.oidcRpInitiatedLogout = config.RpInitiatedLogout;
         window.oidcPasswordLoginMode = config.PasswordLoginMode;
+        window.oidcRedirectSignInPageToProvider = config.RedirectSignInPageToProvider;
         const allPasswordsDisabled = config.PasswordLoginMode === 'DisableForAllUsers';
-        if (allPasswordsDisabled && isSignedOut()) {
+        const redirectsToProvider = allPasswordsDisabled && config.RedirectSignInPageToProvider;
+        if (redirectsToProvider && isSignedOut()) {
+            window.oidcSignedOutText = (await loadStrings()).signedOut;
             if (showSignedOut()) return;
             const observer = new MutationObserver(() => {
                 if (showSignedOut()) observer.disconnect();
@@ -83,14 +99,15 @@
             observer.observe(document.documentElement, { childList: true, subtree: true });
             return;
         }
-        if (allPasswordsDisabled && !hasOidcError() && !sessionStorage.oidcStarted) {
+        if (redirectsToProvider && !hasOidcError() && !sessionStorage.oidcStarted) {
             const start = () => { sessionStorage.oidcStarted = 'true'; location.assign(endpoint); };
             if (document.readyState === 'complete') start(); else addEventListener('load', start, { once: true });
             return;
         }
-        new MutationObserver(() => addLogin()).observe(document.documentElement, { childList: true, subtree: true });
+        new MutationObserver(() => { if (allPasswordsDisabled && !redirectsToProvider) removeLocalLogin(); addLogin(); }).observe(document.documentElement, { childList: true, subtree: true });
         addEventListener('hashchange', () => { addLogin(); showError(); });
         addEventListener('pageshow', resetLoginButton);
+        if (allPasswordsDisabled && !redirectsToProvider) removeLocalLogin();
         addLogin();
         showError();
         enableLogout();

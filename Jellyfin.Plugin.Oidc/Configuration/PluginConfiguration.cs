@@ -80,6 +80,9 @@ public sealed class PluginConfiguration : BasePluginConfiguration
     /// <summary>Gets or sets local credential availability.</summary>
     public PasswordLoginMode PasswordLoginMode { get; set; }
 
+    /// <summary>Gets or sets whether the Jellyfin sign-in page redirects directly to the Identity Provider.</summary>
+    public bool RedirectSignInPageToProvider { get; set; }
+
     /// <summary>Gets or sets a value indicating whether RP-initiated logout is requested when available.</summary>
     public bool RpInitiatedLogout { get; set; }
 

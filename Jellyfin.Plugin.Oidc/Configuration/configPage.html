@@ -23,6 +23,7 @@
                 <h2>${ButtonSignIn}</h2>
                 <div class="inputContainer inputContainer-withDescription"><input id="LoginButtonText" type="text" is="emby-input" data-i18n-label="loginButtonTextLabel" /><div class="fieldDescription" data-i18n="loginButtonTextHelp"></div></div>
                 <div class="selectContainer"><label for="PasswordLoginMode" data-i18n="passwordLoginModeLabel"></label><select id="PasswordLoginMode" is="emby-select" class="emby-select"><option value="AllowForAllUsers" data-i18n="allowForAllUsers"></option><option value="DisableForLinkedUsersOnly" data-i18n="disableForLinkedUsersOnly"></option><option value="DisableForAllUsers" data-i18n="disableForAllUsers"></option></select><div class="fieldDescription" data-i18n="passwordLoginModeHelp"></div></div>
+                <div id="RedirectSignInPageToProviderContainer" class="checkboxContainer checkboxContainer-withDescription" style="display:none"><label><input id="RedirectSignInPageToProvider" type="checkbox" is="emby-checkbox" /><span data-i18n="redirectSignInPageToProviderLabel"></span></label><div class="fieldDescription checkboxFieldDescription" data-i18n="redirectSignInPageToProviderHelp"></div></div>
                 <div class="checkboxContainer checkboxContainer-withDescription"><label><input id="SynchronizeProfileImages" type="checkbox" is="emby-checkbox" /><span data-i18n="synchronizeProfileImagesLabel"></span></label><div class="fieldDescription checkboxFieldDescription" data-i18n="synchronizeProfileImagesHelp"></div></div>
                 <div class="checkboxContainer checkboxContainer-withDescription"><label><input id="RpInitiatedLogout" type="checkbox" is="emby-checkbox" /><span data-i18n="rpInitiatedLogoutLabel"></span></label><div class="fieldDescription checkboxFieldDescription" data-i18n="rpInitiatedLogoutHelp"></div></div>
             </div>
@@ -53,13 +54,15 @@
             };
 
             const pluginId = '4c5b9b96-80cd-4c3d-9e3d-23fa4ebf6ce4';
-            const fields = ['Enabled', 'PublicUrl', 'IssuerUrl', 'ClientId', 'ClientSecret', 'UserGroup', 'AdministratorGroup', 'GroupClaim', 'AdditionalScopes', 'LoginButtonText', 'PasswordLoginMode', 'SynchronizeProfileImages', 'RpInitiatedLogout'];
+            const fields = ['Enabled', 'PublicUrl', 'IssuerUrl', 'ClientId', 'ClientSecret', 'UserGroup', 'AdministratorGroup', 'GroupClaim', 'AdditionalScopes', 'LoginButtonText', 'PasswordLoginMode', 'RedirectSignInPageToProvider', 'SynchronizeProfileImages', 'RpInitiatedLogout'];
+            const checkboxes = ['Enabled', 'RedirectSignInPageToProvider', 'SynchronizeProfileImages', 'RpInitiatedLogout'];
             let savedConfiguration;
-            const value = name => document.querySelector('#' + name)[name === 'Enabled' || name === 'SynchronizeProfileImages' || name === 'RpInitiatedLogout' ? 'checked' : 'value'];
+            const value = name => document.querySelector('#' + name)[checkboxes.includes(name) ? 'checked' : 'value'];
             const updateSaveButton = () => { document.querySelector('#SaveButton').disabled = !savedConfiguration || fields.every(name => value(name) === savedConfiguration[name]); };
+            const updateRedirectSignInPageToProvider = () => { document.querySelector('#RedirectSignInPageToProviderContainer').style.display = value('PasswordLoginMode') === 'DisableForAllUsers' ? '' : 'none'; };
             const loadConfiguration = () => ApiClient.getPluginConfiguration(pluginId).then(config => {
                 savedConfiguration = Object.fromEntries(fields.map(name => [name, config[name]]));
-                fields.forEach(name => { document.querySelector('#' + name)[name === 'Enabled' || name === 'SynchronizeProfileImages' || name === 'RpInitiatedLogout' ? 'checked' : 'value'] = config[name]; }); updateSaveButton();
+                fields.forEach(name => { document.querySelector('#' + name)[checkboxes.includes(name) ? 'checked' : 'value'] = config[name]; }); updateRedirectSignInPageToProvider(); updateSaveButton();
             });
             document.querySelector('#OidcConfigPage').addEventListener('pageshow', () => {
                 if (dictionary) localize();
@@ -126,6 +129,7 @@
             });
             fields.forEach(name => document.querySelector('#' + name).addEventListener('input', updateSaveButton));
             fields.forEach(name => document.querySelector('#' + name).addEventListener('change', updateSaveButton));
+            document.querySelector('#PasswordLoginMode').addEventListener('change', updateRedirectSignInPageToProvider);
             ['PublicUrl', 'IssuerUrl'].forEach(name => document.querySelector('#' + name).addEventListener('input', () => validateHttpsUrl(name)));
             document.querySelector('#UserGroup').addEventListener('input', validateGroups);
             document.querySelector('#AdministratorGroup').addEventListener('input', validateGroups);

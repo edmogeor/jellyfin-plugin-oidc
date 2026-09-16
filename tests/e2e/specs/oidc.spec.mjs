@@ -245,6 +245,10 @@ test("loads the seeded OIDC settings and validates changes for an administrator"
     "jellyfin-admins",
   );
   await expect(page.locator("#SynchronizeProfileImages")).not.toBeChecked();
+  await expect(page.locator("#RedirectSignInPageToProvider")).not.toBeChecked();
+  await expect(
+    page.locator("#RedirectSignInPageToProviderContainer"),
+  ).toBeHidden();
   await expect(page.locator("#SaveButton")).toBeDisabled();
   expect(
     await page.locator("#ClientSecretToggle").evaluate((button) => {
@@ -308,6 +312,9 @@ test("loads the seeded OIDC settings and validates changes for an administrator"
   await page
     .locator("#PasswordLoginMode")
     .selectOption("DisableForLinkedUsersOnly");
+  await expect(
+    page.locator("#RedirectSignInPageToProviderContainer"),
+  ).toBeHidden();
   await page.locator("#SaveButton").click();
   await expect(
     page.getByRole("heading", { name: "You could be locked out" }),
@@ -408,8 +415,27 @@ test("only skips the Jellyfin login form when local passwords are disabled for a
     const response = await adminPage.request.get("/web/index.html", {
       maxRedirects: 0,
     });
-    expect(response.status()).toBe(302);
-    expect(new URL(response.headers().location).pathname).toBe("/oidc/start");
+    expect(response.status()).toBe(200);
+    await showLogin(page);
+    await expect(
+      page.getByRole("button", { name: "Sign In with SSO" }),
+    ).toBeVisible();
+    await expect(page.locator(".visualLoginForm")).toHaveCount(0);
+    await expect(page.locator(".manualLoginForm")).toHaveCount(0);
+    await expect(page.locator(".readOnlyContent")).toHaveCount(1);
+
+    await setConfigurationValue(
+      adminPage,
+      "RedirectSignInPageToProvider",
+      true,
+    );
+    const redirectResponse = await adminPage.request.get("/web/index.html", {
+      maxRedirects: 0,
+    });
+    expect(redirectResponse.status()).toBe(302);
+    expect(new URL(redirectResponse.headers().location).pathname).toBe(
+      "/oidc/start",
+    );
     await page.goto("/oidc/logout");
     await expect(page).toHaveURL(/oidcSignedOut=1/);
     await expect(
@@ -422,6 +448,11 @@ test("only skips the Jellyfin login form when local passwords are disabled for a
     await expect(page.locator(".readOnlyContent")).toHaveCount(1);
     await expect(page.locator(".manualLoginForm")).toHaveCount(0);
   } finally {
+    await setConfigurationValue(
+      adminPage,
+      "RedirectSignInPageToProvider",
+      false,
+    );
     await setPasswordLoginMode(adminPage, "AllowForAllUsers");
     await adminPage.close();
   }
@@ -719,6 +750,11 @@ test("leaves the post-logout page to the Identity Provider when local passwords 
     "PasswordLoginMode",
     "DisableForAllUsers",
   );
+  const originalRedirect = await setConfigurationValue(
+    adminPage,
+    "RedirectSignInPageToProvider",
+    true,
+  );
 
   try {
     const logoutRequest = logoutPage.waitForRequest((request) =>
@@ -739,6 +775,11 @@ test("leaves the post-logout page to the Identity Provider when local passwords 
       adminPage,
       "RpInitiatedLogout",
       originalRpLogout,
+    );
+    await setConfigurationValue(
+      adminPage,
+      "RedirectSignInPageToProvider",
+      originalRedirect,
     );
     await logoutContext.close();
     await adminPage.close();
