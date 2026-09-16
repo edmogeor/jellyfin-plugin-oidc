@@ -1,3 +1,8 @@
+## [0.1.9.0]
+
+- Keep the Jellyfin sign-in heading while showing only the OIDC button when local passwords are disabled for all Jellyfin Users without direct redirects.
+- Reload Jellyfin Web after saving OIDC settings so the first logout uses the updated login state.
+
 ## [0.1.8.0]
 
 - Make direct Identity Provider redirects opt-in when local passwords are disabled for all Jellyfin Users.

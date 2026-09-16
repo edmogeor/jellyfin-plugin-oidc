@@ -111,7 +111,12 @@
                 ApiClient.getPluginConfiguration(pluginId).then(config => {
                     fields.forEach(name => { config[name] = value(name); });
                     return ApiClient.updatePluginConfiguration(pluginId, config);
-                }).then(result => { savedConfiguration = Object.fromEntries(fields.map(name => [name, value(name)])); updateSaveButton(); return Dashboard.processPluginConfigurationUpdateResult(result); });
+                }).then(result => {
+                    const reload = ['Enabled', 'PasswordLoginMode', 'RedirectSignInPageToProvider'].some(name => value(name) !== savedConfiguration[name]);
+                    savedConfiguration = Object.fromEntries(fields.map(name => [name, value(name)]));
+                    updateSaveButton();
+                    return Promise.resolve(Dashboard.processPluginConfigurationUpdateResult(result)).then(() => reload ? location.reload() : dispatchEvent(new Event('oidcconfigurationchange')));
+                });
             };
             form.addEventListener('submit', event => {
                 event.preventDefault();

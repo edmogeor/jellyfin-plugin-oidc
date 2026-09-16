@@ -7,9 +7,10 @@
     const isSignedOut = () => location.search.includes('oidcSignedOut=1');
     const loginLabel = () => window.oidcButtonText || 'Sign In with SSO';
     const signedOutLabel = () => window.oidcSignedOutText || 'Signed Out';
+    let loginObserver;
     const loadStrings = async () => {
         const locale = document.documentElement.lang.toLowerCase();
-        for (const value of [locale, locale.split('-')[0], 'en-us']) {
+        for (const value of new Set([locale, locale.split('-')[0], 'en-us'])) {
             const response = await fetch(oidcUrl + 'strings/' + encodeURIComponent(value));
             if (response.ok) return response.json();
         }
@@ -61,7 +62,13 @@
     };
     const removeLocalLogin = () => {
         if (!isLoginPage()) return;
-        document.querySelectorAll('#loginPage .manualLoginForm, #loginPage .visualLoginForm, #loginPage .btnManual').forEach(element => element.remove());
+        const login = document.querySelector('#loginPage');
+        const visual = login?.querySelector('.visualLoginForm');
+        const stack = login?.querySelector('.readOnlyContent');
+        if (!visual || !stack || (stack.children.length === 1 && stack.querySelector('[data-oidc-login]') && !login.querySelector('.manualLoginForm, #divUsers'))) return;
+        login.querySelector('.manualLoginForm')?.remove();
+        visual.querySelector('#divUsers')?.remove();
+        stack.replaceChildren();
     };
     const showError = () => {
         if (!isLoginPage() || !hasOidcError() || document.querySelector('[data-oidc-error]')) return;
@@ -83,16 +90,19 @@
         if (server?.AccessToken) await fetch(serverUrl + 'Sessions/Logout', { method: 'POST', headers: { Authorization: `MediaBrowser Token="${server.AccessToken}"` } });
         localStorage.clear(); location.assign(oidcUrl + 'logout');
     }, true);
-    fetch(oidcUrl + 'config').then(response => response.ok ? response.json() : null).then(async config => {
+    const configure = async () => {
+        const response = await fetch(oidcUrl + 'config', { cache: 'no-store' });
+        const config = response.ok ? await response.json() : null;
         if (!config) return;
         window.oidcButtonText = config.LoginButtonText;
         window.oidcRpInitiatedLogout = config.RpInitiatedLogout;
         window.oidcPasswordLoginMode = config.PasswordLoginMode;
         window.oidcRedirectSignInPageToProvider = config.RedirectSignInPageToProvider;
+        resetLoginButton();
         const allPasswordsDisabled = config.PasswordLoginMode === 'DisableForAllUsers';
         const redirectsToProvider = allPasswordsDisabled && config.RedirectSignInPageToProvider;
         if (redirectsToProvider && isSignedOut()) {
-            window.oidcSignedOutText = (await loadStrings()).signedOut;
+            window.oidcSignedOutText = (await loadStrings().catch(() => ({}))).signedOut;
             if (showSignedOut()) return;
             const observer = new MutationObserver(() => {
                 if (showSignedOut()) observer.disconnect();
@@ -105,12 +115,16 @@
             if (document.readyState === 'complete') start(); else addEventListener('load', start, { once: true });
             return;
         }
-        new MutationObserver(() => { if (allPasswordsDisabled && !redirectsToProvider) removeLocalLogin(); addLogin(); }).observe(document.documentElement, { childList: true, subtree: true });
-        addEventListener('hashchange', () => { addLogin(); showError(); });
-        addEventListener('pageshow', resetLoginButton);
+        loginObserver?.disconnect();
+        loginObserver = new MutationObserver(() => { if (allPasswordsDisabled && !redirectsToProvider) removeLocalLogin(); addLogin(); });
+        loginObserver.observe(document.documentElement, { childList: true, subtree: true });
         if (allPasswordsDisabled && !redirectsToProvider) removeLocalLogin();
         addLogin();
         showError();
-        enableLogout();
-    });
+    };
+    addEventListener('oidcconfigurationchange', () => { void configure(); });
+    addEventListener('hashchange', () => { addLogin(); showError(); });
+    addEventListener('pageshow', resetLoginButton);
+    enableLogout();
+    void configure();
 })();
