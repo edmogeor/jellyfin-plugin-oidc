@@ -9,6 +9,14 @@
     "owner": "jellyfin",
     "versions": [
       {
+        "changelog": "\n- Package the OpenID Connect runtime dependencies required by Jellyfin.\n\n",
+        "checksum": "ff0c893478217b5a08186a61700831a6",
+        "sourceUrl": "https://github.com/edmogeor/jellyfin-plugin-oidc/releases/download/v0.1.5.0/oidc-authentication_0.1.5.0.zip",
+        "targetAbi": "12.0.0.0",
+        "timestamp": "2026-09-16T15:48:36Z",
+        "version": "0.1.5.0"
+      },
+      {
         "changelog": "\n- Restore the Identity Link when reprovisioning after its Jellyfin User was deleted.\n\n",
         "checksum": "956769dd5a8545a6796520185f9344e8",
         "sourceUrl": "https://github.com/edmogeor/jellyfin-plugin-oidc/releases/download/v0.1.4.0/oidc-authentication_0.1.4.0.zip",
