@@ -6,7 +6,9 @@ using MediaBrowser.Common.Plugins;
 using MediaBrowser.Controller.Library;
 using MediaBrowser.Model.Plugins;
 using MediaBrowser.Model.Serialization;
+using Microsoft.AspNetCore.Authentication.OpenIdConnect;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 
 namespace Jellyfin.Plugin.Oidc;
 
@@ -17,12 +19,14 @@ public sealed class OidcPlugin : BasePlugin<PluginConfiguration>, IHasWebPages
 {
     private readonly ILogger<OidcPlugin> _logger;
     private readonly IUserManager _userManager;
+    private readonly IOptionsMonitorCache<OpenIdConnectOptions> _optionsCache;
 
     /// <summary>Initializes a new instance of the <see cref="OidcPlugin"/> class.</summary>
-    public OidcPlugin(IApplicationPaths applicationPaths, IXmlSerializer xmlSerializer, IUserManager userManager, ILogger<OidcPlugin> logger)
+    public OidcPlugin(IApplicationPaths applicationPaths, IXmlSerializer xmlSerializer, IUserManager userManager, IOptionsMonitorCache<OpenIdConnectOptions> optionsCache, ILogger<OidcPlugin> logger)
         : base(applicationPaths, xmlSerializer)
     {
         _userManager = userManager;
+        _optionsCache = optionsCache;
         _logger = logger;
         Instance = this;
     }
@@ -51,6 +55,7 @@ public sealed class OidcPlugin : BasePlugin<PluginConfiguration>, IHasWebPages
         }
 
         base.UpdateConfiguration(configuration);
+        _optionsCache.TryRemove(OidcOptions.Scheme);
         foreach (var user in _userManager.GetUsers())
         {
             PasswordLoginEnforcer.EnforceAsync(_userManager, user, oidcConfiguration, _logger).GetAwaiter().GetResult();

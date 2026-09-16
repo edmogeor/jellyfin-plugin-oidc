@@ -3,13 +3,24 @@ import { expect, test } from "@playwright/test";
 let loginAttempt = 0;
 
 async function signIn(page) {
-  await page.goto("/web/index.html");
+  await clearJellyfinSession(page);
+  await showLogin(page);
   await page
     .getByRole("button", { name: "Login with SSO" })
     .click({ noWaitAfter: true });
-  await page.locator("#username").fill("oidc-test");
-  await page.locator("#password").fill("oidc-test-password");
-  await page.locator("#kc-login").click({ noWaitAfter: true });
+  const username = page.locator("#username");
+  const needsCredentials = await Promise.race([
+    username.waitFor({ state: "visible", timeout: 30_000 }).then(() => true),
+    page
+      .getByRole("button", { name: "User Menu" })
+      .waitFor({ state: "visible", timeout: 30_000 })
+      .then(() => false),
+  ]);
+  if (needsCredentials) {
+    await username.fill("oidc-test");
+    await page.locator("#password").fill("oidc-test-password");
+    await page.locator("#kc-login").click({ noWaitAfter: true });
+  }
   await expect(page).toHaveURL(/\/web\/index\.html/, { timeout: 30_000 });
   await page.waitForFunction(async () => {
     const server = JSON.parse(
@@ -28,11 +39,14 @@ async function signIn(page) {
 }
 
 async function signInDenied(page) {
-  await page.goto("/web/index.html");
+  await clearJellyfinSession(page);
+  await showLogin(page);
   await page
     .getByRole("button", { name: "Login with SSO" })
     .click({ noWaitAfter: true });
-  await page.locator("#username").fill("oidc-test");
+  const username = page.locator("#username");
+  await username.waitFor({ state: "visible", timeout: 30_000 });
+  await username.fill("oidc-test");
   await page.locator("#password").fill("oidc-test-password");
   await page.locator("#kc-login").click({ noWaitAfter: true });
   await expect(page).toHaveURL(/oidcError=1/, { timeout: 30_000 });
@@ -63,6 +77,14 @@ async function setPasswordLoginMode(page, mode) {
 async function showLogin(page) {
   loginAttempt += 1;
   await page.goto(`/web/index.html?oidcTest=${loginAttempt}#!/login`);
+}
+
+async function clearJellyfinSession(page) {
+  await page.goto("/web/index.html");
+  await page.evaluate(() => {
+    localStorage.removeItem("jellyfin_credentials");
+    sessionStorage.clear();
+  });
 }
 
 async function providerAdmin(request) {
@@ -284,6 +306,34 @@ test("loads the seeded OIDC settings and validates changes for an administrator"
     ),
   ).toBeVisible();
   await page.getByRole("button", { name: "Cancel" }).click();
+});
+
+test("uses OIDC settings saved without restarting Jellyfin", async ({
+  page,
+}) => {
+  await signIn(page);
+  const original = await setConfigurationValue(
+    page,
+    "ClientId",
+    "updated-client-id",
+  );
+
+  try {
+    const response = await page.request.get("/oidc/start", {
+      maxRedirects: 0,
+    });
+    expect(response.status()).toBe(500);
+  } finally {
+    await setConfigurationValue(page, "ClientId", original);
+  }
+
+  expect(
+    (
+      await page.request.get("/oidc/start", {
+        maxRedirects: 0,
+      })
+    ).status(),
+  ).toBe(302);
 });
 
 test("localizes the OIDC configuration page", async ({ page }) => {

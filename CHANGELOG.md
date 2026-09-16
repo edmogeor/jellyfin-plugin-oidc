@@ -1,3 +1,7 @@
+## [0.1.6.0]
+
+- Apply saved OIDC settings without restarting Jellyfin.
+
 ## [0.1.5.0]
 
 - Package the OpenID Connect runtime dependencies required by Jellyfin.
