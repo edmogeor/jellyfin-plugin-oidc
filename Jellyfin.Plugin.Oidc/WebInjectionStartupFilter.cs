@@ -6,6 +6,7 @@ using MediaBrowser.Controller.Authentication;
 using MediaBrowser.Controller.Session;
 using System.Text;
 using System.Text.Json;
+using Jellyfin.Plugin.Oidc.Configuration;
 using Jellyfin.Plugin.Oidc.Identity;
 
 namespace Jellyfin.Plugin.Oidc;
@@ -26,6 +27,15 @@ public sealed class WebInjectionStartupFilter : IStartupFilter
                     || configuration is not { Enabled: true })
                 {
                     await nextMiddleware().ConfigureAwait(false);
+                    return;
+                }
+
+                if (configuration.PasswordLoginMode == PasswordLoginMode.DisableForAllUsers
+                    && !context.Request.Query.ContainsKey("oidcTicket")
+                    && !context.Request.Query.ContainsKey("oidcError")
+                    && !context.Request.Query.ContainsKey("oidcSignedOut"))
+                {
+                    context.Response.Redirect(PublicUrls.Get(context.Request, configuration) + "/oidc/start");
                     return;
                 }
 
@@ -62,6 +72,10 @@ public sealed class WebInjectionStartupFilter : IStartupFilter
                         DeviceName = "Web Browser",
                     }).ConfigureAwait(false);
                     html = html.Replace("</head>", SessionTag(session, PublicUrls.Get(context.Request, configuration)) + "</head>", StringComparison.OrdinalIgnoreCase);
+                }
+                else if (context.Request.Query.ContainsKey("oidcSignedOut"))
+                {
+                    html = html.Replace("</head>", "<style id=\"oidc-signed-out-style\">#loginPage{visibility:hidden}</style></head>", StringComparison.OrdinalIgnoreCase);
                 }
                 var scriptTag = $"<script src=\"{PublicUrls.Get(context.Request, configuration)}/oidc/web.js\"></script>";
                 if (!html.Contains(scriptTag, StringComparison.Ordinal))

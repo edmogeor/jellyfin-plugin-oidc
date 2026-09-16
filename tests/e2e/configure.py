@@ -59,7 +59,7 @@ configuration.update(
         "GroupClaim": "groups",
         "UserGroup": "jellyfin-users",
         "AdministratorGroup": "jellyfin-admins",
-        "LoginButtonText": "Login with SSO",
+        "LoginButtonText": "Sign In with SSO",
         "PasswordLoginMode": "AllowForAllUsers",
         "RpInitiatedLogout": False,
     }

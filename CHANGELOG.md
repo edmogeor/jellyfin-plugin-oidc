@@ -1,3 +1,10 @@
+## [0.1.7.0]
+
+- Redirect directly to OIDC when local passwords are disabled for all Jellyfin Users.
+- Add a themed OIDC-only signed-out state and avoid stale SSO button redirects after browser Back navigation.
+- Let the Identity Provider own the post-logout page when RP logout is enabled and local passwords are disabled.
+- Change the default button label to `Sign In with SSO`.
+
 ## [0.1.6.0]
 
 - Apply saved OIDC settings without restarting Jellyfin.

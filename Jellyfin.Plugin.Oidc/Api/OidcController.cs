@@ -99,15 +99,16 @@ public sealed class OidcController : ControllerBase
         {
             Path = configuration is null ? "/oidc" : PublicUrls.OidcPath(Request, configuration),
         });
+        var loginPage = configuration is null
+            ? OidcConstants.WebIndexPath
+            : PublicUrls.LogoutReturnUrl(Request, configuration);
+        var localLogoutPage = configuration is { PasswordLoginMode: PasswordLoginMode.DisableForAllUsers, RpInitiatedLogout: false }
+            ? loginPage + "?oidcSignedOut=1#!/login"
+            : loginPage + "#!/login";
         if (configuration is null || !configuration.RpInitiatedLogout || string.IsNullOrEmpty(protectedIdToken))
         {
-            var loginReturn = configuration is null
-                ? OidcConstants.WebIndexPath + "#!/login"
-                : PublicUrls.LogoutReturnUrl(Request, configuration) + "#!/login";
-            return Redirect(loginReturn);
+            return Redirect(localLogoutPage);
         }
-
-        var loginPage = PublicUrls.LogoutReturnUrl(Request, configuration);
 
         try
         {
@@ -115,19 +116,24 @@ public sealed class OidcController : ControllerBase
             var provider = await _options.Get(OidcOptions.Scheme).ConfigurationManager!.GetConfigurationAsync(HttpContext.RequestAborted).ConfigureAwait(false);
             if (string.IsNullOrWhiteSpace(provider.EndSessionEndpoint))
             {
-                return Redirect(loginPage);
+                return Redirect(localLogoutPage);
             }
 
-            return Redirect(QueryHelpers.AddQueryString(provider.EndSessionEndpoint, new Dictionary<string, string?>
+            var parameters = new Dictionary<string, string?>
             {
                 ["client_id"] = configuration.ClientId,
                 ["id_token_hint"] = idToken,
-                ["post_logout_redirect_uri"] = loginPage,
-            }));
+            };
+            if (configuration.PasswordLoginMode != PasswordLoginMode.DisableForAllUsers)
+            {
+                parameters["post_logout_redirect_uri"] = loginPage;
+            }
+
+            return Redirect(QueryHelpers.AddQueryString(provider.EndSessionEndpoint, parameters));
         }
         catch
         {
-            return Redirect(loginPage);
+            return Redirect(localLogoutPage);
         }
     }
 

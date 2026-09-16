@@ -83,7 +83,7 @@ OIDC sign-in requires an HTTPS public URL. If Jellyfin is behind a reverse proxy
 | Administrator groups         | At least one group setting | -                   | Comma-separated groups that can sign in as Jellyfin administrators.                           |
 | Group claim                  | No                         | `groups`            | The top-level claim that lists a user's groups.                                               |
 | Additional requested scopes  | No                         | -                   | Space-separated scopes requested in addition to `openid email profile`.                       |
-| Login button text            | No                         | `Login with SSO`    | The text on the Jellyfin sign-in button.                                                      |
+| Login button text            | No                         | `Sign In with SSO`  | The text on the Jellyfin sign-in button.                                                      |
 | Password login mode          | No                         | Allow for all users | Choose who can use local passwords.                                                           |
 | RP-Initiated Logout          | No                         | Off                 | Also sign out from your OIDC service when it supports this.                                   |
 

@@ -122,7 +122,7 @@ public sealed class OidcOptions : IConfigureNamedOptions<OpenIdConnectOptions>
         options.Events.OnRemoteFailure = context =>
         {
             _logger.LogWarning("OIDC remote authentication failed.");
-            context.Response.Redirect(PublicUrls.Get(context.Request, configuration) + OidcConstants.WebIndexPath + "#!/login?oidcError=1");
+            context.Response.Redirect(PublicUrls.Get(context.Request, configuration) + OidcConstants.WebIndexPath + "?oidcError=1#!/login");
             context.HandleResponse();
             return Task.CompletedTask;
         };

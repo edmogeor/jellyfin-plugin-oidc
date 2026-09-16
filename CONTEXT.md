@@ -41,7 +41,7 @@ The Public Jellyfin URL override is optional. When unset, callback and logout UR
 
 The plugin always requests `openid`, `email`, and `profile`. Additional requested scopes are optional and space-separated. Configure them only when the Identity Provider requires a scope to return an otherwise supported claim, such as Authelia's `groups` scope.
 
-Group lists are comma-separated exact values. Administrator Group membership grants access even when the User Group is empty. The default group claim is `groups`; the default login button label is `Login with SSO`.
+Group lists are comma-separated exact values. Administrator Group membership grants access even when the User Group is empty. The default group claim is `groups`; the default login button label is `Sign In with SSO`.
 
 Profile image synchronization is disabled by default. When enabled, the standard `picture` claim updates the Jellyfin User profile image at sign-in.
 
@@ -68,9 +68,9 @@ Group membership is evaluated at OIDC sign-in. Removing all Allowed Groups denie
 
 ## Browser Integration And Logout
 
-The plugin injects one small script into Jellyfin Web's `index.html`. It adds the OIDC button, starts OIDC automatically when local passwords are disabled for all users, displays a generic sign-in failure, and optionally intercepts Jellyfin logout.
+The plugin redirects Jellyfin Web index requests directly to OIDC when local passwords are disabled for all users. It injects one small script for the OIDC button, generic sign-in failure, and optional Jellyfin logout interception.
 
-With RP-initiated logout enabled, a browser session with a protected ID token is redirected to the discovered Identity Provider end-session endpoint with `client_id`, `id_token_hint`, and a Jellyfin login return URL. The Identity Provider must allow `<Public Jellyfin URL>/web/index.html` as a post-logout redirect URI. Without a token, enabled setting, or end-session endpoint, logout returns to Jellyfin login.
+With RP-initiated logout enabled, a browser session with a protected ID token is redirected to the discovered Identity Provider end-session endpoint with `client_id` and `id_token_hint`. When local passwords are available, it also sends a Jellyfin login return URL; the Identity Provider must allow `<Public Jellyfin URL>/web/index.html` as a post-logout redirect URI. When local passwords are disabled for all Jellyfin Users, the Identity Provider owns the post-logout page. Without a token, enabled setting, or end-session endpoint, logout returns to Jellyfin login. When RP-initiated logout is disabled and local passwords are disabled for all Jellyfin Users, it instead shows an OIDC-only signed-out state, preventing an immediate sign-in loop.
 
 ## Security Boundaries
 

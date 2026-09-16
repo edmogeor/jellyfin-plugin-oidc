@@ -6,7 +6,7 @@ async function signIn(page) {
   await clearJellyfinSession(page);
   await showLogin(page);
   await page
-    .getByRole("button", { name: "Login with SSO" })
+    .getByRole("button", { name: "Sign In with SSO" })
     .click({ noWaitAfter: true });
   const username = page.locator("#username");
   const needsCredentials = await Promise.race([
@@ -42,7 +42,7 @@ async function signInDenied(page) {
   await clearJellyfinSession(page);
   await showLogin(page);
   await page
-    .getByRole("button", { name: "Login with SSO" })
+    .getByRole("button", { name: "Sign In with SSO" })
     .click({ noWaitAfter: true });
   const username = page.locator("#username");
   await username.waitFor({ state: "visible", timeout: 30_000 });
@@ -213,6 +213,18 @@ test("shows an OIDC sign-in error on the login page", async ({ page }) => {
   );
 });
 
+test("restores the SSO button after returning from the Identity Provider", async ({
+  page,
+}) => {
+  await showLogin(page);
+  const button = page.getByRole("button", { name: "Sign In with SSO" });
+  await button.click({ noWaitAfter: true });
+  await expect(page).toHaveURL(/oidc\.localhost:8443/, { timeout: 30_000 });
+  await page.goBack();
+  await expect(button).toBeEnabled();
+  await expect(button).toHaveAccessibleName("Sign In with SSO");
+});
+
 test("loads the seeded OIDC settings and validates changes for an administrator", async ({
   page,
 }) => {
@@ -377,31 +389,42 @@ test("only skips the Jellyfin login form when local passwords are disabled for a
   );
   await expect(adminPage.locator("#Enabled")).toBeChecked({ timeout: 30_000 });
 
-  await setPasswordLoginMode(adminPage, "AllowForAllUsers");
-  await showLogin(page);
-  await expect(
-    page.getByRole("button", { name: "Login with SSO" }),
-  ).toBeVisible();
-  await expect(page.locator(".btnQuick")).toBeVisible();
+  try {
+    await setPasswordLoginMode(adminPage, "AllowForAllUsers");
+    await showLogin(page);
+    await expect(
+      page.getByRole("button", { name: "Sign In with SSO" }),
+    ).toBeVisible();
+    await expect(page.locator(".btnQuick")).toBeVisible();
 
-  await setPasswordLoginMode(adminPage, "DisableForLinkedUsersOnly");
-  await showLogin(page);
-  await expect(
-    page.getByRole("button", { name: "Login with SSO" }),
-  ).toBeVisible();
-  await expect(page.locator(".btnQuick")).toBeVisible();
+    await setPasswordLoginMode(adminPage, "DisableForLinkedUsersOnly");
+    await showLogin(page);
+    await expect(
+      page.getByRole("button", { name: "Sign In with SSO" }),
+    ).toBeVisible();
+    await expect(page.locator(".btnQuick")).toBeVisible();
 
-  await setPasswordLoginMode(adminPage, "DisableForAllUsers");
-  await showLogin(page);
-  await expect(page).toHaveURL(
-    /oidc\.localhost:8443\/keycloak\/realms\/jellyfin/,
-    { timeout: 30_000 },
-  );
-  await expect(
-    page.getByRole("button", { name: "Login with SSO" }),
-  ).toHaveCount(0);
-  await setPasswordLoginMode(adminPage, "AllowForAllUsers");
-  await adminPage.close();
+    await setPasswordLoginMode(adminPage, "DisableForAllUsers");
+    const response = await adminPage.request.get("/web/index.html", {
+      maxRedirects: 0,
+    });
+    expect(response.status()).toBe(302);
+    expect(new URL(response.headers().location).pathname).toBe("/oidc/start");
+    await page.goto("/oidc/logout");
+    await expect(page).toHaveURL(/oidcSignedOut=1/);
+    await expect(
+      page.getByRole("heading", { name: "Signed Out" }),
+    ).toBeVisible();
+    await expect(
+      page.getByRole("button", { name: "Sign In with SSO" }),
+    ).toBeVisible();
+    await expect(page.locator(".visualLoginForm")).toHaveCount(1);
+    await expect(page.locator(".readOnlyContent")).toHaveCount(1);
+    await expect(page.locator(".manualLoginForm")).toHaveCount(0);
+  } finally {
+    await setPasswordLoginMode(adminPage, "AllowForAllUsers");
+    await adminPage.close();
+  }
 });
 
 test("synchronizes a Jellyfin administrator role after the Identity Provider group changes", async ({
@@ -674,6 +697,50 @@ test("requests Identity Provider logout when RP-initiated logout is enabled", as
     await logoutContext.close();
   } finally {
     await setConfigurationValue(adminPage, "RpInitiatedLogout", original);
+    await adminPage.close();
+  }
+});
+
+test("leaves the post-logout page to the Identity Provider when local passwords are disabled", async ({
+  browser,
+}) => {
+  const adminPage = await browser.newPage();
+  await signIn(adminPage);
+  const logoutContext = await browser.newContext({ ignoreHTTPSErrors: true });
+  const logoutPage = await logoutContext.newPage();
+  await signIn(logoutPage);
+  const originalRpLogout = await setConfigurationValue(
+    adminPage,
+    "RpInitiatedLogout",
+    true,
+  );
+  const originalPasswordMode = await setConfigurationValue(
+    adminPage,
+    "PasswordLoginMode",
+    "DisableForAllUsers",
+  );
+
+  try {
+    const logoutRequest = logoutPage.waitForRequest((request) =>
+      request.url().includes("/protocol/openid-connect/logout"),
+    );
+    await logoutPage.goto("/oidc/logout", { waitUntil: "commit" });
+    const url = new URL((await logoutRequest).url());
+    expect(url.searchParams.get("client_id")).toBe("jellyfin");
+    expect(url.searchParams.get("id_token_hint")).toBeTruthy();
+    expect(url.searchParams.has("post_logout_redirect_uri")).toBe(false);
+  } finally {
+    await setConfigurationValue(
+      adminPage,
+      "PasswordLoginMode",
+      originalPasswordMode,
+    );
+    await setConfigurationValue(
+      adminPage,
+      "RpInitiatedLogout",
+      originalRpLogout,
+    );
+    await logoutContext.close();
     await adminPage.close();
   }
 });
