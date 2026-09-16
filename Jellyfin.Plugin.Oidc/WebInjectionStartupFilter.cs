@@ -77,7 +77,7 @@ public sealed class WebInjectionStartupFilter : IStartupFilter
                 {
                     html = html.Replace("</head>", "<style id=\"oidc-signed-out-style\">#loginPage{visibility:hidden}</style></head>", StringComparison.OrdinalIgnoreCase);
                 }
-                var scriptTag = $"<script src=\"{PublicUrls.Get(context.Request, configuration)}/oidc/web.js\"></script>";
+                var scriptTag = $"<script src=\"{PublicUrls.Get(context.Request, configuration)}/oidc/web.js?v={typeof(WebInjectionStartupFilter).Assembly.GetName().Version}\"></script>";
                 if (!html.Contains(scriptTag, StringComparison.Ordinal))
                 {
                     html = html.Replace("</body>", scriptTag + "</body>", StringComparison.OrdinalIgnoreCase);

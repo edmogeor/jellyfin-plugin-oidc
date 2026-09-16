@@ -229,6 +229,9 @@ test("loads the seeded OIDC settings and validates changes for an administrator"
   page,
 }) => {
   await signIn(page);
+  await expect(page.locator('script[src*="/oidc/web.js?v="]')).toHaveCount(1);
+  const configResponse = await page.request.get("/oidc/config");
+  expect(configResponse.headers()["cache-control"]).toContain("no-store");
   await page.goto(
     "/web/index.html#/configurationpage?name=OIDC%20Authentication",
   );

@@ -33,6 +33,7 @@ public sealed class OidcController : ControllerBase
     [HttpGet("config")]
     public ActionResult<WebConfiguration> Config()
     {
+        Response.Headers.CacheControl = "no-store";
         var configuration = EnabledConfiguration();
         if (configuration is null)
         {
