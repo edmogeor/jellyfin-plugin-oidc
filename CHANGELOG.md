@@ -1,3 +1,7 @@
+## [0.1.10.0]
+
+- Keep Quick Connect, Change Server, and the login disclaimer available, and make OIDC sign-in the primary action when local passwords are disabled without direct redirects.
+
 ## [0.1.9.0]
 
 - Keep the Jellyfin sign-in heading while showing only the OIDC button when local passwords are disabled for all Jellyfin Users without direct redirects.

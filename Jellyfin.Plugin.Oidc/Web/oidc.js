@@ -24,7 +24,7 @@
         if (document.querySelector('[data-oidc-login]')) return;
         if (!stack) return;
         const button = document.createElement('button');
-        button.type = 'button'; button.setAttribute('is', 'emby-button'); button.className = 'raised cancel block';
+        button.type = 'button'; button.setAttribute('is', 'emby-button'); button.className = 'raised block';
         button.dataset.oidcLogin = 'true'; button.setAttribute('aria-label', loginLabel());
         const label = document.createElement('span'); label.textContent = loginLabel();
         button.append(label);
@@ -60,16 +60,26 @@
         login.style.visibility = 'visible';
         return true;
     };
+    const showQuickConnect = async quickConnect => {
+        try {
+            const response = await fetch(serverUrl + 'QuickConnect/Enabled');
+            if (response.ok && await response.json()) quickConnect.classList.remove('hide');
+        } catch { }
+    };
     const removeLocalLogin = () => {
         if (!isLoginPage()) return;
         const login = document.querySelector('#loginPage');
         const visual = login?.querySelector('.visualLoginForm');
         const stack = login?.querySelector('.readOnlyContent');
-        const isOidcOnly = stack?.children.length === 1 && stack.querySelector('[data-oidc-login]') && !login?.querySelector('.manualLoginForm, #divUsers');
-        if (!visual || !stack || isOidcOnly) return;
+        if (!visual || !stack) return;
+        const isOidcOnly = !login.querySelector('.manualLoginForm, #divUsers, .btnManual, .btnForgotPassword');
+        if (isOidcOnly) return;
         login.querySelector('.manualLoginForm')?.remove();
         visual.querySelector('#divUsers')?.remove();
-        stack.replaceChildren();
+        stack.querySelector('.btnManual')?.remove();
+        stack.querySelector('.btnForgotPassword')?.remove();
+        const quickConnect = stack.querySelector('.btnQuick');
+        if (quickConnect) void showQuickConnect(quickConnect);
     };
     const showError = () => {
         if (!isLoginPage() || !hasOidcError() || document.querySelector('[data-oidc-error]')) return;

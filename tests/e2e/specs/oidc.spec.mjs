@@ -431,8 +431,13 @@ test("only skips the Jellyfin login form when local passwords are disabled for a
     await expect(page.locator(".visualLoginForm")).toHaveCount(1);
     await expect(page.locator(".manualLoginForm")).toHaveCount(0);
     await expect(page.locator(".readOnlyContent")).toHaveCount(1);
-    await expect(page.locator(".readOnlyContent > *")).toHaveCount(1);
-    await expect(page.locator(".btnSelectServer")).toHaveCount(0);
+    await expect(page.locator(".readOnlyContent > *")).toHaveCount(4);
+    await expect(page.locator(".btnQuick")).toBeVisible();
+    await expect(page.locator(".btnSelectServer")).toBeVisible();
+    await expect(page.locator(".loginDisclaimerContainer")).toHaveCount(1);
+    await expect(
+      page.getByRole("button", { name: "Sign In with SSO" }),
+    ).not.toHaveClass(/cancel/);
 
     await setConfigurationValue(
       adminPage,
