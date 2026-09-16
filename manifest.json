@@ -9,6 +9,14 @@
     "owner": "jellyfin",
     "versions": [
       {
+        "changelog": "\n- Apply saved OIDC settings without restarting Jellyfin.\n\n",
+        "checksum": "cfdf5e8c8e4c542ce2c004429666d535",
+        "sourceUrl": "https://github.com/edmogeor/jellyfin-plugin-oidc/releases/download/v0.1.6.0/oidc-authentication_0.1.6.0.zip",
+        "targetAbi": "12.0.0.0",
+        "timestamp": "2026-09-16T16:37:21Z",
+        "version": "0.1.6.0"
+      },
+      {
         "changelog": "\n- Package the OpenID Connect runtime dependencies required by Jellyfin.\n\n",
         "checksum": "ff0c893478217b5a08186a61700831a6",
         "sourceUrl": "https://github.com/edmogeor/jellyfin-plugin-oidc/releases/download/v0.1.5.0/oidc-authentication_0.1.5.0.zip",
