@@ -9,6 +9,14 @@
     "owner": "jellyfin",
     "versions": [
       {
+        "changelog": "\n- Redirect directly to OIDC when local passwords are disabled for all Jellyfin Users.\n- Add a themed OIDC-only signed-out state and avoid stale SSO button redirects after browser Back navigation.\n- Let the Identity Provider own the post-logout page when RP logout is enabled and local passwords are disabled.\n- Change the default button label to `Sign In with SSO`.\n\n",
+        "checksum": "d906992cc7e86b71ba3a3e79d83de5c2",
+        "sourceUrl": "https://github.com/edmogeor/jellyfin-plugin-oidc/releases/download/v0.1.7.0/oidc-authentication_0.1.7.0.zip",
+        "targetAbi": "12.0.0.0",
+        "timestamp": "2026-09-16T17:50:49Z",
+        "version": "0.1.7.0"
+      },
+      {
         "changelog": "\n- Apply saved OIDC settings without restarting Jellyfin.\n\n",
         "checksum": "cfdf5e8c8e4c542ce2c004429666d535",
         "sourceUrl": "https://github.com/edmogeor/jellyfin-plugin-oidc/releases/download/v0.1.6.0/oidc-authentication_0.1.6.0.zip",
