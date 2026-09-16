@@ -103,7 +103,8 @@ public sealed class OidcController : ControllerBase
         var loginPage = configuration is null
             ? OidcConstants.WebIndexPath
             : PublicUrls.LogoutReturnUrl(Request, configuration);
-        var localLogoutPage = configuration is { PasswordLoginMode: PasswordLoginMode.DisableForAllUsers, RedirectSignInPageToProvider: true, RpInitiatedLogout: false }
+        var redirectsToProvider = configuration is { PasswordLoginMode: PasswordLoginMode.DisableForAllUsers, RedirectSignInPageToProvider: true };
+        var localLogoutPage = redirectsToProvider && configuration?.RpInitiatedLogout == false
             ? loginPage + "?oidcSignedOut=1#!/login"
             : loginPage + "#!/login";
         if (configuration is null || !configuration.RpInitiatedLogout || string.IsNullOrEmpty(protectedIdToken))
@@ -125,7 +126,7 @@ public sealed class OidcController : ControllerBase
                 ["client_id"] = configuration.ClientId,
                 ["id_token_hint"] = idToken,
             };
-            if (configuration.PasswordLoginMode != PasswordLoginMode.DisableForAllUsers || !configuration.RedirectSignInPageToProvider)
+            if (!redirectsToProvider)
             {
                 parameters["post_logout_redirect_uri"] = loginPage;
             }

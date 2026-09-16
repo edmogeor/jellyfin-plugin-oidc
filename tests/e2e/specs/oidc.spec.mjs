@@ -439,18 +439,28 @@ test("only skips the Jellyfin login form when local passwords are disabled for a
       "RedirectSignInPageToProvider",
       true,
     );
-    const redirectResponse = await adminPage.request.get("/web/index.html", {
+    const directResponse = await adminPage.request.get("/web/index.html", {
       maxRedirects: 0,
     });
-    expect(redirectResponse.status()).toBe(302);
-    expect(new URL(redirectResponse.headers().location).pathname).toBe(
-      "/oidc/start",
+    expect(directResponse.status()).toBe(200);
+    const startRequest = page.waitForRequest(
+      (request) => new URL(request.url()).pathname === "/oidc/start",
     );
+    await showLogin(page);
+    await startRequest;
+    let redirectedActiveSession = false;
+    const captureOidcStart = (request) => {
+      redirectedActiveSession ||=
+        new URL(request.url()).pathname === "/oidc/start";
+    };
+    adminPage.on("request", captureOidcStart);
     await adminPage.reload();
     await adminPage.waitForFunction(
       () => window.oidcRedirectSignInPageToProvider === true,
       { timeout: 30_000 },
     );
+    adminPage.off("request", captureOidcStart);
+    expect(redirectedActiveSession).toBe(false);
     await adminPage.getByRole("button", { name: "User Menu" }).click();
     await adminPage.getByRole("menuitem", { name: "Sign Out" }).click();
     await expect(adminPage).toHaveURL(/oidcSignedOut=1/);

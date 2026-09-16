@@ -65,7 +65,8 @@
         const login = document.querySelector('#loginPage');
         const visual = login?.querySelector('.visualLoginForm');
         const stack = login?.querySelector('.readOnlyContent');
-        if (!visual || !stack || (stack.children.length === 1 && stack.querySelector('[data-oidc-login]') && !login.querySelector('.manualLoginForm, #divUsers'))) return;
+        const isOidcOnly = stack?.children.length === 1 && stack.querySelector('[data-oidc-login]') && !login?.querySelector('.manualLoginForm, #divUsers');
+        if (!visual || !stack || isOidcOnly) return;
         login.querySelector('.manualLoginForm')?.remove();
         visual.querySelector('#divUsers')?.remove();
         stack.replaceChildren();
@@ -88,8 +89,15 @@
         event.preventDefault(); event.stopImmediatePropagation();
         const server = JSON.parse(localStorage.getItem('jellyfin_credentials') || '{}').Servers?.[0];
         if (server?.AccessToken) await fetch(serverUrl + 'Sessions/Logout', { method: 'POST', headers: { Authorization: `MediaBrowser Token="${server.AccessToken}"` } });
-        localStorage.clear(); location.assign(oidcUrl + 'logout');
+        localStorage.clear(); sessionStorage.removeItem('oidcStarted'); location.assign(oidcUrl + 'logout');
     }, true);
+    const redirectToProvider = async () => {
+        if (!isLoginPage() || isSignedOut() || !window.oidcRedirectSignInPageToProvider || hasOidcError() || sessionStorage.oidcStarted) return;
+        const server = JSON.parse(localStorage.getItem('jellyfin_credentials') || '{}').Servers?.[0];
+        if (server?.AccessToken && await fetch(serverUrl + 'Users/Me', { headers: { Authorization: `MediaBrowser Token="${server.AccessToken}"` } }).then(response => response.ok).catch(() => false)) return;
+        sessionStorage.oidcStarted = 'true';
+        location.assign(endpoint);
+    };
     const configure = async () => {
         const response = await fetch(oidcUrl + 'config', { cache: 'no-store' });
         const config = response.ok ? await response.json() : null;
@@ -101,6 +109,7 @@
         resetLoginButton();
         const allPasswordsDisabled = config.PasswordLoginMode === 'DisableForAllUsers';
         const redirectsToProvider = allPasswordsDisabled && config.RedirectSignInPageToProvider;
+        const removesLocalLogin = allPasswordsDisabled && !redirectsToProvider;
         if (redirectsToProvider && isSignedOut()) {
             window.oidcSignedOutText = (await loadStrings().catch(() => ({}))).signedOut;
             if (showSignedOut()) return;
@@ -110,20 +119,16 @@
             observer.observe(document.documentElement, { childList: true, subtree: true });
             return;
         }
-        if (redirectsToProvider && !hasOidcError() && !sessionStorage.oidcStarted) {
-            const start = () => { sessionStorage.oidcStarted = 'true'; location.assign(endpoint); };
-            if (document.readyState === 'complete') start(); else addEventListener('load', start, { once: true });
-            return;
-        }
+        if (redirectsToProvider) void redirectToProvider();
         loginObserver?.disconnect();
-        loginObserver = new MutationObserver(() => { if (allPasswordsDisabled && !redirectsToProvider) removeLocalLogin(); addLogin(); });
+        loginObserver = new MutationObserver(() => { if (removesLocalLogin) removeLocalLogin(); addLogin(); });
         loginObserver.observe(document.documentElement, { childList: true, subtree: true });
-        if (allPasswordsDisabled && !redirectsToProvider) removeLocalLogin();
+        if (removesLocalLogin) removeLocalLogin();
         addLogin();
         showError();
     };
     addEventListener('oidcconfigurationchange', () => { void configure(); });
-    addEventListener('hashchange', () => { addLogin(); showError(); });
+    addEventListener('hashchange', () => { addLogin(); showError(); void redirectToProvider(); });
     addEventListener('pageshow', resetLoginButton);
     enableLogout();
     void configure();

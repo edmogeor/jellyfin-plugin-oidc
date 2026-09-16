@@ -6,7 +6,6 @@ using MediaBrowser.Controller.Authentication;
 using MediaBrowser.Controller.Session;
 using System.Text;
 using System.Text.Json;
-using Jellyfin.Plugin.Oidc.Configuration;
 using Jellyfin.Plugin.Oidc.Identity;
 
 namespace Jellyfin.Plugin.Oidc;
@@ -27,15 +26,6 @@ public sealed class WebInjectionStartupFilter : IStartupFilter
                     || configuration is not { Enabled: true })
                 {
                     await nextMiddleware().ConfigureAwait(false);
-                    return;
-                }
-
-                if (configuration is { PasswordLoginMode: PasswordLoginMode.DisableForAllUsers, RedirectSignInPageToProvider: true }
-                    && !context.Request.Query.ContainsKey("oidcTicket")
-                    && !context.Request.Query.ContainsKey("oidcError")
-                    && !context.Request.Query.ContainsKey("oidcSignedOut"))
-                {
-                    context.Response.Redirect(PublicUrls.Get(context.Request, configuration) + "/oidc/start");
                     return;
                 }
 
