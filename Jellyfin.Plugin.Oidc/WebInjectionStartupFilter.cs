@@ -29,6 +29,8 @@ public sealed class WebInjectionStartupFilter : IStartupFilter
                     return;
                 }
 
+                var redirectsToProvider = configuration.PasswordLoginMode == Configuration.PasswordLoginMode.DisableForAllUsers
+                    && configuration.RedirectSignInPageToProvider;
                 context.Request.Headers.Remove("Accept-Encoding");
                 context.Request.Headers.Remove("Range");
                 context.Request.Headers.Remove("If-Range");
@@ -67,8 +69,10 @@ public sealed class WebInjectionStartupFilter : IStartupFilter
                 {
                     html = html.Replace("</head>", "<style id=\"oidc-signed-out-style\">#loginPage{visibility:hidden}</style></head>", StringComparison.OrdinalIgnoreCase);
                 }
-                var redirectsToProvider = configuration.PasswordLoginMode == Configuration.PasswordLoginMode.DisableForAllUsers
-                    && configuration.RedirectSignInPageToProvider;
+                else if (redirectsToProvider && !context.Request.Query.ContainsKey("oidcError"))
+                {
+                    html = html.Replace("</head>", "<style id=\"oidc-login-redirect-style\">#loginPage{visibility:hidden}</style></head>", StringComparison.OrdinalIgnoreCase);
+                }
                 var scriptTag = $"<script>window.oidcRedirectSignInPageToProvider={redirectsToProvider.ToString().ToLowerInvariant()};</script><script src=\"{PublicUrls.Get(context.Request, configuration)}/oidc/web.js?v={typeof(WebInjectionStartupFilter).Assembly.ManifestModule.ModuleVersionId}\"></script>";
                 if (!html.Contains(scriptTag, StringComparison.Ordinal))
                 {

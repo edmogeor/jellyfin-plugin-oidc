@@ -451,12 +451,40 @@ test("shows OIDC-only controls and redirects root visits when local passwords ar
       maxRedirects: 0,
     });
     expect(directResponse.status()).toBe(200);
+    expect(await directResponse.text()).toContain(
+      'id="oidc-login-redirect-style"',
+    );
+    await page.addInitScript(() => {
+      const captureLoginRender = () => {
+        const login = document.querySelector("#loginPage");
+        if (login) {
+          sessionStorage.setItem("oidcLoginRendered", "true");
+        }
+      };
+      new MutationObserver(captureLoginRender).observe(
+        document.documentElement,
+        {
+          childList: true,
+          subtree: true,
+        },
+      );
+    });
     await page.route("**/oidc/config", (route) => route.abort());
+    await page.route("**/oidc/start*", (route) =>
+      route.fulfill({ contentType: "text/html", body: "" }),
+    );
     const startRequest = page.waitForRequest(
       (request) => new URL(request.url()).pathname === "/oidc/start",
     );
     await page.goto("/");
     await startRequest;
+    await page.waitForURL("**/oidc/start*");
+    await expect
+      .poll(() =>
+        page.evaluate(() => sessionStorage.getItem("oidcLoginRendered")),
+      )
+      .toBeNull();
+    await page.unroute("**/oidc/start*");
     await page.unroute("**/oidc/config");
     let redirectedActiveSession = false;
     const captureOidcStart = (request) => {
