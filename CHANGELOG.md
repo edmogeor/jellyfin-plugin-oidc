@@ -1,3 +1,7 @@
+## [0.1.14.0]
+
+- Preserve Jellyfin login initialization while removing unavailable local controls, restoring Quick Connect and native Change Server visibility.
+
 ## [0.1.13.0]
 
 - Prevent Jellyfin Web from rendering the local sign-in page before a direct Identity Provider redirect.

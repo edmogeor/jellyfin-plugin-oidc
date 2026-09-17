@@ -9,6 +9,7 @@
     const signedOutLabel = () => window.oidcSignedOutText || 'Signed Out';
     const isPrimaryLogin = () => window.oidcPasswordLoginMode === 'DisableForAllUsers' && !window.oidcRedirectSignInPageToProvider;
     let loginObserver;
+    let loginPageShown = false;
     const loadStrings = async () => {
         const locale = document.documentElement.lang.toLowerCase();
         for (const value of new Set([locale, locale.split('-')[0], 'en-us'])) {
@@ -69,14 +70,12 @@
             if (response.ok && await response.json()) quickConnect.classList.remove('hide');
         } catch { }
     };
-    const removeLocalLogin = () => {
-        if (!isLoginPage()) return;
-        const login = document.querySelector('#loginPage');
+    const removeLocalLogin = (login = document.querySelector('#loginPage')) => {
+        if (!isLoginPage() || login?.dataset.oidcOnly) return;
         const visual = login?.querySelector('.visualLoginForm');
         const stack = login?.querySelector('.readOnlyContent');
         if (!visual || !stack) return;
-        const isOidcOnly = !login.querySelector('.manualLoginForm, #divUsers, .btnManual, .btnForgotPassword');
-        if (isOidcOnly) return;
+        login.dataset.oidcOnly = 'true';
         login.querySelector('.manualLoginForm')?.remove();
         visual.querySelector('#divUsers')?.remove();
         stack.querySelector('.btnManual')?.remove();
@@ -134,13 +133,19 @@
         }
         if (redirectsToProvider) void redirectToProvider();
         loginObserver?.disconnect();
-        loginObserver = new MutationObserver(() => { if (removesLocalLogin) removeLocalLogin(); addLogin(); });
+        loginObserver = new MutationObserver(() => addLogin());
         loginObserver.observe(document.documentElement, { childList: true, subtree: true });
-        if (removesLocalLogin) removeLocalLogin();
+        if (removesLocalLogin && loginPageShown) removeLocalLogin();
         addLogin();
         showError();
     };
     addEventListener('oidcconfigurationchange', () => { void configure(); });
+    addEventListener('viewshow', event => {
+        const login = event.target.id === 'loginPage' ? event.target : null;
+        if (!login) return;
+        loginPageShown = true;
+        if (window.oidcPasswordLoginMode === 'DisableForAllUsers' && !window.oidcRedirectSignInPageToProvider) removeLocalLogin(login);
+    });
     addEventListener('hashchange', () => { addLogin(); showError(); void redirectToProvider(); });
     addEventListener('pageshow', resetLoginButton);
     enableLogout();
