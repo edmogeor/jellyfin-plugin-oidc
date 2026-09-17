@@ -1,3 +1,7 @@
+## [0.1.12.0]
+
+- Redirect direct visits to the Jellyfin Web root route to the Identity Provider when local passwords are disabled.
+
 ## [0.1.11.0]
 
 - Redirect first-time Jellyfin Web login visits to the Identity Provider before the sign-in page renders.

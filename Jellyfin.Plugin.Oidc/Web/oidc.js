@@ -144,6 +144,9 @@
     addEventListener('hashchange', () => { addLogin(); showError(); void redirectToProvider(); });
     addEventListener('pageshow', resetLoginButton);
     enableLogout();
+    if (window.oidcRedirectSignInPageToProvider) {
+        new MutationObserver(() => { void redirectToProvider(); }).observe(document.documentElement, { childList: true, subtree: true });
+    }
     void redirectToProvider();
     void configure();
 })();

@@ -388,7 +388,7 @@ test("localizes the OIDC configuration page", async ({ page }) => {
   ).toBeVisible();
 });
 
-test("only skips the Jellyfin login form when local passwords are disabled for all users", async ({
+test("shows OIDC-only controls and redirects root visits when local passwords are disabled for all users", async ({
   browser,
   page,
 }) => {
@@ -451,16 +451,12 @@ test("only skips the Jellyfin login form when local passwords are disabled for a
       maxRedirects: 0,
     });
     expect(directResponse.status()).toBe(200);
-    let configRoute;
-    await page.route("**/oidc/config", (route) => {
-      configRoute = route;
-    });
+    await page.route("**/oidc/config", (route) => route.abort());
     const startRequest = page.waitForRequest(
       (request) => new URL(request.url()).pathname === "/oidc/start",
     );
-    await showLogin(page);
+    await page.goto("/");
     await startRequest;
-    await configRoute.abort();
     await page.unroute("**/oidc/config");
     let redirectedActiveSession = false;
     const captureOidcStart = (request) => {
