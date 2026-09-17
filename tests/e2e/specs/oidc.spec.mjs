@@ -429,12 +429,12 @@ test("shows OIDC-only controls and redirects root visits when local passwords ar
       page.getByRole("heading", { name: "Please sign in" }),
     ).toBeVisible();
     await expect(page.locator(".visualLoginForm")).toHaveCount(1);
-    await expect(page.locator(".manualLoginForm")).toHaveCount(0);
-    await expect(page.locator("#divUsers")).toHaveCount(0);
+    await expect(page.locator(".manualLoginForm")).toBeHidden();
+    await expect(page.locator("#divUsers")).toBeHidden();
     await expect(page.locator(".readOnlyContent")).toHaveCount(1);
-    await expect(page.locator(".readOnlyContent > *")).toHaveCount(4);
-    await expect(page.locator(".btnManual")).toHaveCount(0);
-    await expect(page.locator(".btnForgotPassword")).toHaveCount(0);
+    await expect(page.locator(".readOnlyContent > *")).toHaveCount(6);
+    await expect(page.locator(".btnManual")).toBeHidden();
+    await expect(page.locator(".btnForgotPassword")).toBeHidden();
     await expect(page.locator(".btnQuick")).toBeVisible();
     await expect(page.locator(".btnSelectServer")).toBeHidden();
     await expect(page.locator(".loginDisclaimerContainer")).toHaveCount(1);
@@ -518,7 +518,10 @@ test("shows OIDC-only controls and redirects root visits when local passwords ar
     ).toHaveClass(/button-submit/);
     await expect(adminPage.locator(".visualLoginForm")).toHaveCount(1);
     await expect(adminPage.locator(".readOnlyContent")).toHaveCount(1);
-    await expect(adminPage.locator(".manualLoginForm")).toHaveCount(0);
+    await expect(adminPage.locator(".manualLoginForm")).toBeHidden();
+    await expect(adminPage.locator("#divUsers")).toBeHidden();
+    await expect(adminPage.locator(".btnQuick")).toBeHidden();
+    await expect(adminPage.locator(".btnSelectServer")).toBeHidden();
   } finally {
     await setConfigurationValue(
       restorePage,

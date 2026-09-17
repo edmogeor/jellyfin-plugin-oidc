@@ -31,6 +31,8 @@ public sealed class WebInjectionStartupFilter : IStartupFilter
 
                 var redirectsToProvider = configuration.PasswordLoginMode == Configuration.PasswordLoginMode.DisableForAllUsers
                     && configuration.RedirectSignInPageToProvider;
+                var hidesLocalLogin = configuration.PasswordLoginMode == Configuration.PasswordLoginMode.DisableForAllUsers
+                    && !configuration.RedirectSignInPageToProvider;
                 context.Request.Headers.Remove("Accept-Encoding");
                 context.Request.Headers.Remove("Range");
                 context.Request.Headers.Remove("If-Range");
@@ -67,11 +69,15 @@ public sealed class WebInjectionStartupFilter : IStartupFilter
                 }
                 else if (context.Request.Query.ContainsKey("oidcSignedOut"))
                 {
-                    html = html.Replace("</head>", "<style id=\"oidc-signed-out-style\">#loginPage{visibility:hidden}</style></head>", StringComparison.OrdinalIgnoreCase);
+                    html = html.Replace("</head>", "<style id=\"oidc-signed-out-style\">#loginPage{visibility:hidden}#loginPage .visualLoginForm{display:block!important}#loginPage .manualLoginForm,#loginPage #divUsers,#loginPage .btnManual,#loginPage .btnQuick,#loginPage .btnForgotPassword,#loginPage .btnSelectServer,#loginPage .loginDisclaimerContainer{display:none!important}</style></head>", StringComparison.OrdinalIgnoreCase);
                 }
                 else if (redirectsToProvider && !context.Request.Query.ContainsKey("oidcError"))
                 {
                     html = html.Replace("</head>", "<style id=\"oidc-login-redirect-style\">#loginPage{visibility:hidden}</style></head>", StringComparison.OrdinalIgnoreCase);
+                }
+                if (hidesLocalLogin && !context.Request.Query.ContainsKey("oidcTicket"))
+                {
+                    html = html.Replace("</head>", "<style id=\"oidc-only-login-style\">#loginPage .visualLoginForm{display:block!important}#loginPage .manualLoginForm,#loginPage #divUsers,#loginPage .btnManual,#loginPage .btnForgotPassword{display:none!important}</style></head>", StringComparison.OrdinalIgnoreCase);
                 }
                 var scriptTag = $"<script>window.oidcRedirectSignInPageToProvider={redirectsToProvider.ToString().ToLowerInvariant()};</script><script src=\"{PublicUrls.Get(context.Request, configuration)}/oidc/web.js?v={typeof(WebInjectionStartupFilter).Assembly.ManifestModule.ModuleVersionId}\"></script>";
                 if (!html.Contains(scriptTag, StringComparison.Ordinal))

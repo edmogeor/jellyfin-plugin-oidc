@@ -1,3 +1,7 @@
+## [0.1.15.0]
+
+- Preserve Jellyfin login controls while hiding local actions in OIDC-only and signed-out states, preventing persistent loading and retaining Quick Connect.
+
 ## [0.1.14.0]
 
 - Preserve Jellyfin login initialization while removing unavailable local controls, restoring Quick Connect and native Change Server visibility.
