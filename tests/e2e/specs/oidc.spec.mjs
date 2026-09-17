@@ -438,6 +438,9 @@ test("only skips the Jellyfin login form when local passwords are disabled for a
     await expect(
       page.getByRole("button", { name: "Sign In with SSO" }),
     ).not.toHaveClass(/cancel/);
+    await expect(
+      page.getByRole("button", { name: "Sign In with SSO" }),
+    ).toHaveClass(/button-submit/);
 
     await setConfigurationValue(
       adminPage,
@@ -448,11 +451,17 @@ test("only skips the Jellyfin login form when local passwords are disabled for a
       maxRedirects: 0,
     });
     expect(directResponse.status()).toBe(200);
+    let configRoute;
+    await page.route("**/oidc/config", (route) => {
+      configRoute = route;
+    });
     const startRequest = page.waitForRequest(
       (request) => new URL(request.url()).pathname === "/oidc/start",
     );
     await showLogin(page);
     await startRequest;
+    await configRoute.abort();
+    await page.unroute("**/oidc/config");
     let redirectedActiveSession = false;
     const captureOidcStart = (request) => {
       redirectedActiveSession ||=
@@ -475,6 +484,9 @@ test("only skips the Jellyfin login form when local passwords are disabled for a
     await expect(
       adminPage.getByRole("button", { name: "Sign In with SSO" }),
     ).toBeVisible();
+    await expect(
+      adminPage.getByRole("button", { name: "Sign In with SSO" }),
+    ).toHaveClass(/button-submit/);
     await expect(adminPage.locator(".visualLoginForm")).toHaveCount(1);
     await expect(adminPage.locator(".readOnlyContent")).toHaveCount(1);
     await expect(adminPage.locator(".manualLoginForm")).toHaveCount(0);

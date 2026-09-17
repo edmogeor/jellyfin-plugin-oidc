@@ -1,3 +1,8 @@
+## [0.1.11.0]
+
+- Redirect first-time Jellyfin Web login visits to the Identity Provider before the sign-in page renders.
+- Make the OIDC sign-in action primary when it is the only available sign-in method, including the signed-out page.
+
 ## [0.1.10.0]
 
 - Keep Quick Connect, Change Server, and the login disclaimer available, and make OIDC sign-in the primary action when local passwords are disabled without direct redirects.

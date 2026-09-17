@@ -7,6 +7,7 @@
     const isSignedOut = () => location.search.includes('oidcSignedOut=1');
     const loginLabel = () => window.oidcButtonText || 'Sign In with SSO';
     const signedOutLabel = () => window.oidcSignedOutText || 'Signed Out';
+    const isPrimaryLogin = () => window.oidcPasswordLoginMode === 'DisableForAllUsers' && !window.oidcRedirectSignInPageToProvider;
     let loginObserver;
     const loadStrings = async () => {
         const locale = document.documentElement.lang.toLowerCase();
@@ -24,7 +25,7 @@
         if (document.querySelector('[data-oidc-login]')) return;
         if (!stack) return;
         const button = document.createElement('button');
-        button.type = 'button'; button.setAttribute('is', 'emby-button'); button.className = 'raised block';
+        button.type = 'button'; button.setAttribute('is', 'emby-button'); button.className = 'raised block' + (isPrimaryLogin() ? ' button-submit' : '');
         button.dataset.oidcLogin = 'true'; button.setAttribute('aria-label', loginLabel());
         const label = document.createElement('span'); label.textContent = loginLabel();
         button.append(label);
@@ -42,6 +43,7 @@
         button.disabled = false;
         button.setAttribute('aria-label', loginLabel());
         button.querySelector('span').textContent = loginLabel();
+        button.classList.toggle('button-submit', isPrimaryLogin());
     };
     const showSignedOut = () => {
         if (!isLoginPage() || !isSignedOut()) return false;
@@ -57,6 +59,7 @@
         status.append(heading);
         stack.replaceChildren();
         addLogin(stack);
+        stack.querySelector('[data-oidc-login]')?.classList.add('button-submit');
         login.style.visibility = 'visible';
         return true;
     };
@@ -141,5 +144,6 @@
     addEventListener('hashchange', () => { addLogin(); showError(); void redirectToProvider(); });
     addEventListener('pageshow', resetLoginButton);
     enableLogout();
+    void redirectToProvider();
     void configure();
 })();
