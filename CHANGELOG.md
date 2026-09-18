@@ -1,3 +1,7 @@
+## [0.1.23.0]
+
+- Prevent duplicate Identity Provider redirects while Jellyfin updates the login page.
+
 ## [0.1.22.0]
 
 - Keep OIDC sign-in failure notifications dismissed after Jellyfin normalizes the error URL.

@@ -12,6 +12,7 @@
     const isPrimaryLogin = () => window.oidcPasswordLoginMode === 'DisableForAllUsers' && (!window.oidcRedirectSignInPageToProvider || isSignedOut());
     let loginObserver;
     let shownError;
+    let redirectingToProvider;
     const loadStrings = async () => {
         const locale = document.documentElement.lang.toLowerCase();
         for (const value of new Set([locale, locale.split('-')[0], 'en-us'])) {
@@ -98,13 +99,15 @@
         sessionStorage.removeItem('oidcStarted'); location.assign(oidcUrl + 'logout');
     }, true);
     const redirectToProvider = async () => {
-        if (!isLoginPage() || isSignedOut() || !window.oidcRedirectSignInPageToProvider) return;
+        if (redirectingToProvider || !isLoginPage() || isSignedOut() || !window.oidcRedirectSignInPageToProvider) return;
         if (hasOidcError()) {
             revealLogin();
             return;
         }
         const server = JSON.parse(localStorage.getItem('jellyfin_credentials') || '{}').Servers?.[0];
         if (server?.AccessToken && await fetch(serverUrl + 'Users/Me', { headers: { Authorization: `MediaBrowser Token="${server.AccessToken}"` } }).then(response => response.ok).catch(() => false)) return;
+        if (redirectingToProvider) return;
+        redirectingToProvider = true;
         showLoading();
         sessionStorage.oidcStarted = 'true';
         requestAnimationFrame(() => location.assign(endpoint()));
