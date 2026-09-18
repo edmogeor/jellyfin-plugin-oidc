@@ -11,7 +11,7 @@
     const showLoading = () => window.Loading?.show();
     const isPrimaryLogin = () => window.oidcPasswordLoginMode === 'DisableForAllUsers' && (!window.oidcRedirectSignInPageToProvider || isSignedOut());
     let loginObserver;
-    let shownErrorUrl;
+    let shownError;
     const loadStrings = async () => {
         const locale = document.documentElement.lang.toLowerCase();
         for (const value of new Set([locale, locale.split('-')[0], 'en-us'])) {
@@ -68,8 +68,12 @@
         return shown;
     };
     const showError = () => {
-        if (!isLoginPage() || !hasOidcError() || document.querySelector('[data-oidc-error]') || shownErrorUrl === location.href) return;
-        shownErrorUrl = location.href;
+        if (!hasOidcError()) {
+            shownError = false;
+            return;
+        }
+        if (!isLoginPage() || document.querySelector('[data-oidc-error]') || shownError) return;
+        shownError = true;
         const container = document.querySelector('.toastContainer') || document.body.appendChild(document.createElement('div'));
         container.classList.add('toastContainer');
         const message = document.createElement('div');

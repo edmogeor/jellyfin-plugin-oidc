@@ -1,3 +1,7 @@
+## [0.1.22.0]
+
+- Keep OIDC sign-in failure notifications dismissed after Jellyfin normalizes the error URL.
+
 ## [0.1.21.0]
 
 - Paint Jellyfin's loading spinner before direct Identity Provider navigation.
