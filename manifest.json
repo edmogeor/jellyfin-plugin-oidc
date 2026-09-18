@@ -9,6 +9,14 @@
     "owner": "jellyfin",
     "versions": [
       {
+        "changelog": "\n- Prevent duplicate Identity Provider redirects while Jellyfin updates the login page.\n\n",
+        "checksum": "d2c54448cc1a122c7b5447a041d8c8f7",
+        "sourceUrl": "https://github.com/edmogeor/jellyfin-plugin-oidc/releases/download/v0.1.23.0/oidc-authentication_0.1.23.0.zip",
+        "targetAbi": "12.0.0.0",
+        "timestamp": "2026-09-18T16:14:38Z",
+        "version": "0.1.23.0"
+      },
+      {
         "changelog": "\n- Keep OIDC sign-in failure notifications dismissed after Jellyfin normalizes the error URL.\n\n",
         "checksum": "4d2f2a8aa2240e8ea654a7f099a89c23",
         "sourceUrl": "https://github.com/edmogeor/jellyfin-plugin-oidc/releases/download/v0.1.22.0/oidc-authentication_0.1.22.0.zip",
