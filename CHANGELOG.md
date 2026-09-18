@@ -1,3 +1,7 @@
+## [0.1.24.0]
+
+- Redirect directly to the Identity Provider without showing a loading spinner.
+
 ## [0.1.23.0]
 
 - Prevent duplicate Identity Provider redirects while Jellyfin updates the login page.

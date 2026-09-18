@@ -8,7 +8,6 @@
     const loginLabel = () => window.oidcButtonText || 'Sign In with SSO';
     const signedOutLabel = () => window.oidcSignedOutText || 'Signed Out';
     const revealLogin = () => document.querySelector('#oidc-login-redirect-style')?.remove();
-    const showLoading = () => window.Loading?.show();
     const isPrimaryLogin = () => window.oidcPasswordLoginMode === 'DisableForAllUsers' && (!window.oidcRedirectSignInPageToProvider || isSignedOut());
     let loginObserver;
     let shownError;
@@ -40,7 +39,7 @@
             button.disabled = true;
             button.setAttribute('aria-label', 'Redirecting...');
             label.textContent = 'Redirecting...';
-            requestAnimationFrame(() => location.assign(endpoint()));
+            location.assign(endpoint());
         };
         stack.insertBefore(button, stack.querySelector('.btnQuick'));
     };
@@ -96,7 +95,7 @@
             savedServer.UserId = null; savedServer.AccessToken = null; savedServer.ExchangeToken = null;
         }
         localStorage.setItem('jellyfin_credentials', JSON.stringify(credentials));
-        sessionStorage.removeItem('oidcStarted'); location.assign(oidcUrl + 'logout');
+        location.assign(oidcUrl + 'logout');
     }, true);
     const redirectToProvider = async () => {
         if (redirectingToProvider || !isLoginPage() || isSignedOut() || !window.oidcRedirectSignInPageToProvider) return;
@@ -108,9 +107,7 @@
         if (server?.AccessToken && await fetch(serverUrl + 'Users/Me', { headers: { Authorization: `MediaBrowser Token="${server.AccessToken}"` } }).then(response => response.ok).catch(() => false)) return;
         if (redirectingToProvider) return;
         redirectingToProvider = true;
-        showLoading();
-        sessionStorage.oidcStarted = 'true';
-        requestAnimationFrame(() => location.assign(endpoint()));
+        location.assign(endpoint());
     };
     const configure = async () => {
         const response = await fetch(oidcUrl + 'config', { cache: 'no-store' });

@@ -465,9 +465,7 @@ test("shows OIDC-only controls and redirects root visits when local passwords ar
     expect(directHtml).toContain('id="oidc-login-redirect-style"');
     expect(directHtml).toContain("#loginPage{visibility:hidden}");
     const webResponse = await adminPage.request.get("/oidc/web.js");
-    expect(await webResponse.text()).toContain(
-      "requestAnimationFrame(() => location.assign(endpoint()))",
-    );
+    expect(await webResponse.text()).toContain("location.assign(endpoint())");
     const errorResponse = await adminPage.request.get(
       "/web/index.html?oidcError=1",
     );
