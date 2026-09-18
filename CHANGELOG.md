@@ -1,3 +1,7 @@
+## [0.1.19.0]
+
+- Restore no-flash direct Identity Provider redirects and show OIDC-only controls after a sign-in failure.
+
 ## [0.1.18.0]
 
 - Keep OIDC and signed-out controls on Jellyfin's rebuilt login view after selecting a server.

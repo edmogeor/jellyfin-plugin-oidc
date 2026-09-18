@@ -31,7 +31,7 @@ public sealed class WebInjectionStartupFilter : IStartupFilter
 
                 var allPasswordsDisabled = configuration.PasswordLoginMode == Configuration.PasswordLoginMode.DisableForAllUsers;
                 var redirectsToProvider = allPasswordsDisabled && configuration.RedirectSignInPageToProvider;
-                var hidesLocalLogin = allPasswordsDisabled && !configuration.RedirectSignInPageToProvider;
+                var hidesLocalLogin = allPasswordsDisabled;
                 context.Request.Headers.Remove("Accept-Encoding");
                 context.Request.Headers.Remove("Range");
                 context.Request.Headers.Remove("If-Range");
@@ -69,6 +69,10 @@ public sealed class WebInjectionStartupFilter : IStartupFilter
                 else if (context.Request.Query.ContainsKey("oidcSignedOut"))
                 {
                     html = html.Replace("</head>", "<style id=\"oidc-signed-out-style\">#loginPage{visibility:hidden}#loginPage .visualLoginForm{display:block!important}#loginPage .manualLoginForm,#loginPage #divUsers,#loginPage .btnManual,#loginPage .btnQuick,#loginPage .btnForgotPassword,#loginPage .btnSelectServer,#loginPage .loginDisclaimerContainer{display:none!important}</style></head>", StringComparison.OrdinalIgnoreCase);
+                }
+                else if (redirectsToProvider && !context.Request.Query.ContainsKey("oidcError"))
+                {
+                    html = html.Replace("</head>", "<style id=\"oidc-login-redirect-style\">#loginPage{visibility:hidden}body:has(#loginPage) .docspinner{display:block!important}</style></head>", StringComparison.OrdinalIgnoreCase);
                 }
                 if (hidesLocalLogin && !context.Request.Query.ContainsKey("oidcTicket"))
                 {

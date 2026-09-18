@@ -462,18 +462,13 @@ test("shows OIDC-only controls and redirects root visits when local passwords ar
     });
     expect(directResponse.status()).toBe(200);
     const directHtml = await directResponse.text();
-    expect(directHtml).not.toContain('id="oidc-login-redirect-style"');
-    await page.evaluate(() => {
-      sessionStorage.setItem("oidcStarted", "true");
-    });
-    await showLogin(page);
-    await expect(
-      page.getByRole("heading", { name: "Please sign in" }),
-    ).toBeVisible();
-    await expect(
-      page.getByRole("button", { name: "Sign In with SSO" }),
-    ).toBeVisible();
-    await page.evaluate(() => sessionStorage.removeItem("oidcStarted"));
+    expect(directHtml).toContain('id="oidc-login-redirect-style"');
+    const errorResponse = await adminPage.request.get(
+      "/web/index.html?oidcError=1",
+    );
+    const errorHtml = await errorResponse.text();
+    expect(errorHtml).toContain('id="oidc-only-login-style"');
+    expect(errorHtml).not.toContain('id="oidc-login-redirect-style"');
     await page.addInitScript(() => {
       const captureLoginRender = () => {
         const login = document.querySelector("#loginPage");

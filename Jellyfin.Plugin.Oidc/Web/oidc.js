@@ -7,6 +7,7 @@
     const isSignedOut = () => location.search.includes('oidcSignedOut=1');
     const loginLabel = () => window.oidcButtonText || 'Sign In with SSO';
     const signedOutLabel = () => window.oidcSignedOutText || 'Signed Out';
+    const revealLogin = () => document.querySelector('#oidc-login-redirect-style')?.remove();
     const isPrimaryLogin = () => window.oidcPasswordLoginMode === 'DisableForAllUsers' && (!window.oidcRedirectSignInPageToProvider || isSignedOut());
     let loginObserver;
     const loadStrings = async () => {
@@ -90,7 +91,11 @@
         sessionStorage.removeItem('oidcStarted'); location.assign(oidcUrl + 'logout');
     }, true);
     const redirectToProvider = async () => {
-        if (!isLoginPage() || isSignedOut() || !window.oidcRedirectSignInPageToProvider || hasOidcError() || sessionStorage.oidcStarted) return;
+        if (!isLoginPage() || isSignedOut() || !window.oidcRedirectSignInPageToProvider) return;
+        if (hasOidcError()) {
+            revealLogin();
+            return;
+        }
         const server = JSON.parse(localStorage.getItem('jellyfin_credentials') || '{}').Servers?.[0];
         if (server?.AccessToken && await fetch(serverUrl + 'Users/Me', { headers: { Authorization: `MediaBrowser Token="${server.AccessToken}"` } }).then(response => response.ok).catch(() => false)) return;
         sessionStorage.oidcStarted = 'true';
@@ -130,7 +135,7 @@
         showError();
         void redirectToProvider();
     });
-    addEventListener('pageshow', resetLoginButton);
+    addEventListener('pageshow', () => { resetLoginButton(); void redirectToProvider(); });
     enableLogout();
     loginObserver = new MutationObserver(() => { addLogin(); showSignedOut(); showError(); void redirectToProvider(); });
     loginObserver.observe(document.documentElement, { childList: true, subtree: true });
