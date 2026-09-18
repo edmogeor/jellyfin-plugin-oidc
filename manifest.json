@@ -9,6 +9,14 @@
     "owner": "jellyfin",
     "versions": [
       {
+        "changelog": "\n- Keep OIDC and signed-out controls on Jellyfin's rebuilt login view after selecting a server.\n\n",
+        "checksum": "dbecdc9ebe7f0877a7876348712d4674",
+        "sourceUrl": "https://github.com/edmogeor/jellyfin-plugin-oidc/releases/download/v0.1.18.0/oidc-authentication_0.1.18.0.zip",
+        "targetAbi": "12.0.0.0",
+        "timestamp": "2026-09-18T12:38:16Z",
+        "version": "0.1.18.0"
+      },
+      {
         "changelog": "\n- Keep OIDC sign-in available after Jellyfin rebuilds the login view and prevent a blank page after an interrupted direct redirect.\n\n",
         "checksum": "703def55c847a713e92f30225f2e4b3d",
         "sourceUrl": "https://github.com/edmogeor/jellyfin-plugin-oidc/releases/download/v0.1.17.0/oidc-authentication_0.1.17.0.zip",
