@@ -9,6 +9,14 @@
     "owner": "jellyfin",
     "versions": [
       {
+        "changelog": "\n- Show Jellyfin's loading spinner during direct Identity Provider redirects.\n\n",
+        "checksum": "d36df23616f8e0fc46a66c8918701eca",
+        "sourceUrl": "https://github.com/edmogeor/jellyfin-plugin-oidc/releases/download/v0.1.20.0/oidc-authentication_0.1.20.0.zip",
+        "targetAbi": "12.0.0.0",
+        "timestamp": "2026-09-18T13:43:52Z",
+        "version": "0.1.20.0"
+      },
+      {
         "changelog": "\n- Restore no-flash direct Identity Provider redirects and show OIDC-only controls after a sign-in failure.\n\n",
         "checksum": "6abedcd7a486330ef68b6fb91ff0bc63",
         "sourceUrl": "https://github.com/edmogeor/jellyfin-plugin-oidc/releases/download/v0.1.19.0/oidc-authentication_0.1.19.0.zip",
