@@ -1,3 +1,7 @@
+## [0.1.18.0]
+
+- Keep OIDC and signed-out controls on Jellyfin's rebuilt login view after selecting a server.
+
 ## [0.1.17.0]
 
 - Keep OIDC sign-in available after Jellyfin rebuilds the login view and prevent a blank page after an interrupted direct redirect.

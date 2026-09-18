@@ -438,7 +438,13 @@ test("shows OIDC-only controls and redirects root visits when local passwords ar
     await expect(page.locator(".btnQuick")).toBeVisible();
     await expect(page.locator(".btnSelectServer")).toBeHidden();
     await expect(page.locator(".loginDisclaimerContainer")).toHaveCount(1);
-    await page.locator(".btnQuick").click();
+    await page.getByRole("banner").getByRole("link").click();
+    await expect(page).toHaveURL(/login\?serverid=/);
+    await expect(
+      page.getByRole("button", { name: "Sign In with SSO" }),
+    ).toBeVisible();
+    await expect(page.locator(".btnQuick:visible")).toBeVisible();
+    await page.locator(".btnQuick:visible").click();
     await expect(page.locator("#quickConnectAlert")).toBeVisible();
     await expect(
       page.getByRole("button", { name: "Sign In with SSO" }),

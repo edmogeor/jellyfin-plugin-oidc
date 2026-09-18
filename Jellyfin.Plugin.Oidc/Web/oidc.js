@@ -17,13 +17,16 @@
         }
         return {};
     };
-    const addLogin = (stack = document.querySelector('.readOnlyContent')) => {
+    const addLogin = stack => {
         if (!isLoginPage()) {
-            document.querySelector('[data-oidc-login]')?.remove();
+            document.querySelectorAll('[data-oidc-login]').forEach(button => button.remove());
             return;
         }
-        if (document.querySelector('[data-oidc-login]')) return;
-        if (!stack) return;
+        if (!stack) {
+            document.querySelectorAll('.readOnlyContent').forEach(addLogin);
+            return;
+        }
+        if (stack.querySelector('[data-oidc-login]')) return;
         const button = document.createElement('button');
         button.type = 'button'; button.setAttribute('is', 'emby-button'); button.className = 'raised block' + (isPrimaryLogin() ? ' button-submit' : '');
         button.dataset.oidcLogin = 'true'; button.setAttribute('aria-label', loginLabel());
@@ -47,16 +50,19 @@
     };
     const showSignedOut = () => {
         if (!isLoginPage() || !isSignedOut()) return false;
-        const login = document.querySelector('#loginPage');
-        const status = login?.querySelector('.visualLoginForm');
-        const stack = login?.querySelector('.readOnlyContent');
-        const heading = status?.querySelector('h1');
-        if (!heading || !stack) return false;
-        heading.textContent = signedOutLabel();
-        addLogin(stack);
-        stack.querySelector('[data-oidc-login]')?.classList.add('button-submit');
-        login.style.visibility = 'visible';
-        return true;
+        let shown = false;
+        for (const login of document.querySelectorAll('#loginPage')) {
+            const status = login.querySelector('.visualLoginForm');
+            const stack = login.querySelector('.readOnlyContent');
+            const heading = status?.querySelector('h1');
+            if (!heading || !stack) continue;
+            if (heading.textContent !== signedOutLabel()) heading.textContent = signedOutLabel();
+            addLogin(stack);
+            stack.querySelector('[data-oidc-login]')?.classList.add('button-submit');
+            login.style.visibility = 'visible';
+            shown = true;
+        }
+        return shown;
     };
     const showError = () => {
         if (!isLoginPage() || !hasOidcError() || document.querySelector('[data-oidc-error]')) return;
@@ -120,12 +126,13 @@
             return;
         }
         addLogin();
+        showSignedOut();
         showError();
         void redirectToProvider();
     });
     addEventListener('pageshow', resetLoginButton);
     enableLogout();
-    loginObserver = new MutationObserver(() => { addLogin(); showError(); void redirectToProvider(); });
+    loginObserver = new MutationObserver(() => { addLogin(); showSignedOut(); showError(); void redirectToProvider(); });
     loginObserver.observe(document.documentElement, { childList: true, subtree: true });
     addLogin();
     void redirectToProvider();
