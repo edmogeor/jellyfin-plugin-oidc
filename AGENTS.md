@@ -26,6 +26,7 @@ Run `make check` after code or configuration changes. Run the relevant test targ
 ## Releases
 
 - Bump `build.yaml` and add a matching top-level `CHANGELOG.md` entry before release.
+- Group release notes under applicable Keep a Changelog headings: `### Added`, `### Changed`, `### Deprecated`, `### Removed`, `### Fixed`, and `### Security`.
 - Use the Jellyfin version format `X.Y.Z.W`; bump the patch component for backward-compatible fixes, for example `0.1.0.0` to `0.1.1.0`.
 - Push a matching `vX.Y.Z.W` tag to trigger the release workflow. It verifies the tag, runs the test suite, packages the plugin, creates or updates the GitHub release, and publishes the manifest.
 
