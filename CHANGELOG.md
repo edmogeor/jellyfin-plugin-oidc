@@ -1,3 +1,7 @@
+## [0.1.17.0]
+
+- Keep OIDC sign-in available after Jellyfin rebuilds the login view and prevent a blank page after an interrupted direct redirect.
+
 ## [0.1.16.0]
 
 - Keep the loading indicator visible until direct OIDC redirection completes.

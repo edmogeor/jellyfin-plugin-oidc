@@ -1,7 +1,7 @@
 (() => {
     const oidcUrl = new URL('.', document.currentScript.src);
     const serverUrl = new URL('../', oidcUrl);
-    const endpoint = oidcUrl + 'start?returnUrl=' + encodeURIComponent(location.hash.startsWith('#!') ? location.hash.slice(2) : '/');
+    const endpoint = () => oidcUrl + 'start?returnUrl=' + encodeURIComponent(location.hash.startsWith('#!') ? location.hash.slice(2) : '/');
     const isLoginPage = () => location.hash.includes('login');
     const hasOidcError = () => location.search.includes('oidcError=1') || location.hash.includes('oidcError=1');
     const isSignedOut = () => location.search.includes('oidcSignedOut=1');
@@ -33,7 +33,7 @@
             button.disabled = true;
             button.setAttribute('aria-label', 'Redirecting...');
             label.textContent = 'Redirecting...';
-            requestAnimationFrame(() => location.assign(endpoint));
+            requestAnimationFrame(() => location.assign(endpoint()));
         };
         stack.insertBefore(button, stack.querySelector('.btnQuick'));
     };
@@ -88,7 +88,7 @@
         const server = JSON.parse(localStorage.getItem('jellyfin_credentials') || '{}').Servers?.[0];
         if (server?.AccessToken && await fetch(serverUrl + 'Users/Me', { headers: { Authorization: `MediaBrowser Token="${server.AccessToken}"` } }).then(response => response.ok).catch(() => false)) return;
         sessionStorage.oidcStarted = 'true';
-        location.assign(endpoint);
+        location.assign(endpoint());
     };
     const configure = async () => {
         const response = await fetch(oidcUrl + 'config', { cache: 'no-store' });
@@ -111,10 +111,6 @@
             return;
         }
         if (redirectsToProvider) void redirectToProvider();
-        loginObserver?.disconnect();
-        loginObserver = new MutationObserver(() => addLogin());
-        loginObserver.observe(document.documentElement, { childList: true, subtree: true });
-        addLogin();
         showError();
     };
     addEventListener('oidcconfigurationchange', () => { void configure(); });
@@ -129,9 +125,9 @@
     });
     addEventListener('pageshow', resetLoginButton);
     enableLogout();
-    if (window.oidcRedirectSignInPageToProvider) {
-        new MutationObserver(() => { void redirectToProvider(); }).observe(document.documentElement, { childList: true, subtree: true });
-    }
+    loginObserver = new MutationObserver(() => { addLogin(); showError(); void redirectToProvider(); });
+    loginObserver.observe(document.documentElement, { childList: true, subtree: true });
+    addLogin();
     void redirectToProvider();
     void configure();
 })();

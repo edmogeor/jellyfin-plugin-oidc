@@ -446,7 +446,6 @@ test("shows OIDC-only controls and redirects root visits when local passwords ar
     await expect(
       page.getByRole("button", { name: "Sign In with SSO" }),
     ).toHaveClass(/button-submit/);
-
     await setConfigurationValue(
       adminPage,
       "RedirectSignInPageToProvider",
@@ -457,10 +456,18 @@ test("shows OIDC-only controls and redirects root visits when local passwords ar
     });
     expect(directResponse.status()).toBe(200);
     const directHtml = await directResponse.text();
-    expect(directHtml).toContain('id="oidc-login-redirect-style"');
-    expect(directHtml).toContain(
-      "body:has(#loginPage) .docspinner{display:block!important}",
-    );
+    expect(directHtml).not.toContain('id="oidc-login-redirect-style"');
+    await page.evaluate(() => {
+      sessionStorage.setItem("oidcStarted", "true");
+    });
+    await showLogin(page);
+    await expect(
+      page.getByRole("heading", { name: "Please sign in" }),
+    ).toBeVisible();
+    await expect(
+      page.getByRole("button", { name: "Sign In with SSO" }),
+    ).toBeVisible();
+    await page.evaluate(() => sessionStorage.removeItem("oidcStarted"));
     await page.addInitScript(() => {
       const captureLoginRender = () => {
         const login = document.querySelector("#loginPage");
