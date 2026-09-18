@@ -57,6 +57,8 @@ jobs:
           awk -v version="$VERSION" '
             $0 ~ "^## \\[" version "\\]" { found = 1; next }
             found && /^## / { exit }
+            found && NF { started = 1 }
+            found && !started { next }
             found { print }
             END { if (!found) exit 1 }
           ' CHANGELOG.md > release-notes.md
@@ -69,9 +71,6 @@ jobs:
           dotnet-target: net10.0
           output: dist
           version: ${{ steps.version.outputs.value }}
-      - name: Trim manifest changelogs
-        run: |
-          python3 -c 'from pathlib import Path; import json; path = Path("manifest.json"); manifest = json.loads(path.read_text()); [version.update(changelog=version.get("changelog", "").lstrip()) for plugin in manifest for version in plugin.get("versions", [])]; path.write_text(json.dumps(manifest))'
       - run: md5sum dist/*.zip > dist/plugin.md5
       - run: gh release view "$GITHUB_REF_NAME" || gh release create "$GITHUB_REF_NAME" dist/*.zip dist/plugin.md5 --notes-file release-notes.md
         env:
