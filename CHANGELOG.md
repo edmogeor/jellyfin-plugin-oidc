@@ -1,3 +1,7 @@
+## [0.1.20.0]
+
+- Show Jellyfin's loading spinner during direct Identity Provider redirects.
+
 ## [0.1.19.0]
 
 - Restore no-flash direct Identity Provider redirects and show OIDC-only controls after a sign-in failure.

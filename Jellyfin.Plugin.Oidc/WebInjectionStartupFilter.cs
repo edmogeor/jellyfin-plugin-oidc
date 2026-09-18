@@ -72,7 +72,7 @@ public sealed class WebInjectionStartupFilter : IStartupFilter
                 }
                 else if (redirectsToProvider && !context.Request.Query.ContainsKey("oidcError"))
                 {
-                    html = html.Replace("</head>", "<style id=\"oidc-login-redirect-style\">#loginPage{visibility:hidden}body:has(#loginPage) .docspinner{display:block!important}</style></head>", StringComparison.OrdinalIgnoreCase);
+                    html = html.Replace("</head>", "<style id=\"oidc-login-redirect-style\">#loginPage{visibility:hidden}</style></head>", StringComparison.OrdinalIgnoreCase);
                 }
                 if (hidesLocalLogin && !context.Request.Query.ContainsKey("oidcTicket"))
                 {

@@ -8,6 +8,7 @@
     const loginLabel = () => window.oidcButtonText || 'Sign In with SSO';
     const signedOutLabel = () => window.oidcSignedOutText || 'Signed Out';
     const revealLogin = () => document.querySelector('#oidc-login-redirect-style')?.remove();
+    const showLoading = () => window.Loading?.show();
     const isPrimaryLogin = () => window.oidcPasswordLoginMode === 'DisableForAllUsers' && (!window.oidcRedirectSignInPageToProvider || isSignedOut());
     let loginObserver;
     const loadStrings = async () => {
@@ -98,6 +99,7 @@
         }
         const server = JSON.parse(localStorage.getItem('jellyfin_credentials') || '{}').Servers?.[0];
         if (server?.AccessToken && await fetch(serverUrl + 'Users/Me', { headers: { Authorization: `MediaBrowser Token="${server.AccessToken}"` } }).then(response => response.ok).catch(() => false)) return;
+        showLoading();
         sessionStorage.oidcStarted = 'true';
         location.assign(endpoint());
     };
