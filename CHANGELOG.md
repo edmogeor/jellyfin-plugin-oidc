@@ -1,3 +1,8 @@
+## [0.1.21.0]
+
+- Paint Jellyfin's loading spinner before direct Identity Provider navigation.
+- Show each OIDC sign-in failure message once per error-route visit.
+
 ## [0.1.20.0]
 
 - Show Jellyfin's loading spinner during direct Identity Provider redirects.

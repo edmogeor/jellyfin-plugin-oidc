@@ -208,9 +208,9 @@ test("synchronizes a profile image from the OIDC picture claim", async ({
 
 test("shows an OIDC sign-in error on the login page", async ({ page }) => {
   await page.goto("/web/index.html#!/login?oidcError=1");
-  await expect(page.locator(".toast")).toHaveText(
-    "We couldn't sign you in. Please try again.",
-  );
+  const error = page.locator("[data-oidc-error]");
+  await expect(error).toHaveText("We couldn't sign you in. Please try again.");
+  await expect(error).toHaveCount(0, { timeout: 5_000 });
 });
 
 test("restores the SSO button after returning from the Identity Provider", async ({
@@ -465,7 +465,9 @@ test("shows OIDC-only controls and redirects root visits when local passwords ar
     expect(directHtml).toContain('id="oidc-login-redirect-style"');
     expect(directHtml).toContain("#loginPage{visibility:hidden}");
     const webResponse = await adminPage.request.get("/oidc/web.js");
-    expect(await webResponse.text()).toContain("window.Loading?.show()");
+    expect(await webResponse.text()).toContain(
+      "window.Loading?.show();\n        sessionStorage.oidcStarted = 'true';\n        requestAnimationFrame(() => location.assign(endpoint()));",
+    );
     const errorResponse = await adminPage.request.get(
       "/web/index.html?oidcError=1",
     );

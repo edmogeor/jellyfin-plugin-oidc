@@ -11,6 +11,7 @@
     const showLoading = () => window.Loading?.show();
     const isPrimaryLogin = () => window.oidcPasswordLoginMode === 'DisableForAllUsers' && (!window.oidcRedirectSignInPageToProvider || isSignedOut());
     let loginObserver;
+    let shownErrorUrl;
     const loadStrings = async () => {
         const locale = document.documentElement.lang.toLowerCase();
         for (const value of new Set([locale, locale.split('-')[0], 'en-us'])) {
@@ -67,7 +68,8 @@
         return shown;
     };
     const showError = () => {
-        if (!isLoginPage() || !hasOidcError() || document.querySelector('[data-oidc-error]')) return;
+        if (!isLoginPage() || !hasOidcError() || document.querySelector('[data-oidc-error]') || shownErrorUrl === location.href) return;
+        shownErrorUrl = location.href;
         const container = document.querySelector('.toastContainer') || document.body.appendChild(document.createElement('div'));
         container.classList.add('toastContainer');
         const message = document.createElement('div');
@@ -101,7 +103,7 @@
         if (server?.AccessToken && await fetch(serverUrl + 'Users/Me', { headers: { Authorization: `MediaBrowser Token="${server.AccessToken}"` } }).then(response => response.ok).catch(() => false)) return;
         showLoading();
         sessionStorage.oidcStarted = 'true';
-        location.assign(endpoint());
+        requestAnimationFrame(() => location.assign(endpoint()));
     };
     const configure = async () => {
         const response = await fetch(oidcUrl + 'config', { cache: 'no-store' });
