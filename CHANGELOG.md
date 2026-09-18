@@ -1,3 +1,8 @@
+## [0.1.16.0]
+
+- Keep the loading indicator visible until direct OIDC redirection completes.
+- Preserve Jellyfin credentials through OIDC logout and keep the signed-out page stable across login-route navigation.
+
 ## [0.1.15.0]
 
 - Preserve Jellyfin login controls while hiding local actions in OIDC-only and signed-out states, preventing persistent loading and retaining Quick Connect.

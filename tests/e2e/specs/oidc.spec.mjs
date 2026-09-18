@@ -456,8 +456,10 @@ test("shows OIDC-only controls and redirects root visits when local passwords ar
       maxRedirects: 0,
     });
     expect(directResponse.status()).toBe(200);
-    expect(await directResponse.text()).toContain(
-      'id="oidc-login-redirect-style"',
+    const directHtml = await directResponse.text();
+    expect(directHtml).toContain('id="oidc-login-redirect-style"');
+    expect(directHtml).toContain(
+      "body:has(#loginPage) .docspinner{display:block!important}",
     );
     await page.addInitScript(() => {
       const captureLoginRender = () => {
@@ -504,6 +506,10 @@ test("shows OIDC-only controls and redirects root visits when local passwords ar
     );
     adminPage.off("request", captureOidcStart);
     expect(redirectedActiveSession).toBe(false);
+    const serverId = await adminPage.evaluate(
+      () =>
+        JSON.parse(localStorage.getItem("jellyfin_credentials")).Servers[0].Id,
+    );
     await adminPage.getByRole("button", { name: "User Menu" }).click();
     await adminPage.getByRole("menuitem", { name: "Sign Out" }).click();
     await expect(adminPage).toHaveURL(/oidcSignedOut=1/);
@@ -516,6 +522,29 @@ test("shows OIDC-only controls and redirects root visits when local passwords ar
     await expect(
       adminPage.getByRole("button", { name: "Sign In with SSO" }),
     ).toHaveClass(/button-submit/);
+    const pageErrors = [];
+    adminPage.on("pageerror", (error) => pageErrors.push(error.message));
+    await expect
+      .poll(() =>
+        adminPage.evaluate(
+          () =>
+            JSON.parse(localStorage.getItem("jellyfin_credentials")).Servers[0],
+        ),
+      )
+      .toMatchObject({ Id: serverId, AccessToken: null, UserId: null });
+    await adminPage.evaluate((id) => {
+      location.hash = `/login?serverid=${id}&url=%2Fhome`;
+    }, serverId);
+    await expect
+      .poll(() => new URL(adminPage.url()).hash)
+      .toBe(`#/login?serverid=${serverId}&url=%2Fhome`);
+    await expect(
+      adminPage.getByRole("heading", { name: "Signed Out" }),
+    ).toBeVisible();
+    await expect(
+      adminPage.getByRole("button", { name: "Sign In with SSO" }),
+    ).toBeVisible();
+    expect(pageErrors).toEqual([]);
     await expect(adminPage.locator(".visualLoginForm")).toHaveCount(1);
     await expect(adminPage.locator(".readOnlyContent")).toHaveCount(1);
     await expect(adminPage.locator(".manualLoginForm")).toBeHidden();

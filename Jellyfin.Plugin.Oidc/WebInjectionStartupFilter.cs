@@ -29,10 +29,9 @@ public sealed class WebInjectionStartupFilter : IStartupFilter
                     return;
                 }
 
-                var redirectsToProvider = configuration.PasswordLoginMode == Configuration.PasswordLoginMode.DisableForAllUsers
-                    && configuration.RedirectSignInPageToProvider;
-                var hidesLocalLogin = configuration.PasswordLoginMode == Configuration.PasswordLoginMode.DisableForAllUsers
-                    && !configuration.RedirectSignInPageToProvider;
+                var allPasswordsDisabled = configuration.PasswordLoginMode == Configuration.PasswordLoginMode.DisableForAllUsers;
+                var redirectsToProvider = allPasswordsDisabled && configuration.RedirectSignInPageToProvider;
+                var hidesLocalLogin = allPasswordsDisabled && !configuration.RedirectSignInPageToProvider;
                 context.Request.Headers.Remove("Accept-Encoding");
                 context.Request.Headers.Remove("Range");
                 context.Request.Headers.Remove("If-Range");
@@ -73,7 +72,7 @@ public sealed class WebInjectionStartupFilter : IStartupFilter
                 }
                 else if (redirectsToProvider && !context.Request.Query.ContainsKey("oidcError"))
                 {
-                    html = html.Replace("</head>", "<style id=\"oidc-login-redirect-style\">#loginPage{visibility:hidden}</style></head>", StringComparison.OrdinalIgnoreCase);
+                    html = html.Replace("</head>", "<style id=\"oidc-login-redirect-style\">#loginPage{visibility:hidden}body:has(#loginPage) .docspinner{display:block!important}</style></head>", StringComparison.OrdinalIgnoreCase);
                 }
                 if (hidesLocalLogin && !context.Request.Query.ContainsKey("oidcTicket"))
                 {

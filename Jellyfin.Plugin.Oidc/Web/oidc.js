@@ -48,9 +48,8 @@
     const showSignedOut = () => {
         if (!isLoginPage() || !isSignedOut()) return false;
         const login = document.querySelector('#loginPage');
-        const content = login?.firstElementChild;
-        const status = content?.querySelector('.visualLoginForm');
-        const stack = content?.querySelector('.readOnlyContent');
+        const status = login?.querySelector('.visualLoginForm');
+        const stack = login?.querySelector('.readOnlyContent');
         const heading = status?.querySelector('h1');
         if (!heading || !stack) return false;
         heading.textContent = signedOutLabel();
@@ -72,12 +71,17 @@
     };
     const enableLogout = () => addEventListener('click', async event => {
         const menuItem = event.target.closest('[role="menuitem"]');
-        const logout = menuItem?.querySelector('[data-testid="LogoutIcon"]') ? menuItem : null;
+        const logout = event.target.closest('.btnLogout') || (menuItem?.querySelector('[data-testid="LogoutIcon"]') ? menuItem : null);
         if (!logout || (!window.oidcRpInitiatedLogout && !window.oidcRedirectSignInPageToProvider)) return;
         event.preventDefault(); event.stopImmediatePropagation();
-        const server = JSON.parse(localStorage.getItem('jellyfin_credentials') || '{}').Servers?.[0];
+        const credentials = JSON.parse(localStorage.getItem('jellyfin_credentials') || '{}');
+        const server = credentials.Servers?.[0];
         if (server?.AccessToken) await fetch(serverUrl + 'Sessions/Logout', { method: 'POST', headers: { Authorization: `MediaBrowser Token="${server.AccessToken}"` } });
-        localStorage.clear(); sessionStorage.removeItem('oidcStarted'); location.assign(oidcUrl + 'logout');
+        for (const savedServer of credentials.Servers || []) {
+            savedServer.UserId = null; savedServer.AccessToken = null; savedServer.ExchangeToken = null;
+        }
+        localStorage.setItem('jellyfin_credentials', JSON.stringify(credentials));
+        sessionStorage.removeItem('oidcStarted'); location.assign(oidcUrl + 'logout');
     }, true);
     const redirectToProvider = async () => {
         if (!isLoginPage() || isSignedOut() || !window.oidcRedirectSignInPageToProvider || hasOidcError() || sessionStorage.oidcStarted) return;
@@ -114,7 +118,15 @@
         showError();
     };
     addEventListener('oidcconfigurationchange', () => { void configure(); });
-    addEventListener('hashchange', () => { addLogin(); showError(); void redirectToProvider(); });
+    addEventListener('hashchange', () => {
+        if (isSignedOut() && isLoginPage()) {
+            location.reload();
+            return;
+        }
+        addLogin();
+        showError();
+        void redirectToProvider();
+    });
     addEventListener('pageshow', resetLoginButton);
     enableLogout();
     if (window.oidcRedirectSignInPageToProvider) {
