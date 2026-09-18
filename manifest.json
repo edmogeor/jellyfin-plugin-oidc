@@ -9,7 +9,15 @@
     "owner": "jellyfin",
     "versions": [
       {
-        "changelog": "- Prevent duplicate Identity Provider redirects while Jellyfin updates the login page.\n\n",
+        "changelog": "\n- Redirect directly to the Identity Provider without showing a loading spinner.\n\n",
+        "checksum": "a2ccad8e83142307b27cb62f6e7fd39b",
+        "sourceUrl": "https://github.com/edmogeor/jellyfin-plugin-oidc/releases/download/v0.1.24.0/oidc-authentication_0.1.24.0.zip",
+        "targetAbi": "12.0.0.0",
+        "timestamp": "2026-09-18T20:43:25Z",
+        "version": "0.1.24.0"
+      },
+      {
+        "changelog": "\n- Prevent duplicate Identity Provider redirects while Jellyfin updates the login page.\n\n",
         "checksum": "d2c54448cc1a122c7b5447a041d8c8f7",
         "sourceUrl": "https://github.com/edmogeor/jellyfin-plugin-oidc/releases/download/v0.1.23.0/oidc-authentication_0.1.23.0.zip",
         "targetAbi": "12.0.0.0",
@@ -17,7 +25,7 @@
         "version": "0.1.23.0"
       },
       {
-        "changelog": "- Keep OIDC sign-in failure notifications dismissed after Jellyfin normalizes the error URL.\n\n",
+        "changelog": "\n- Keep OIDC sign-in failure notifications dismissed after Jellyfin normalizes the error URL.\n\n",
         "checksum": "4d2f2a8aa2240e8ea654a7f099a89c23",
         "sourceUrl": "https://github.com/edmogeor/jellyfin-plugin-oidc/releases/download/v0.1.22.0/oidc-authentication_0.1.22.0.zip",
         "targetAbi": "12.0.0.0",
@@ -25,7 +33,7 @@
         "version": "0.1.22.0"
       },
       {
-        "changelog": "- Show Jellyfin's loading spinner during direct Identity Provider redirects.\n\n",
+        "changelog": "\n- Show Jellyfin's loading spinner during direct Identity Provider redirects.\n\n",
         "checksum": "d36df23616f8e0fc46a66c8918701eca",
         "sourceUrl": "https://github.com/edmogeor/jellyfin-plugin-oidc/releases/download/v0.1.20.0/oidc-authentication_0.1.20.0.zip",
         "targetAbi": "12.0.0.0",
@@ -33,7 +41,7 @@
         "version": "0.1.20.0"
       },
       {
-        "changelog": "- Restore no-flash direct Identity Provider redirects and show OIDC-only controls after a sign-in failure.\n\n",
+        "changelog": "\n- Restore no-flash direct Identity Provider redirects and show OIDC-only controls after a sign-in failure.\n\n",
         "checksum": "6abedcd7a486330ef68b6fb91ff0bc63",
         "sourceUrl": "https://github.com/edmogeor/jellyfin-plugin-oidc/releases/download/v0.1.19.0/oidc-authentication_0.1.19.0.zip",
         "targetAbi": "12.0.0.0",
@@ -41,7 +49,7 @@
         "version": "0.1.19.0"
       },
       {
-        "changelog": "- Keep OIDC and signed-out controls on Jellyfin's rebuilt login view after selecting a server.\n\n",
+        "changelog": "\n- Keep OIDC and signed-out controls on Jellyfin's rebuilt login view after selecting a server.\n\n",
         "checksum": "dbecdc9ebe7f0877a7876348712d4674",
         "sourceUrl": "https://github.com/edmogeor/jellyfin-plugin-oidc/releases/download/v0.1.18.0/oidc-authentication_0.1.18.0.zip",
         "targetAbi": "12.0.0.0",
@@ -49,7 +57,7 @@
         "version": "0.1.18.0"
       },
       {
-        "changelog": "- Keep OIDC sign-in available after Jellyfin rebuilds the login view and prevent a blank page after an interrupted direct redirect.\n\n",
+        "changelog": "\n- Keep OIDC sign-in available after Jellyfin rebuilds the login view and prevent a blank page after an interrupted direct redirect.\n\n",
         "checksum": "703def55c847a713e92f30225f2e4b3d",
         "sourceUrl": "https://github.com/edmogeor/jellyfin-plugin-oidc/releases/download/v0.1.17.0/oidc-authentication_0.1.17.0.zip",
         "targetAbi": "12.0.0.0",
@@ -57,7 +65,7 @@
         "version": "0.1.17.0"
       },
       {
-        "changelog": "- Keep the loading indicator visible until direct OIDC redirection completes.\n- Preserve Jellyfin credentials through OIDC logout and keep the signed-out page stable across login-route navigation.\n\n",
+        "changelog": "\n- Keep the loading indicator visible until direct OIDC redirection completes.\n- Preserve Jellyfin credentials through OIDC logout and keep the signed-out page stable across login-route navigation.\n\n",
         "checksum": "e00db58b675b41e3db8458afa2158423",
         "sourceUrl": "https://github.com/edmogeor/jellyfin-plugin-oidc/releases/download/v0.1.16.0/oidc-authentication_0.1.16.0.zip",
         "targetAbi": "12.0.0.0",
@@ -65,7 +73,7 @@
         "version": "0.1.16.0"
       },
       {
-        "changelog": "- Preserve Jellyfin login controls while hiding local actions in OIDC-only and signed-out states, preventing persistent loading and retaining Quick Connect.\n\n",
+        "changelog": "\n- Preserve Jellyfin login controls while hiding local actions in OIDC-only and signed-out states, preventing persistent loading and retaining Quick Connect.\n\n",
         "checksum": "601e1a0af7a99096180719485a2948be",
         "sourceUrl": "https://github.com/edmogeor/jellyfin-plugin-oidc/releases/download/v0.1.15.0/oidc-authentication_0.1.15.0.zip",
         "targetAbi": "12.0.0.0",
@@ -73,7 +81,7 @@
         "version": "0.1.15.0"
       },
       {
-        "changelog": "- Preserve Jellyfin login initialization while removing unavailable local controls, restoring Quick Connect and native Change Server visibility.\n\n",
+        "changelog": "\n- Preserve Jellyfin login initialization while removing unavailable local controls, restoring Quick Connect and native Change Server visibility.\n\n",
         "checksum": "248a249bead3dfb6afcba41f422f3dc9",
         "sourceUrl": "https://github.com/edmogeor/jellyfin-plugin-oidc/releases/download/v0.1.14.0/oidc-authentication_0.1.14.0.zip",
         "targetAbi": "12.0.0.0",
@@ -81,7 +89,7 @@
         "version": "0.1.14.0"
       },
       {
-        "changelog": "- Prevent Jellyfin Web from rendering the local sign-in page before a direct Identity Provider redirect.\n\n",
+        "changelog": "\n- Prevent Jellyfin Web from rendering the local sign-in page before a direct Identity Provider redirect.\n\n",
         "checksum": "445a8eb5f58a8909c63ee92f3ac830a3",
         "sourceUrl": "https://github.com/edmogeor/jellyfin-plugin-oidc/releases/download/v0.1.13.0/oidc-authentication_0.1.13.0.zip",
         "targetAbi": "12.0.0.0",
@@ -89,7 +97,7 @@
         "version": "0.1.13.0"
       },
       {
-        "changelog": "- Redirect direct visits to the Jellyfin Web root route to the Identity Provider when local passwords are disabled.\n\n",
+        "changelog": "\n- Redirect direct visits to the Jellyfin Web root route to the Identity Provider when local passwords are disabled.\n\n",
         "checksum": "ebfdd74d1f13d407b434d860778423a7",
         "sourceUrl": "https://github.com/edmogeor/jellyfin-plugin-oidc/releases/download/v0.1.12.0/oidc-authentication_0.1.12.0.zip",
         "targetAbi": "12.0.0.0",
@@ -97,7 +105,7 @@
         "version": "0.1.12.0"
       },
       {
-        "changelog": "- Redirect first-time Jellyfin Web login visits to the Identity Provider before the sign-in page renders.\n- Make the OIDC sign-in action primary when it is the only available sign-in method, including the signed-out page.\n\n",
+        "changelog": "\n- Redirect first-time Jellyfin Web login visits to the Identity Provider before the sign-in page renders.\n- Make the OIDC sign-in action primary when it is the only available sign-in method, including the signed-out page.\n\n",
         "checksum": "d469c734f3f56c76401dcb1f078cb5b6",
         "sourceUrl": "https://github.com/edmogeor/jellyfin-plugin-oidc/releases/download/v0.1.11.0/oidc-authentication_0.1.11.0.zip",
         "targetAbi": "12.0.0.0",
@@ -105,7 +113,7 @@
         "version": "0.1.11.0"
       },
       {
-        "changelog": "- Keep Quick Connect, Change Server, and the login disclaimer available, and make OIDC sign-in the primary action when local passwords are disabled without direct redirects.\n\n",
+        "changelog": "\n- Keep Quick Connect, Change Server, and the login disclaimer available, and make OIDC sign-in the primary action when local passwords are disabled without direct redirects.\n\n",
         "checksum": "6171a26c243edcd00eb3ae119c2a402f",
         "sourceUrl": "https://github.com/edmogeor/jellyfin-plugin-oidc/releases/download/v0.1.10.0/oidc-authentication_0.1.10.0.zip",
         "targetAbi": "12.0.0.0",
@@ -113,7 +121,7 @@
         "version": "0.1.10.0"
       },
       {
-        "changelog": "- Keep the Jellyfin sign-in heading while showing only the OIDC button when local passwords are disabled for all Jellyfin Users without direct redirects.\n- Reload Jellyfin Web after saving OIDC settings so the first logout uses the updated login state.\n- Do not redirect active Jellyfin Web sessions to OIDC after a page refresh.\n\n",
+        "changelog": "\n- Keep the Jellyfin sign-in heading while showing only the OIDC button when local passwords are disabled for all Jellyfin Users without direct redirects.\n- Reload Jellyfin Web after saving OIDC settings so the first logout uses the updated login state.\n- Do not redirect active Jellyfin Web sessions to OIDC after a page refresh.\n\n",
         "checksum": "3ef7d64f4dc6306f9d89a45dc8a3f195",
         "sourceUrl": "https://github.com/edmogeor/jellyfin-plugin-oidc/releases/download/v0.1.9.0/oidc-authentication_0.1.9.0.zip",
         "targetAbi": "12.0.0.0",
@@ -121,7 +129,7 @@
         "version": "0.1.9.0"
       },
       {
-        "changelog": "- Make direct Identity Provider redirects opt-in when local passwords are disabled for all Jellyfin Users.\n- Keep the OIDC sign-in button while removing local-login controls without direct redirects.\n- Localize the redirect setting and OIDC signed-out title.\n- Prevent browsers from using stale OIDC login integration and configuration after a plugin update or settings change.\n- Show the OIDC signed-out page when using Jellyfin 12's User Menu logout control.\n\n",
+        "changelog": "\n- Make direct Identity Provider redirects opt-in when local passwords are disabled for all Jellyfin Users.\n- Keep the OIDC sign-in button while removing local-login controls without direct redirects.\n- Localize the redirect setting and OIDC signed-out title.\n- Prevent browsers from using stale OIDC login integration and configuration after a plugin update or settings change.\n- Show the OIDC signed-out page when using Jellyfin 12's User Menu logout control.\n\n",
         "checksum": "57e90572e2a9508866384a9b53aac236",
         "sourceUrl": "https://github.com/edmogeor/jellyfin-plugin-oidc/releases/download/v0.1.8.0/oidc-authentication_0.1.8.0.zip",
         "targetAbi": "12.0.0.0",
@@ -129,7 +137,7 @@
         "version": "0.1.8.0"
       },
       {
-        "changelog": "- Redirect directly to OIDC when local passwords are disabled for all Jellyfin Users.\n- Add a themed OIDC-only signed-out state and avoid stale SSO button redirects after browser Back navigation.\n- Let the Identity Provider own the post-logout page when RP logout is enabled and local passwords are disabled.\n- Change the default button label to `Sign In with SSO`.\n\n",
+        "changelog": "\n- Redirect directly to OIDC when local passwords are disabled for all Jellyfin Users.\n- Add a themed OIDC-only signed-out state and avoid stale SSO button redirects after browser Back navigation.\n- Let the Identity Provider own the post-logout page when RP logout is enabled and local passwords are disabled.\n- Change the default button label to `Sign In with SSO`.\n\n",
         "checksum": "d906992cc7e86b71ba3a3e79d83de5c2",
         "sourceUrl": "https://github.com/edmogeor/jellyfin-plugin-oidc/releases/download/v0.1.7.0/oidc-authentication_0.1.7.0.zip",
         "targetAbi": "12.0.0.0",
@@ -137,7 +145,7 @@
         "version": "0.1.7.0"
       },
       {
-        "changelog": "- Apply saved OIDC settings without restarting Jellyfin.\n\n",
+        "changelog": "\n- Apply saved OIDC settings without restarting Jellyfin.\n\n",
         "checksum": "cfdf5e8c8e4c542ce2c004429666d535",
         "sourceUrl": "https://github.com/edmogeor/jellyfin-plugin-oidc/releases/download/v0.1.6.0/oidc-authentication_0.1.6.0.zip",
         "targetAbi": "12.0.0.0",
@@ -145,7 +153,7 @@
         "version": "0.1.6.0"
       },
       {
-        "changelog": "- Package the OpenID Connect runtime dependencies required by Jellyfin.\n\n",
+        "changelog": "\n- Package the OpenID Connect runtime dependencies required by Jellyfin.\n\n",
         "checksum": "ff0c893478217b5a08186a61700831a6",
         "sourceUrl": "https://github.com/edmogeor/jellyfin-plugin-oidc/releases/download/v0.1.5.0/oidc-authentication_0.1.5.0.zip",
         "targetAbi": "12.0.0.0",
@@ -153,7 +161,7 @@
         "version": "0.1.5.0"
       },
       {
-        "changelog": "- Restore the Identity Link when reprovisioning after its Jellyfin User was deleted.\n\n",
+        "changelog": "\n- Restore the Identity Link when reprovisioning after its Jellyfin User was deleted.\n\n",
         "checksum": "956769dd5a8545a6796520185f9344e8",
         "sourceUrl": "https://github.com/edmogeor/jellyfin-plugin-oidc/releases/download/v0.1.4.0/oidc-authentication_0.1.4.0.zip",
         "targetAbi": "12.0.0.0",
@@ -169,7 +177,7 @@
         "version": "0.1.3.0"
       },
       {
-        "changelog": "- Align the plugin and repository descriptions and list supported configuration-page languages.\n- Validate HTTPS URLs directly in the OIDC configuration form.\n- Add a localized Client Secret visibility toggle.\n\n",
+        "changelog": "\n- Align the plugin and repository descriptions and list supported configuration-page languages.\n- Validate HTTPS URLs directly in the OIDC configuration form.\n- Add a localized Client Secret visibility toggle.\n\n",
         "checksum": "c2c99b09c17730f4d0927e13a4407e5d",
         "sourceUrl": "https://github.com/edmogeor/jellyfin-plugin-oidc/releases/download/v0.1.2.0/oidc-authentication_0.1.2.0.zip",
         "targetAbi": "12.0.0.0",
@@ -177,7 +185,7 @@
         "version": "0.1.2.0"
       },
       {
-        "changelog": "- Require an HTTPS public URL for OIDC sign-in and callback requests.\n\n",
+        "changelog": "\n- Require an HTTPS public URL for OIDC sign-in and callback requests.\n\n",
         "checksum": "7f07ce64195aca66be702c695cc7f073",
         "sourceUrl": "https://github.com/edmogeor/jellyfin-plugin-oidc/releases/download/v0.1.1.0/oidc-authentication_0.1.1.0.zip",
         "targetAbi": "12.0.0.0",
@@ -185,7 +193,7 @@
         "version": "0.1.1.0"
       },
       {
-        "changelog": "- OpenID Connect authorization-code sign-in with PKCE for Jellyfin Users.\n- Identity Provider group-based sign-in, provisioning, administrator synchronization, and local-password policies.\n- Optional profile-image synchronization and RP-initiated logout.\n- Verified-email identity matching, durable Identity Links, and local-relative return URLs.\n- Secret-free browser configuration and logs.\n",
+        "changelog": "\n- OpenID Connect authorization-code sign-in with PKCE for Jellyfin Users.\n- Identity Provider group-based sign-in, provisioning, administrator synchronization, and local-password policies.\n- Optional profile-image synchronization and RP-initiated logout.\n- Verified-email identity matching, durable Identity Links, and local-relative return URLs.\n- Secret-free browser configuration and logs.\n",
         "checksum": "18b125fe418fa883874b9c4e681ed466",
         "sourceUrl": "https://github.com/edmogeor/jellyfin-plugin-oidc/releases/download/v0.1.0.0/oidc-authentication_0.1.0.0.zip",
         "targetAbi": "12.0.0.0",
