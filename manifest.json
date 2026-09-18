@@ -9,7 +9,7 @@
     "owner": "jellyfin",
     "versions": [
       {
-        "changelog": "\n- Redirect directly to the Identity Provider without showing a loading spinner.\n\n",
+        "changelog": "- Redirect directly to the Identity Provider without showing a loading spinner.\n\n",
         "checksum": "a2ccad8e83142307b27cb62f6e7fd39b",
         "sourceUrl": "https://github.com/edmogeor/jellyfin-plugin-oidc/releases/download/v0.1.24.0/oidc-authentication_0.1.24.0.zip",
         "targetAbi": "12.0.0.0",
