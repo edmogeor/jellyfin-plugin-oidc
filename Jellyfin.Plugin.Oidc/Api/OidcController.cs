@@ -40,7 +40,9 @@ public sealed class OidcController : ControllerBase
             return NotFound();
         }
 
-        return new WebConfiguration(configuration.LoginButtonText, configuration.PasswordLoginMode.ToString(), configuration.RedirectSignInPageToProvider, configuration.RpInitiatedLogout);
+        var redirectsToProvider = configuration.PasswordLoginMode == PasswordLoginMode.DisableForAllUsers
+            && configuration.RedirectSignInPageToProvider;
+        return new WebConfiguration(configuration.LoginButtonText, configuration.PasswordLoginMode.ToString(), redirectsToProvider, configuration.RpInitiatedLogout);
     }
 
     /// <summary>Serves the small Jellyfin Web integration script.</summary>

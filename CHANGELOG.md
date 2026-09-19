@@ -1,3 +1,9 @@
+## [0.1.25.0]
+
+### Fixed
+
+- Prevent direct Identity Provider redirects when password login remains available.
+
 ## [0.1.24.0]
 
 - Redirect directly to the Identity Provider without showing a loading spinner.

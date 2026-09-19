@@ -457,6 +457,17 @@ test("shows OIDC-only controls and redirects root visits when local passwords ar
       "RedirectSignInPageToProvider",
       true,
     );
+    for (const mode of [
+      "AllowForAllUsers",
+      "DisableForLinkedUsersOnly",
+      "DisableForAllUsers",
+    ]) {
+      await setPasswordLoginMode(adminPage, mode);
+      expect(
+        (await (await adminPage.request.get("/oidc/config")).json())
+          .RedirectSignInPageToProvider,
+      ).toBe(mode === "DisableForAllUsers");
+    }
     const directResponse = await adminPage.request.get("/web/index.html", {
       maxRedirects: 0,
     });
