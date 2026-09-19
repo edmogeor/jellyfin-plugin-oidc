@@ -18,16 +18,6 @@
     margin-top: 1.25em !important;
 }
 
-#loginPage .btnQuick {
-    background: rgba(var(--abyss-accent), 0.12) !important;
-    color: rgb(var(--abyss-accent)) !important;
-}
-
-#loginPage .btnQuick:hover {
-    background: rgb(var(--abyss-accent)) !important;
-    color: #121212 !important;
-}
-
 #quickConnectAlert .formDialogContent {
     margin-bottom: 0 !important;
 }
