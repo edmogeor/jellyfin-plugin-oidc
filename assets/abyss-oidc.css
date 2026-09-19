@@ -18,6 +18,15 @@
     margin-top: 1.25em !important;
 }
 
+#loginPage .readOnlyContent:has([data-oidc-login-container]) {
+    margin-block: 0 !important;
+}
+
+#loginPage [data-oidc-login-container] {
+    margin-bottom: 0 !important;
+    transform: translateY(-12dvh);
+}
+
 #quickConnectAlert .formDialogContent {
     margin-bottom: 0 !important;
 }
@@ -37,6 +46,7 @@ header.MuiAppBar-root a[href="#/"] .MuiButton-startIcon {
 
 body:has(#loginPage) header.MuiAppBar-root a[href="#/"] {
     font-size: 0;
+    gap: 0;
 }
 
 body:has(#loginPage) header.MuiAppBar-root a[href="#/"] .MuiButton-startIcon {
