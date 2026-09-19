@@ -17,3 +17,34 @@
 #loginPage .button-submit {
     margin-top: 1.25em !important;
 }
+
+#loginPage .btnQuick {
+    background: rgba(var(--abyss-accent), 0.12) !important;
+    color: rgb(var(--abyss-accent)) !important;
+}
+
+#loginPage .btnQuick:hover {
+    background: rgb(var(--abyss-accent)) !important;
+    color: #121212 !important;
+}
+
+#quickConnectAlert .formDialogContent {
+    margin-bottom: 0 !important;
+}
+
+#quickConnectAlert .formDialogFooterItem {
+    margin-top: 0 !important;
+}
+
+body:has(.pageTitle:empty) header.MuiAppBar-root a[href="#/"] {
+    justify-content: center !important;
+}
+
+body:has(.pageTitle:empty) header.MuiAppBar-root a[href="#/"] .MuiButton-startIcon {
+    margin: 0 !important;
+}
+
+header.MuiAppBar-root > .MuiToolbar-root > .MuiStack-root:first-of-type {
+    left: 50%;
+    transform: translateX(-50%);
+}
