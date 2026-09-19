@@ -1,0 +1,19 @@
+#loginPage {
+    display: flex;
+    flex-direction: column;
+    padding: 0 !important;
+}
+
+#loginPage > .padded-left.padded-right.padded-bottom-page {
+    margin-block: auto !important;
+    padding-bottom: 0 !important;
+}
+
+#loginPage h1 {
+    display: block;
+    margin: 0 !important;
+}
+
+#loginPage .button-submit {
+    margin-top: 1.25em !important;
+}
