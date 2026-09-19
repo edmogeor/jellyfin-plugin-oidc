@@ -25,6 +25,7 @@ Simple OpenID Connect sign-in for Jellyfin 12+, with one Identity Provider, grou
 - [Provider Setup](#provider-setup)
 - [Sign In](#sign-in)
 - [Password Login](#password-login)
+- [Custom Themes](#custom-themes)
 - [Logout](#logout)
 - [Development](#development)
 - [Donations](#donations)
@@ -151,6 +152,14 @@ If an OIDC outage or configuration mistake prevents every administrator from sig
 4. Start Jellyfin, sign in with the known local administrator password, and correct the OIDC configuration before enabling it again.
 
 This does not delete Jellyfin users or Identity Links.
+
+## Custom Themes
+
+This plugin provides [Abyss](https://github.com/AumGupta/abyss-jellyfin) overrides to keep its login controls visually consistent with OIDC-only sign-in. Add this import directly after the Abyss import in Jellyfin's **Custom CSS**:
+
+```css
+@import url('https://cdn.jsdelivr.net/gh/edmogeor/jellyfin-plugin-oidc@main/assets/abyss-oidc.css');
+```
 
 ## Logout
 
