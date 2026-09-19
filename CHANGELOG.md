@@ -1,3 +1,9 @@
+## [0.1.26.0]
+
+### Fixed
+
+- Publish the release manifest with its generated changelog.
+
 ## [0.1.25.0]
 
 ### Fixed
