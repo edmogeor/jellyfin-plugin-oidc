@@ -51,6 +51,8 @@ services:
       - keycloak-server
     ports:
       - "8443:8443"
+    environment:
+      ABYSS_THEME: ${ABYSS_THEME:-0}
     networks:
       default:
         ipv4_address: 172.30.0.250

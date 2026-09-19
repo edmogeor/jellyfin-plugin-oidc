@@ -68,7 +68,7 @@ public sealed class WebInjectionStartupFilter : IStartupFilter
                 }
                 else if (context.Request.Query.ContainsKey("oidcSignedOut"))
                 {
-                    html = html.Replace("</head>", "<style id=\"oidc-signed-out-style\">#loginPage{visibility:hidden}#loginPage .visualLoginForm{display:block!important}#loginPage .manualLoginForm,#loginPage #divUsers,#loginPage .btnManual,#loginPage .btnQuick,#loginPage .btnForgotPassword,#loginPage .btnSelectServer,#loginPage .loginDisclaimerContainer{display:none!important}</style></head>", StringComparison.OrdinalIgnoreCase);
+                    html = html.Replace("</head>", "<style id=\"oidc-signed-out-style\">#loginPage{visibility:hidden}#loginPage .visualLoginForm{display:block!important}#loginPage .manualLoginForm:not([data-oidc-login-container]),#loginPage #divUsers,#loginPage .btnManual,#loginPage .btnQuick,#loginPage .btnForgotPassword,#loginPage .btnSelectServer,#loginPage .loginDisclaimerContainer{display:none!important}</style></head>", StringComparison.OrdinalIgnoreCase);
                 }
                 else if (redirectsToProvider && !context.Request.Query.ContainsKey("oidcError"))
                 {
@@ -76,9 +76,9 @@ public sealed class WebInjectionStartupFilter : IStartupFilter
                 }
                 if (hidesLocalLogin && !context.Request.Query.ContainsKey("oidcTicket"))
                 {
-                    html = html.Replace("</head>", "<style id=\"oidc-only-login-style\">#loginPage .visualLoginForm{display:block!important}#loginPage .manualLoginForm,#loginPage #divUsers,#loginPage .btnManual,#loginPage .btnForgotPassword{display:none!important}</style></head>", StringComparison.OrdinalIgnoreCase);
+                    html = html.Replace("</head>", "<style id=\"oidc-only-login-style\">#loginPage .visualLoginForm{display:block!important}#loginPage .manualLoginForm:not([data-oidc-login-container]),#loginPage #divUsers,#loginPage .btnManual,#loginPage .btnForgotPassword{display:none!important}</style></head>", StringComparison.OrdinalIgnoreCase);
                 }
-                var scriptTag = $"<script>window.oidcRedirectSignInPageToProvider={redirectsToProvider.ToString().ToLowerInvariant()};</script><script src=\"{PublicUrls.Get(context.Request, configuration)}/oidc/web.js?v={typeof(WebInjectionStartupFilter).Assembly.ManifestModule.ModuleVersionId}\"></script>";
+                var scriptTag = $"<script>window.oidcPasswordLoginMode='{configuration.PasswordLoginMode}';window.oidcRedirectSignInPageToProvider={redirectsToProvider.ToString().ToLowerInvariant()};</script><script src=\"{PublicUrls.Get(context.Request, configuration)}/oidc/web.js?v={typeof(WebInjectionStartupFilter).Assembly.ManifestModule.ModuleVersionId}\"></script>";
                 if (!html.Contains(scriptTag, StringComparison.Ordinal))
                 {
                     html = html.Replace("</head>", scriptTag + "</head>", StringComparison.OrdinalIgnoreCase);

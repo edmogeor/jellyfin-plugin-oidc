@@ -180,6 +180,7 @@ make test
 | `make up`        | Start the e2e stack for manual testing.                   |
 
 The e2e stack runs Jellyfin 12, Keycloak, and Caddy at `https://localhost:8443`.
+Run `ABYSS_THEME=1 make test-e2e` to verify the login integration with the current Abyss stylesheet.
 
 ## Donations
 

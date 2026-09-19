@@ -1,3 +1,9 @@
+## [0.1.27.0]
+
+### Fixed
+
+- Keep the OIDC sign-in action primary and preserve themed OIDC-only login controls after sign-in errors.
+
 ## [0.1.26.0]
 
 ### Fixed
