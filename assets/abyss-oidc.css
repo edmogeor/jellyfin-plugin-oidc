@@ -26,11 +26,12 @@
     margin-top: 0 !important;
 }
 
-body:has(.pageTitle:empty) header.MuiAppBar-root a[href="#/"] {
+header.MuiAppBar-root a[href="#/"] {
     justify-content: center !important;
+    gap: 8px;
 }
 
-body:has(.pageTitle:empty) header.MuiAppBar-root a[href="#/"] .MuiButton-startIcon {
+header.MuiAppBar-root a[href="#/"] .MuiButton-startIcon {
     margin: 0 !important;
 }
 
