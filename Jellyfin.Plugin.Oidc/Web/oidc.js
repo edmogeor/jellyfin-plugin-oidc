@@ -20,15 +20,13 @@
         }
         return {};
     };
-    const updateLoginContainer = () => {
-        const login = document.querySelector('#loginPage');
+    const updateLoginContainer = button => {
+        const login = button.closest('#loginPage');
         const hidesLocalLogin = window.oidcPasswordLoginMode === 'DisableForAllUsers' && !location.search.includes('oidcTicket=');
         document.querySelectorAll('#loginPage .manualLoginForm:not([data-oidc-login-container]), #loginPage #divUsers, #loginPage .btnManual, #loginPage .btnForgotPassword').forEach(control => {
             if (hidesLocalLogin) control.style.setProperty('display', 'none', 'important');
             else control.style.removeProperty('display');
         });
-        const button = document.querySelector('[data-oidc-login]');
-        if (!button) return;
         const container = button.closest('[data-oidc-login-container]');
         const status = login?.querySelector('.visualLoginForm');
         if (isPrimaryLogin() && !container) {
@@ -57,8 +55,9 @@
             document.querySelectorAll('.readOnlyContent').forEach(addLogin);
             return;
         }
-        if (stack.querySelector('[data-oidc-login]')) {
-            updateLoginContainer();
+        const existingButton = stack.querySelector('[data-oidc-login]');
+        if (existingButton) {
+            updateLoginContainer(existingButton);
             return;
         }
         const button = document.createElement('button');
@@ -73,16 +72,16 @@
             location.assign(endpoint());
         };
         stack.insertBefore(button, stack.querySelector('.btnQuick'));
-        updateLoginContainer();
+        updateLoginContainer(button);
     };
     const resetLoginButton = () => {
-        const button = document.querySelector('[data-oidc-login]');
-        if (!button) return;
-        button.disabled = false;
-        button.setAttribute('aria-label', loginLabel());
-        button.querySelector('span').textContent = loginLabel();
-        button.classList.toggle('button-submit', isPrimaryLogin());
-        updateLoginContainer();
+        document.querySelectorAll('[data-oidc-login]').forEach(button => {
+            button.disabled = false;
+            button.setAttribute('aria-label', loginLabel());
+            button.querySelector('span').textContent = loginLabel();
+            button.classList.toggle('button-submit', isPrimaryLogin());
+            updateLoginContainer(button);
+        });
     };
     const showSignedOut = () => {
         if (!isLoginPage() || !isSignedOut()) return false;
@@ -181,7 +180,7 @@
     loginObserver = new MutationObserver(() => { addLogin(); showSignedOut(); showError(); void redirectToProvider(); });
     loginObserver.observe(document.documentElement, { childList: true, subtree: true });
     addLogin();
-    updateLoginContainer();
+    document.querySelectorAll('[data-oidc-login]').forEach(updateLoginContainer);
     void redirectToProvider();
     void configure();
 })();

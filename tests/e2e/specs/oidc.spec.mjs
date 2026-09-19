@@ -440,6 +440,11 @@ test("shows OIDC-only controls and redirects root visits when local passwords ar
     await expect(
       page.locator("[data-oidc-login-container] [data-oidc-login]"),
     ).toHaveCount(1);
+    await expect(
+      page.locator(
+        "[data-oidc-login]:not([data-oidc-login-container] [data-oidc-login])",
+      ),
+    ).toHaveCount(0);
     await expect(page.locator("form.manualLoginForm")).toBeHidden();
     await expect(page.locator("#divUsers")).toBeHidden();
     await expect(page.locator(".readOnlyContent")).toHaveCount(1);
@@ -494,6 +499,10 @@ test("shows OIDC-only controls and redirects root visits when local passwords ar
     const errorHtml = await errorResponse.text();
     expect(errorHtml).toContain('id="oidc-only-login-style"');
     expect(errorHtml).not.toContain('id="oidc-login-redirect-style"');
+    const ticketResponse = await adminPage.request.get(
+      "/web/index.html?oidcTicket=invalid",
+    );
+    expect(await ticketResponse.text()).toContain('id="oidc-only-login-style"');
     await page.goto("/web/index.html?oidcError=1#!/login");
     await expect(
       page.getByRole("button", { name: "Sign In with SSO" }),

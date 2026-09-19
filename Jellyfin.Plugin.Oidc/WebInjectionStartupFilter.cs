@@ -74,7 +74,7 @@ public sealed class WebInjectionStartupFilter : IStartupFilter
                 {
                     html = html.Replace("</head>", "<style id=\"oidc-login-redirect-style\">#loginPage{visibility:hidden}</style></head>", StringComparison.OrdinalIgnoreCase);
                 }
-                if (hidesLocalLogin && !context.Request.Query.ContainsKey("oidcTicket"))
+                if (hidesLocalLogin)
                 {
                     html = html.Replace("</head>", "<style id=\"oidc-only-login-style\">#loginPage .visualLoginForm{display:block!important}#loginPage .manualLoginForm:not([data-oidc-login-container]),#loginPage #divUsers,#loginPage .btnManual,#loginPage .btnForgotPassword{display:none!important}</style></head>", StringComparison.OrdinalIgnoreCase);
                 }

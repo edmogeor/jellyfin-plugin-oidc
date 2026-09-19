@@ -1,3 +1,9 @@
+## [0.1.28.0]
+
+### Fixed
+
+- Keep themed OIDC-only login controls consistent while Jellyfin rebuilds its login page.
+
 ## [0.1.27.0]
 
 ### Fixed
