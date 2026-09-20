@@ -9,6 +9,14 @@
     "owner": "jellyfin",
     "versions": [
       {
+        "changelog": "### Changed\n\n- Simplify OIDC configuration and browser login integration without changing behavior.\n\n",
+        "checksum": "a2095e528077acf882e1d2a6bdf0f2ee",
+        "sourceUrl": "https://github.com/edmogeor/jellyfin-plugin-oidc/releases/download/v0.2.0.0/oidc-authentication_0.2.0.0.zip",
+        "targetAbi": "12.0.0.0",
+        "timestamp": "2026-09-20T10:23:56Z",
+        "version": "0.2.0.0"
+      },
+      {
         "changelog": "### Fixed\n\n- Keep themed OIDC-only login controls consistent while Jellyfin rebuilds its login page.\n\n",
         "checksum": "35514960009ad238b7374d1749f8505b",
         "sourceUrl": "https://github.com/edmogeor/jellyfin-plugin-oidc/releases/download/v0.1.28.0/oidc-authentication_0.1.28.0.zip",
