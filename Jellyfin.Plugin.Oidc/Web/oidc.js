@@ -9,7 +9,6 @@
     const signedOutLabel = () => window.oidcSignedOutText || 'Signed Out';
     const revealLogin = () => document.querySelector('#oidc-login-redirect-style')?.remove();
     const isPrimaryLogin = () => window.oidcPasswordLoginMode === 'DisableForAllUsers';
-    let loginObserver;
     let shownError;
     let redirectingToProvider;
     const loadStrings = async () => {
@@ -150,8 +149,7 @@
         window.oidcPasswordLoginMode = config.PasswordLoginMode;
         window.oidcRedirectSignInPageToProvider = config.RedirectSignInPageToProvider;
         resetLoginButton();
-        const allPasswordsDisabled = config.PasswordLoginMode === 'DisableForAllUsers';
-        const redirectsToProvider = allPasswordsDisabled && config.RedirectSignInPageToProvider;
+        const redirectsToProvider = config.PasswordLoginMode === 'DisableForAllUsers' && config.RedirectSignInPageToProvider;
         if (redirectsToProvider && isSignedOut()) {
             window.oidcSignedOutText = (await loadStrings().catch(() => ({}))).signedOut;
             if (showSignedOut()) return;
@@ -177,8 +175,7 @@
     });
     addEventListener('pageshow', () => { resetLoginButton(); void redirectToProvider(); });
     enableLogout();
-    loginObserver = new MutationObserver(() => { addLogin(); showSignedOut(); showError(); void redirectToProvider(); });
-    loginObserver.observe(document.documentElement, { childList: true, subtree: true });
+    new MutationObserver(() => { addLogin(); showSignedOut(); showError(); void redirectToProvider(); }).observe(document.documentElement, { childList: true, subtree: true });
     addLogin();
     document.querySelectorAll('[data-oidc-login]').forEach(updateLoginContainer);
     void redirectToProvider();

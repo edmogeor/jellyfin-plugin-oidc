@@ -10,7 +10,7 @@
                 <div class="inputContainer inputContainer-withDescription"><input id="PublicUrl" type="url" is="emby-input" data-i18n-label="publicUrlLabel" data-i18n-placeholder="publicUrlPlaceholder" /><div class="fieldDescription" data-i18n="publicUrlHelp"></div></div>
                 <div class="inputContainer inputContainer-withDescription"><input id="IssuerUrl" type="url" required is="emby-input" data-i18n-label="issuerUrlLabel" data-i18n-placeholder="issuerUrlPlaceholder" /><div class="fieldDescription" data-i18n="issuerUrlHelp"></div></div>
                 <div class="inputContainer inputContainer-withDescription"><input id="ClientId" type="text" required is="emby-input" data-i18n-label="clientIdLabel" /><div class="fieldDescription" data-i18n="clientIdHelp"></div></div>
-                <div class="inputContainer inputContainer-withDescription"><label for="ClientSecret" data-i18n="clientSecretLabel"></label><div class="oidc-client-secret" style="align-items: center; display: flex;"><input id="ClientSecret" type="password" required is="emby-input" style="flex: 1; min-width: 0;" /><button id="ClientSecretToggle" type="button" is="emby-button" class="raised cancel" style="align-self: stretch; box-sizing: border-box; margin: 0 0 0 0.5em !important; padding: 0 1em;" data-oidc-client-secret-toggle data-visible="false" aria-controls="ClientSecret" aria-label="Show client secret" aria-pressed="false">Show</button></div><div class="fieldDescription" data-i18n="clientSecretHelp"></div></div>
+                <div class="inputContainer inputContainer-withDescription"><label for="ClientSecret" data-i18n="clientSecretLabel"></label><div class="oidc-client-secret" style="align-items: center; display: flex;"><input id="ClientSecret" type="password" required is="emby-input" style="flex: 1; min-width: 0;" /><button id="ClientSecretToggle" type="button" is="emby-button" class="raised cancel" style="align-self: stretch; box-sizing: border-box; margin: 0 0 0 0.5em !important; padding: 0 1em;" data-oidc-client-secret-toggle aria-controls="ClientSecret" aria-label="Show client secret" aria-pressed="false">Show</button></div><div class="fieldDescription" data-i18n="clientSecretHelp"></div></div>
             </div>
             <div class="verticalSection">
                 <h2 data-i18n="accessHeading"></h2>
@@ -86,7 +86,6 @@
             const updateClientSecretToggle = () => {
                 const visible = clientSecret.type === 'text';
                 const text = dictionary ? translate(visible ? 'hideClientSecret' : 'showClientSecret') : visible ? 'Hide' : 'Show';
-                clientSecretToggle.dataset.visible = visible;
                 clientSecretToggle.setAttribute('aria-label', text + ' ' + (dictionary ? translate('clientSecretLabel') : 'client secret'));
                 clientSecretToggle.setAttribute('aria-pressed', visible);
                 clientSecretToggle.textContent = text;
@@ -95,17 +94,6 @@
                 clientSecret.type = clientSecret.type === 'password' ? 'text' : 'password';
                 updateClientSecretToggle();
             });
-            const confirmPasswordLoginChange = (message, title) => {
-                const observer = new MutationObserver(() => {
-                    const heading = Array.from(document.querySelectorAll('.formDialogHeaderTitle:first-child')).find(element => element.textContent === title);
-                    if (heading) {
-                        heading.style.marginInlineStart = '0';
-                        observer.disconnect();
-                    }
-                });
-                observer.observe(document.body, { childList: true, subtree: true });
-                Dashboard.confirm(message, title, confirmed => { observer.disconnect(); if (confirmed) save(); });
-            };
             const save = () => {
                 Dashboard.showLoadingMsg();
                 ApiClient.getPluginConfiguration(pluginId).then(config => {
@@ -127,7 +115,7 @@
                 const mode = value('PasswordLoginMode');
                 if (mode !== savedConfiguration.PasswordLoginMode && mode !== 'AllowForAllUsers') {
                     const users = mode === 'DisableForAllUsers' ? translate('allJellyfinUsers') : translate('linkedJellyfinUsers');
-                    confirmPasswordLoginChange(translate('localPasswordWarning', users), translate('localPasswordWarningTitle'));
+                    Dashboard.confirm(translate('localPasswordWarning', users), translate('localPasswordWarningTitle'), confirmed => { if (confirmed) save(); });
                     return;
                 }
                 save();

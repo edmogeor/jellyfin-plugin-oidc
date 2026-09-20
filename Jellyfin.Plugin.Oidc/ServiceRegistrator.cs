@@ -3,6 +3,7 @@ using MediaBrowser.Controller;
 using MediaBrowser.Controller.Authentication;
 using MediaBrowser.Controller.Plugins;
 using Microsoft.AspNetCore.Hosting;
+using Microsoft.AspNetCore.Authentication.OpenIdConnect;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
 
@@ -21,8 +22,8 @@ public sealed class ServiceRegistrator : IPluginServiceRegistrator
         services.AddSingleton<OidcUserProvisioner>();
         services.AddSingleton<IAuthenticationProvider, OidcPasswordDisabledProvider>();
         services.AddSingleton<IStartupFilter, WebInjectionStartupFilter>();
-        services.AddSingleton<IConfigureOptions<Microsoft.AspNetCore.Authentication.OpenIdConnect.OpenIdConnectOptions>, OidcOptions>();
-        services.PostConfigure<Microsoft.AspNetCore.Authentication.OpenIdConnect.OpenIdConnectOptions>(OidcOptions.Scheme, options =>
+        services.AddSingleton<IConfigureOptions<OpenIdConnectOptions>, OidcOptions>();
+        services.PostConfigure<OpenIdConnectOptions>(OidcOptions.Scheme, options =>
         {
             if (string.IsNullOrEmpty(options.Authority))
             {

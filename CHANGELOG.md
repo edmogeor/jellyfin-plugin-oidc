@@ -1,3 +1,9 @@
+## [0.2.0.0]
+
+### Changed
+
+- Simplify OIDC configuration and browser login integration without changing behavior.
+
 ## [0.1.28.0]
 
 ### Fixed

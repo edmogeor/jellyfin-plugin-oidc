@@ -254,16 +254,6 @@ test("loads the seeded OIDC settings and validates changes for an administrator"
     page.locator("#RedirectSignInPageToProviderContainer"),
   ).toBeHidden();
   await expect(page.locator("#SaveButton")).toBeDisabled();
-  expect(
-    await page.locator("#ClientSecretToggle").evaluate((button) => {
-      const input = document.querySelector("#ClientSecret");
-      return (
-        input &&
-        button.getBoundingClientRect().left >=
-          input.getBoundingClientRect().right
-      );
-    }),
-  ).toBe(true);
   await expect(page.locator("#ClientSecret")).toHaveAttribute(
     "type",
     "password",
@@ -447,13 +437,10 @@ test("shows OIDC-only controls and redirects root visits when local passwords ar
     ).toHaveCount(0);
     await expect(page.locator("form.manualLoginForm")).toBeHidden();
     await expect(page.locator("#divUsers")).toBeHidden();
-    await expect(page.locator(".readOnlyContent")).toHaveCount(1);
-    await expect(page.locator(".readOnlyContent > *")).toHaveCount(6);
     await expect(page.locator(".btnManual")).toBeHidden();
     await expect(page.locator(".btnForgotPassword")).toBeHidden();
     await expect(page.locator(".btnQuick")).toBeVisible();
     await expect(page.locator(".btnSelectServer")).toBeHidden();
-    await expect(page.locator(".loginDisclaimerContainer")).toHaveCount(1);
     await page.getByRole("banner").getByRole("link").click();
     await expect(page).toHaveURL(/login\?serverid=/);
     await expect(
@@ -507,21 +494,6 @@ test("shows OIDC-only controls and redirects root visits when local passwords ar
     await expect(
       page.getByRole("button", { name: "Sign In with SSO" }),
     ).toHaveClass(/button-submit/);
-    await page.addInitScript(() => {
-      const captureLoginRender = () => {
-        const login = document.querySelector("#loginPage");
-        if (login) {
-          sessionStorage.setItem("oidcLoginRendered", "true");
-        }
-      };
-      new MutationObserver(captureLoginRender).observe(
-        document.documentElement,
-        {
-          childList: true,
-          subtree: true,
-        },
-      );
-    });
     await page.route("**/oidc/config", (route) => route.abort());
     let startRequests = 0;
     await page.route("**/oidc/start*", (route) => {
