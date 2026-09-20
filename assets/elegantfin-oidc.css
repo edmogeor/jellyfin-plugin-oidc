@@ -5,3 +5,7 @@ form.manualLoginForm[data-oidc-login-container]::before {
 form.manualLoginForm[data-oidc-login-container] [data-oidc-login] {
     margin-top: 0 !important;
 }
+
+.loginDisclaimerContainer:not(:has(.loginDisclaimer:not(:empty))) {
+    display: none;
+}
