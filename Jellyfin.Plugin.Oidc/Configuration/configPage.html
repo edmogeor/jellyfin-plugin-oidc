@@ -21,7 +21,7 @@
             </div>
             <div class="verticalSection">
                 <h2>${ButtonSignIn}</h2>
-                <div class="inputContainer inputContainer-withDescription"><input id="LoginButtonText" type="text" is="emby-input" data-i18n-label="loginButtonTextLabel" /><div class="fieldDescription" data-i18n="loginButtonTextHelp"></div></div>
+                <div class="inputContainer inputContainer-withDescription"><input id="LoginButtonText" type="text" is="emby-input" placeholder="Sign In with SSO" data-i18n-label="loginButtonTextLabel" /><div class="fieldDescription" data-i18n="loginButtonTextHelp"></div></div>
                 <div class="selectContainer"><label for="PasswordLoginMode" data-i18n="passwordLoginModeLabel"></label><select id="PasswordLoginMode" is="emby-select" class="emby-select"><option value="AllowForAllUsers" data-i18n="allowForAllUsers"></option><option value="DisableForLinkedUsersOnly" data-i18n="disableForLinkedUsersOnly"></option><option value="DisableForAllUsers" data-i18n="disableForAllUsers"></option></select><div class="fieldDescription" data-i18n="passwordLoginModeHelp"></div></div>
                 <div id="RedirectSignInPageToProviderContainer" class="checkboxContainer checkboxContainer-withDescription" style="display:none"><label><input id="RedirectSignInPageToProvider" type="checkbox" is="emby-checkbox" /><span data-i18n="redirectSignInPageToProviderLabel"></span></label><div class="fieldDescription checkboxFieldDescription" data-i18n="redirectSignInPageToProviderHelp"></div></div>
                 <div class="checkboxContainer checkboxContainer-withDescription"><label><input id="SynchronizeProfileImages" type="checkbox" is="emby-checkbox" /><span data-i18n="synchronizeProfileImagesLabel"></span></label><div class="fieldDescription checkboxFieldDescription" data-i18n="synchronizeProfileImagesHelp"></div></div>
@@ -61,8 +61,8 @@
             const updateSaveButton = () => { document.querySelector('#SaveButton').disabled = !savedConfiguration || fields.every(name => value(name) === savedConfiguration[name]); };
             const updateRedirectSignInPageToProvider = () => { document.querySelector('#RedirectSignInPageToProviderContainer').style.display = value('PasswordLoginMode') === 'DisableForAllUsers' ? '' : 'none'; };
             const loadConfiguration = () => ApiClient.getPluginConfiguration(pluginId).then(config => {
-                savedConfiguration = Object.fromEntries(fields.map(name => [name, config[name]]));
-                fields.forEach(name => { document.querySelector('#' + name)[checkboxes.includes(name) ? 'checked' : 'value'] = config[name]; }); updateRedirectSignInPageToProvider(); updateSaveButton();
+                savedConfiguration = Object.fromEntries(fields.map(name => [name, name === 'LoginButtonText' && config[name] === 'Sign In with SSO' ? '' : config[name]]));
+                fields.forEach(name => { document.querySelector('#' + name)[checkboxes.includes(name) ? 'checked' : 'value'] = name === 'LoginButtonText' && config[name] === 'Sign In with SSO' ? '' : config[name]; }); updateRedirectSignInPageToProvider(); updateSaveButton();
             });
             document.querySelector('#OidcConfigPage').addEventListener('pageshow', () => {
                 if (dictionary) localize();

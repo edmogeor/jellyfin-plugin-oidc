@@ -25,7 +25,7 @@
   "additionalScopesLabel": "Additional requested scopes",
   "additionalScopesPlaceholder": "groups",
   "additionalScopesHelp": "List scopes separated by spaces. The plugin also requests openid email profile. For example, Authelia needs groups to return group membership.",
-  "loginButtonTextLabel": "Login button text",
+  "loginButtonTextLabel": "Sign in button text",
   "loginButtonTextHelp": "The text shown on the Jellyfin login page.",
   "passwordLoginModeLabel": "Password login mode",
   "allowForAllUsers": "Allow for all users",

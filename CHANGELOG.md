@@ -1,3 +1,9 @@
+## [0.2.2.0]
+
+### Changed
+
+- Show the default OIDC sign-in label as a placeholder in the configuration form.
+
 ## [0.2.1.0]
 
 ### Fixed

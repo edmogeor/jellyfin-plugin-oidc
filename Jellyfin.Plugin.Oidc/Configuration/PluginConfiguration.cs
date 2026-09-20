@@ -75,7 +75,7 @@ public sealed class PluginConfiguration : BasePluginConfiguration
     public string AdministratorGroup { get; set; } = string.Empty;
 
     /// <summary>Gets or sets the OIDC button label.</summary>
-    public string LoginButtonText { get; set; } = "Sign In with SSO";
+    public string LoginButtonText { get; set; } = string.Empty;
 
     /// <summary>Gets or sets local credential availability.</summary>
     public PasswordLoginMode PasswordLoginMode { get; set; }

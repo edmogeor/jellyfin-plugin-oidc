@@ -82,6 +82,12 @@ public sealed class OidcRulesTests
     }
 
     [Fact]
+    public void Login_button_text_is_empty_by_default()
+    {
+        Assert.Empty(new PluginConfiguration().LoginButtonText);
+    }
+
+    [Fact]
     public void Verified_administrator_group_is_eligible()
     {
         var configuration = new PluginConfiguration { AdministratorGroup = "jellyfin-admins" };
