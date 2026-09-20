@@ -11,6 +11,11 @@
     const isPrimaryLogin = () => window.oidcPasswordLoginMode === 'DisableForAllUsers';
     let shownError;
     let redirectingToProvider;
+    const display = (elements, value) => elements.filter(Boolean).forEach(element => value ? element.style.setProperty('display', value, 'important') : element.style.removeProperty('display'));
+    const localControls = form => [
+        ...form.querySelectorAll(':scope > .inputContainer, :scope > .checkboxContainer, :scope > button[type="submit"]'),
+        form.querySelector('.btnCancel')?.parentElement,
+    ];
     const loadStrings = async () => {
         const locale = document.documentElement.lang.toLowerCase();
         for (const value of new Set([locale, locale.split('-')[0], 'en-us'])) {
@@ -21,32 +26,26 @@
     };
     const updateLoginContainer = button => {
         const login = button.closest('#loginPage');
-        const hidesLocalLogin = window.oidcPasswordLoginMode === 'DisableForAllUsers' && !location.search.includes('oidcTicket=');
-        document.querySelectorAll('#loginPage .manualLoginForm:not([data-oidc-login-container]), #loginPage #divUsers, #loginPage .btnManual, #loginPage .btnForgotPassword').forEach(control => {
-            if (hidesLocalLogin) control.style.setProperty('display', 'none', 'important');
-            else control.style.removeProperty('display');
-        });
-        const container = button.closest('[data-oidc-login-container]');
-        const status = login?.querySelector('.visualLoginForm');
-        if (isPrimaryLogin() && !container) {
-            const form = document.createElement('div');
-            form.className = 'manualLoginForm'; form.dataset.oidcLoginContainer = 'true';
-            button.replaceWith(form); if (status) form.append(status); form.append(button);
-        } else if (isPrimaryLogin() && container && status && !container.contains(status)) {
-            container.prepend(status);
-        } else if (!isPrimaryLogin() && container) {
-            const containerStatus = container.querySelector('.visualLoginForm');
-            if (containerStatus) container.before(containerStatus);
-            container.replaceWith(button);
+        const form = login?.querySelector('form.manualLoginForm');
+        const stack = login?.querySelector('.readOnlyContent');
+        if (!form || !stack) return;
+        if (isPrimaryLogin()) {
+            form.dataset.oidcLoginContainer = 'true';
+            display([form], 'block');
+            display([...localControls(form), ...login.querySelectorAll('.visualLoginForm, .btnManual, .btnForgotPassword')], 'none');
+            const submit = form.querySelector('button[type="submit"]');
+            if (submit && button.nextElementSibling !== submit) submit.before(button);
+            else if (!submit && button.parentElement !== form) form.append(button);
+        } else {
+            form.removeAttribute('data-oidc-login-container');
+            display([form, ...localControls(form), ...login.querySelectorAll('.visualLoginForm, .btnManual, .btnForgotPassword, .btnQuick, .btnSelectServer, .loginDisclaimerContainer')]);
+            const quick = stack.querySelector('.btnQuick');
+            if (button.parentElement !== stack || button.nextElementSibling !== quick) stack.insertBefore(button, quick);
         }
     };
     const addLogin = stack => {
         if (!isLoginPage()) {
-            document.querySelectorAll('[data-oidc-login-container]').forEach(container => {
-                const status = container.querySelector('.visualLoginForm');
-                if (status) container.before(status);
-                container.remove();
-            });
+            document.querySelectorAll('form.manualLoginForm[data-oidc-login-container]').forEach(form => form.removeAttribute('data-oidc-login-container'));
             document.querySelectorAll('[data-oidc-login]').forEach(button => button.remove());
             return;
         }
@@ -54,7 +53,7 @@
             document.querySelectorAll('.readOnlyContent').forEach(addLogin);
             return;
         }
-        const existingButton = stack.querySelector('[data-oidc-login]');
+        const existingButton = stack.closest('#loginPage')?.querySelector('[data-oidc-login]');
         if (existingButton) {
             updateLoginContainer(existingButton);
             return;
@@ -86,14 +85,16 @@
         if (!isLoginPage() || !isSignedOut()) return false;
         let shown = false;
         for (const login of document.querySelectorAll('#loginPage')) {
-            const status = login.querySelector('.visualLoginForm');
+            const form = login.querySelector('form.manualLoginForm[data-oidc-login-container]');
             const stack = login.querySelector('.readOnlyContent');
-            const heading = status?.querySelector('h1');
-            if (!heading || !stack) continue;
+            const heading = form?.querySelector('h1');
+            if (!form || !heading || !stack) continue;
             if (heading.textContent !== signedOutLabel()) heading.textContent = signedOutLabel();
+            form.style.setProperty('--loginPageText', JSON.stringify(signedOutLabel()));
             addLogin(stack);
             stack.querySelector('[data-oidc-login]')?.classList.add('button-submit');
-            login.style.visibility = 'visible';
+            display([...login.querySelectorAll('.btnQuick, .btnSelectServer, .loginDisclaimerContainer')], 'none');
+            login.style.setProperty('visibility', 'visible', 'important');
             shown = true;
         }
         return shown;

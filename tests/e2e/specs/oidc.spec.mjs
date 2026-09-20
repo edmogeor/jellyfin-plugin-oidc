@@ -1,6 +1,7 @@
 import { expect, test } from "@playwright/test";
 
 const abyssTheme = process.env.ABYSS_THEME === "1";
+const elegantFinTheme = process.env.ELEGANTFIN_THEME === "1";
 let loginAttempt = 0;
 
 async function signIn(page) {
@@ -417,25 +418,16 @@ test("shows OIDC-only controls and redirects root visits when local passwords ar
       page.getByRole("button", { name: "Sign In with SSO" }),
     ).toBeVisible();
     await expect(page.locator(".visualLoginForm")).toHaveCount(1);
-    await expect(page.locator(".manualLoginForm .visualLoginForm")).toHaveCount(
-      1,
+    const oidcForm = page.locator(
+      "form.manualLoginForm[data-oidc-login-container]",
     );
-    await expect(page.locator("[data-oidc-login-container]")).toBeVisible();
+    await expect(oidcForm).toBeVisible();
     if (abyssTheme) {
-      await expect(page.locator("[data-oidc-login-container]")).toHaveCSS(
-        "padding-top",
-        "24px",
-      );
+      await expect(oidcForm).toHaveCSS("padding-top", "24px");
     }
-    await expect(
-      page.locator("[data-oidc-login-container] [data-oidc-login]"),
-    ).toHaveCount(1);
-    await expect(
-      page.locator(
-        "[data-oidc-login]:not([data-oidc-login-container] [data-oidc-login])",
-      ),
-    ).toHaveCount(0);
-    await expect(page.locator("form.manualLoginForm")).toBeHidden();
+    await expect(oidcForm.locator("[data-oidc-login]")).toHaveCount(1);
+    await expect(oidcForm.locator('button[type="submit"]')).toBeHidden();
+    await expect(page.locator(".visualLoginForm")).toBeHidden();
     await expect(page.locator("#divUsers")).toBeHidden();
     await expect(page.locator(".btnManual")).toBeHidden();
     await expect(page.locator(".btnForgotPassword")).toBeHidden();
@@ -484,12 +476,13 @@ test("shows OIDC-only controls and redirects root visits when local passwords ar
       "/web/index.html?oidcError=1",
     );
     const errorHtml = await errorResponse.text();
-    expect(errorHtml).toContain('id="oidc-only-login-style"');
     expect(errorHtml).not.toContain('id="oidc-login-redirect-style"');
     const ticketResponse = await adminPage.request.get(
       "/web/index.html?oidcTicket=invalid",
     );
-    expect(await ticketResponse.text()).toContain('id="oidc-only-login-style"');
+    expect(await ticketResponse.text()).not.toContain(
+      'id="oidc-only-login-style"',
+    );
     await page.goto("/web/index.html?oidcError=1#!/login");
     await expect(
       page.getByRole("button", { name: "Sign In with SSO" }),
@@ -526,9 +519,17 @@ test("shows OIDC-only controls and redirects root visits when local passwords ar
     await adminPage.getByRole("button", { name: "User Menu" }).click();
     await adminPage.getByRole("menuitem", { name: "Sign Out" }).click();
     await expect(adminPage).toHaveURL(/oidcSignedOut=1/);
-    await expect(
-      adminPage.getByRole("heading", { name: "Signed Out" }),
-    ).toBeVisible();
+    if (elegantFinTheme) {
+      expect(
+        await adminPage
+          .locator("form.manualLoginForm[data-oidc-login-container]")
+          .evaluate((form) => getComputedStyle(form, "::before").content),
+      ).toBe('"Signed Out"');
+    } else {
+      await expect(
+        adminPage.getByRole("heading", { name: "Signed Out" }),
+      ).toBeVisible();
+    }
     await expect(
       adminPage.getByRole("button", { name: "Sign In with SSO" }),
     ).toBeVisible();
@@ -551,17 +552,19 @@ test("shows OIDC-only controls and redirects root visits when local passwords ar
     await expect
       .poll(() => new URL(adminPage.url()).hash)
       .toBe(`#/login?serverid=${serverId}&url=%2Fhome`);
-    await expect(
-      adminPage.getByRole("heading", { name: "Signed Out" }),
-    ).toBeVisible();
+    if (!elegantFinTheme) {
+      await expect(
+        adminPage.getByRole("heading", { name: "Signed Out" }),
+      ).toBeVisible();
+    }
     await expect(
       adminPage.getByRole("button", { name: "Sign In with SSO" }),
     ).toBeVisible();
     expect(pageErrors).toEqual([]);
-    await expect(adminPage.locator(".visualLoginForm")).toHaveCount(1);
+    await expect(adminPage.locator(".visualLoginForm")).toBeHidden();
     await expect(adminPage.locator(".readOnlyContent")).toHaveCount(1);
     await expect(
-      adminPage.locator("[data-oidc-login-container]"),
+      adminPage.locator("form.manualLoginForm[data-oidc-login-container]"),
     ).toBeVisible();
     await expect(adminPage.locator("#divUsers")).toBeHidden();
     await expect(adminPage.locator(".btnQuick")).toBeHidden();

@@ -23,6 +23,15 @@ https://localhost:8443, https://oidc.localhost:8443 {
         respond "{\"LoginDisclaimer\":\"\",\"CustomCss\":\"@import url('https://cdn.jsdelivr.net/gh/AumGupta/abyss-jellyfin@main/abyss.css');\",\"SplashscreenEnabled\":false}" 200
     }
 
+    @elegantFinBranding {
+        path /Branding/Configuration
+        expression `"{$ELEGANTFIN_THEME:0}" == "1"`
+    }
+    handle @elegantFinBranding {
+        header Content-Type application/json
+        respond "{\"LoginDisclaimer\":\"\",\"CustomCss\":\"@import url('https://cdn.jsdelivr.net/gh/lscambo13/ElegantFin@main/Theme/ElegantFin-jellyfin-theme-build-latest-minified.css'); @import url('https://cdn.jsdelivr.net/gh/lscambo13/ElegantFin@main/Theme/assets/add-ons/media-bar-plugin-support-latest-min.css'); @import url('https://cdn.jsdelivr.net/gh/mihaif7/elegantfin-jf12@main/Theme/ElegantFin-jf12-modern-latest.css');\",\"SplashscreenEnabled\":false}" 200
+    }
+
     handle {
         reverse_proxy jellyfin-server:8096
     }

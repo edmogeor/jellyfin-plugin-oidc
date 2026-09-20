@@ -14,17 +14,20 @@
     margin: 0 !important;
 }
 
+#loginPage .manualLoginForm h1 {
+    display: block !important;
+}
+
 #loginPage .button-submit {
     margin-top: 1.25em !important;
 }
 
-#loginPage .readOnlyContent:has([data-oidc-login-container]) {
+#loginPage:has(.manualLoginForm[data-oidc-login-container]) .readOnlyContent {
     margin-block: 0 !important;
 }
 
 #loginPage [data-oidc-login-container] {
     margin-bottom: 0 !important;
-    transform: translateY(-12dvh);
 }
 
 #quickConnectAlert .formDialogContent {

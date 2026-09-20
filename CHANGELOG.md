@@ -1,3 +1,9 @@
+## [0.2.1.0]
+
+### Fixed
+
+- Keep OIDC-only sign-in within Jellyfin's native sign-in form.
+
 ## [0.2.0.0]
 
 ### Changed

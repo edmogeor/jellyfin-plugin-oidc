@@ -53,6 +53,7 @@ services:
       - "8443:8443"
     environment:
       ABYSS_THEME: ${ABYSS_THEME:-0}
+      ELEGANTFIN_THEME: ${ELEGANTFIN_THEME:-0}
     networks:
       default:
         ipv4_address: 172.30.0.250
