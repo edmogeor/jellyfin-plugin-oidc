@@ -8,6 +8,9 @@ updates:
     directory: /
     schedule:
       interval: weekly
+    ignore:
+      - dependency-name: Jellyfin.Controller
+      - dependency-name: Jellyfin.Model
   - package-ecosystem: npm
     directory: /tests/e2e
     schedule:
@@ -16,3 +19,5 @@ updates:
     directory: /tests/e2e
     schedule:
       interval: weekly
+    ignore:
+      - dependency-name: jellyfin/jellyfin
