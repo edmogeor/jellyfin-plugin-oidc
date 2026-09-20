@@ -1,0 +1,7 @@
+form.manualLoginForm[data-oidc-login-container]::before {
+    margin-bottom: -1.35em !important;
+}
+
+form.manualLoginForm[data-oidc-login-container] [data-oidc-login] {
+    margin-top: 0 !important;
+}

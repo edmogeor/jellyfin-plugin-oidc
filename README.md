@@ -155,10 +155,18 @@ This does not delete Jellyfin users or Identity Links.
 
 ## Custom Themes
 
-This plugin provides [Abyss](https://github.com/AumGupta/abyss-jellyfin) overrides to keep its login controls visually consistent with OIDC-only sign-in. Add this import directly after the Abyss import in Jellyfin's **Custom CSS**:
+This plugin provides custom CSS overrides to keep OIDC-only sign-in visually consistent with supported themes. Add the matching import directly after the theme import in Jellyfin's **Custom CSS**.
+
+### Abyss
 
 ```css
 @import url('https://cdn.jsdelivr.net/gh/edmogeor/jellyfin-plugin-oidc@main/assets/abyss-oidc.css');
+```
+
+### ElegantFin
+
+```css
+@import url('https://cdn.jsdelivr.net/gh/edmogeor/jellyfin-plugin-oidc@main/assets/elegantfin-oidc.css');
 ```
 
 ## Logout
