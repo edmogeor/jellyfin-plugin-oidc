@@ -1,4 +1,0 @@
-<Solution>
-  <Project Path="Jellyfin.Plugin.Oidc/Jellyfin.Plugin.Oidc.csproj" />
-  <Project Path="Jellyfin.Plugin.Oidc.Tests/Jellyfin.Plugin.Oidc.Tests.csproj" />
-</Solution>
