@@ -4,11 +4,9 @@ on:
   pull_request:
     paths-ignore:
       - "**.md"
-      - "manifest.json"
   push:
     paths-ignore:
       - "**.md"
-      - "manifest.json"
 
 permissions:
   contents: read

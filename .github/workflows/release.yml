@@ -4,7 +4,6 @@ on:
   push:
     tags:
       - "v*"
-  workflow_dispatch:
 
 permissions:
   contents: read
@@ -15,7 +14,6 @@ concurrency:
 
 jobs:
   test:
-    if: github.event_name != 'workflow_dispatch'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -35,7 +33,6 @@ jobs:
       - run: make test
 
   publish:
-    if: github.event_name != 'workflow_dispatch'
     needs: test
     runs-on: ubuntu-latest
     permissions:
@@ -82,20 +79,6 @@ jobs:
         with:
           githubToken: ${{ github.token }}
           repository: ${{ github.repository }}
-          pagesBranch: main
-          pagesFile: manifest.json
-          ignorePrereleases: true
-
-  manifest:
-    if: github.event_name == 'workflow_dispatch'
-    runs-on: ubuntu-latest
-    permissions:
-      contents: write
-    steps:
-      - uses: Kevinjil/jellyfin-plugin-repo-action@296850372cd569cbcc040e834222a5afed861485
-        with:
-          githubToken: ${{ github.token }}
-          repository: ${{ github.repository }}
-          pagesBranch: main
+          pagesBranch: manifest-release
           pagesFile: manifest.json
           ignorePrereleases: true
