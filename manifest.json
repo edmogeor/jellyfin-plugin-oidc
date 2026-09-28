@@ -9,6 +9,14 @@
     "owner": "jellyfin",
     "versions": [
       {
+        "changelog": "### Changed\n\n- Refresh the OIDC configuration page layout and spacing.\n\n### Fixed\n\n- Load configuration-page translations after temporary failures, so settings labels appear without reopening the page.\n\n",
+        "checksum": "640495d4b95d6c240a6c2c8154064c18",
+        "sourceUrl": "https://github.com/edmogeor/jellyfin-plugin-oidc/releases/download/v0.2.3.0/oidc-authentication_0.2.3.0.zip",
+        "targetAbi": "12.0.0.0",
+        "timestamp": "2026-09-28T12:26:10Z",
+        "version": "0.2.3.0"
+      },
+      {
         "changelog": "### Changed\n\n- Show the default OIDC sign-in label as a placeholder in the configuration form.\n\n",
         "checksum": "42010ff4006beee051a884fafa8cb941",
         "sourceUrl": "https://github.com/edmogeor/jellyfin-plugin-oidc/releases/download/v0.2.2.0/oidc-authentication_0.2.2.0.zip",
@@ -239,14 +247,6 @@
         "targetAbi": "12.0.0.0",
         "timestamp": "2026-09-13T18:58:13Z",
         "version": "0.1.1.0"
-      },
-      {
-        "changelog": "\n- OpenID Connect authorization-code sign-in with PKCE for Jellyfin Users.\n- Identity Provider group-based sign-in, provisioning, administrator synchronization, and local-password policies.\n- Optional profile-image synchronization and RP-initiated logout.\n- Verified-email identity matching, durable Identity Links, and local-relative return URLs.\n- Secret-free browser configuration and logs.\n",
-        "checksum": "18b125fe418fa883874b9c4e681ed466",
-        "sourceUrl": "https://github.com/edmogeor/jellyfin-plugin-oidc/releases/download/v0.1.0.0/oidc-authentication_0.1.0.0.zip",
-        "targetAbi": "12.0.0.0",
-        "timestamp": "2026-09-13T17:42:55Z",
-        "version": "0.1.0.0"
       }
     ]
   }
