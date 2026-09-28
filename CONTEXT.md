@@ -95,6 +95,6 @@ Run `make help` for the command list.
 - `make test` runs unit tests followed by e2e tests.
 - `make up` starts the e2e stack without deleting state for manual testing.
 
-The e2e stack runs Jellyfin 12, Keycloak, and Caddy on `https://localhost:8443`. It seeds `oidc-test` with password `oidc-test-password`, verified email `oidc-test@example.test`, and the `jellyfin-users` and `jellyfin-admins` groups. The initial local Jellyfin administrator is `root` with an empty password.
+The e2e stack runs Jellyfin 12, Keycloak, and Caddy on `https://localhost:8443`. It seeds `user` with password `password`, verified email `oidc-test@example.test`, and the `jellyfin-users` and `jellyfin-admins` groups. The initial local Jellyfin administrator is `root` with an empty password.
 
 CI runs formatting checks, Roslyn analyzers, oxlint, unit tests, and reset e2e tests. Playwright failure artifacts are retained.

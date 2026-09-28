@@ -50,7 +50,7 @@
   ],
   "users": [
     {
-      "username": "oidc-test",
+      "username": "user",
       "enabled": true,
       "email": "oidc-test@example.test",
       "emailVerified": true,
@@ -63,7 +63,7 @@
       "credentials": [
         {
           "type": "password",
-          "value": "oidc-test-password",
+          "value": "password",
           "temporary": false
         }
       ]

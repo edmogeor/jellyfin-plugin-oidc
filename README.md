@@ -8,7 +8,7 @@
     <a href="https://github.com/edmogeor/jellyfin-plugin-oidc/releases">
       <img src="https://img.shields.io/github/v/release/edmogeor/jellyfin-plugin-oidc" alt="Latest release" />
     </a>
-    <a href="https://www.gnu.org/licenses/gpl-3.0.html">
+    <a href="LICENSE">
       <img src="https://img.shields.io/badge/License-GPL--3.0--or--later-blue.svg" alt="License: GPL-3.0-or-later" />
     </a>
   </p>
@@ -207,4 +207,4 @@ Feel free to donate if you'd like to support development.
 
 ## License
 
-[GPL-3.0-or-later](https://www.gnu.org/licenses/gpl-3.0.html)
+Copyright © 2026 edmogeor. Licensed under [GPL-3.0-or-later](LICENSE).

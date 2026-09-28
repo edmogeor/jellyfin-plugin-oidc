@@ -19,8 +19,8 @@ async function signIn(page) {
       .then(() => false),
   ]);
   if (needsCredentials) {
-    await username.fill("oidc-test");
-    await page.locator("#password").fill("oidc-test-password");
+    await username.fill("user");
+    await page.locator("#password").fill("password");
     await page.locator("#kc-login").click({ noWaitAfter: true });
   }
   await expect(page).toHaveURL(/\/web\/index\.html/, { timeout: 30_000 });
@@ -48,8 +48,8 @@ async function signInDenied(page) {
     .click({ noWaitAfter: true });
   const username = page.locator("#username");
   await username.waitFor({ state: "visible", timeout: 30_000 });
-  await username.fill("oidc-test");
-  await page.locator("#password").fill("oidc-test-password");
+  await username.fill("user");
+  await page.locator("#password").fill("password");
   await page.locator("#kc-login").click({ noWaitAfter: true });
   await expect(page).toHaveURL(/oidcError=1/, { timeout: 30_000 });
 }
@@ -110,7 +110,7 @@ async function providerUser(request, headers) {
     "https://oidc.localhost:8443/keycloak/admin/realms/jellyfin/users",
     {
       headers,
-      params: { username: "oidc-test", exact: "true" },
+      params: { username: "user", exact: "true" },
     },
   );
   expect(response.ok()).toBe(true);
