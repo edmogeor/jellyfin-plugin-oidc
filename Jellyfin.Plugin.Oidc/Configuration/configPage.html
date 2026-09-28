@@ -3,32 +3,88 @@
     <head><meta charset="utf-8"><title data-i18n="pageTitle"></title></head>
 <body>
     <div id="OidcConfigPage" data-role="page" class="page type-interior pluginConfigurationPage configPage" data-require="emby-input,emby-button,emby-select,emby-checkbox">
-        <div data-role="content"><div class="content-primary"><h1 data-i18n="pageTitle"></h1><form id="OidcConfigForm" class="configForm">
-            <div class="checkboxContainer checkboxContainer-withDescription"><label><input id="Enabled" type="checkbox" is="emby-checkbox" /><span>${EnablePlugin} <span data-i18n="protocolName"></span></span></label><div class="fieldDescription checkboxFieldDescription" data-i18n="enabledHelp"></div></div>
+        <style>
+            #OidcConfigPage .content-primary {
+                max-width: 80rem;
+                margin: 0 2rem;
+                padding-bottom: 3rem;
+            }
+            #OidcConfigPage #OidcConfigForm {
+                max-width: none;
+            }
+            #OidcConfigPage .verticalSection {
+                box-sizing: border-box;
+                width: 100%;
+                background: var(--jf-palette-background-paper);
+                border: 1px solid var(--jf-palette-divider);
+                border-radius: 0.75rem;
+                padding: 1.4rem;
+                margin-bottom: 1.25rem;
+            }
+            #OidcConfigPage .verticalSection > h2:first-child {
+                margin: 0 0 0.75rem;
+            }
+            #OidcConfigPage .checkboxContainer {
+                margin-bottom: 1.25rem;
+            }
+            #OidcConfigPage .inputContainer {
+                margin-bottom: 1rem;
+            }
+            #OidcConfigPage #SaveButton {
+                display: inline-flex;
+                align-items: center;
+                justify-content: center;
+                min-width: 11rem;
+                margin: 0;
+            }
+            #OidcConfigPage #SaveButton:disabled,
+            #OidcConfigPage #SaveButton:disabled:hover {
+                background: var(--jf-palette-action-disabledBackground);
+                color: var(--jf-palette-text-disabled);
+                opacity: 0.45;
+                cursor: not-allowed;
+                transform: none;
+            }
+            @media (max-width: 640px) {
+                #OidcConfigPage .content-primary {
+                    margin-left: 1rem;
+                    margin-right: 1rem;
+                }
+                #OidcConfigPage .verticalSection {
+                    padding: 1.25rem;
+                }
+                #OidcConfigPage #SaveButton {
+                    display: flex;
+                    width: 100%;
+                }
+            }
+        </style>
+        <div data-role="content" class="content-primary"><h1 class="sectionTitle" data-i18n="pageTitle"></h1><form id="OidcConfigForm" class="configForm">
             <div class="verticalSection">
-                <h2 data-i18n="connectionHeading"></h2>
+                <h2 class="sectionTitle" data-i18n="connectionHeading"></h2>
+                <div class="checkboxContainer checkboxContainer-withDescription"><label><input id="Enabled" type="checkbox" is="emby-checkbox" /><span>${EnablePlugin} <span data-i18n="protocolName"></span></span></label><div class="fieldDescription checkboxFieldDescription" data-i18n="enabledHelp"></div></div>
                 <div class="inputContainer inputContainer-withDescription"><input id="PublicUrl" type="url" is="emby-input" data-i18n-label="publicUrlLabel" data-i18n-placeholder="publicUrlPlaceholder" /><div class="fieldDescription" data-i18n="publicUrlHelp"></div></div>
                 <div class="inputContainer inputContainer-withDescription"><input id="IssuerUrl" type="url" required is="emby-input" data-i18n-label="issuerUrlLabel" data-i18n-placeholder="issuerUrlPlaceholder" /><div class="fieldDescription" data-i18n="issuerUrlHelp"></div></div>
                 <div class="inputContainer inputContainer-withDescription"><input id="ClientId" type="text" required is="emby-input" data-i18n-label="clientIdLabel" /><div class="fieldDescription" data-i18n="clientIdHelp"></div></div>
                 <div class="inputContainer inputContainer-withDescription"><label for="ClientSecret" data-i18n="clientSecretLabel"></label><div class="oidc-client-secret" style="align-items: center; display: flex;"><input id="ClientSecret" type="password" required is="emby-input" style="flex: 1; min-width: 0;" /><button id="ClientSecretToggle" type="button" is="emby-button" class="raised cancel" style="align-self: stretch; box-sizing: border-box; margin: 0 0 0 0.5em !important; padding: 0 1em;" data-oidc-client-secret-toggle aria-controls="ClientSecret" aria-label="Show client secret" aria-pressed="false">Show</button></div><div class="fieldDescription" data-i18n="clientSecretHelp"></div></div>
             </div>
             <div class="verticalSection">
-                <h2 data-i18n="accessHeading"></h2>
+                <h2 class="sectionTitle" data-i18n="accessHeading"></h2>
                 <div class="inputContainer inputContainer-withDescription"><input id="UserGroup" type="text" is="emby-input" data-i18n-label="userGroupLabel" /><div class="fieldDescription" data-i18n="userGroupHelp"></div></div>
                 <div class="inputContainer inputContainer-withDescription"><input id="AdministratorGroup" type="text" is="emby-input" data-i18n-label="administratorGroupLabel" /><div class="fieldDescription" data-i18n="administratorGroupHelp"></div></div>
                 <div class="inputContainer inputContainer-withDescription"><input id="GroupClaim" type="text" is="emby-input" data-i18n-label="groupClaimLabel" /><div class="fieldDescription" data-i18n="groupClaimHelp"></div></div>
                 <div class="inputContainer inputContainer-withDescription"><input id="AdditionalScopes" type="text" is="emby-input" data-i18n-label="additionalScopesLabel" data-i18n-placeholder="additionalScopesPlaceholder" /><div class="fieldDescription" data-i18n="additionalScopesHelp"></div></div>
             </div>
             <div class="verticalSection">
-                <h2>${ButtonSignIn}</h2>
+                <h2 class="sectionTitle">${ButtonSignIn}</h2>
                 <div class="inputContainer inputContainer-withDescription"><input id="LoginButtonText" type="text" is="emby-input" placeholder="Sign In with SSO" data-i18n-label="loginButtonTextLabel" /><div class="fieldDescription" data-i18n="loginButtonTextHelp"></div></div>
                 <div class="selectContainer"><label for="PasswordLoginMode" data-i18n="passwordLoginModeLabel"></label><select id="PasswordLoginMode" is="emby-select" class="emby-select"><option value="AllowForAllUsers" data-i18n="allowForAllUsers"></option><option value="DisableForLinkedUsersOnly" data-i18n="disableForLinkedUsersOnly"></option><option value="DisableForAllUsers" data-i18n="disableForAllUsers"></option></select><div class="fieldDescription" data-i18n="passwordLoginModeHelp"></div></div>
                 <div id="RedirectSignInPageToProviderContainer" class="checkboxContainer checkboxContainer-withDescription" style="display:none"><label><input id="RedirectSignInPageToProvider" type="checkbox" is="emby-checkbox" /><span data-i18n="redirectSignInPageToProviderLabel"></span></label><div class="fieldDescription checkboxFieldDescription" data-i18n="redirectSignInPageToProviderHelp"></div></div>
                 <div class="checkboxContainer checkboxContainer-withDescription"><label><input id="SynchronizeProfileImages" type="checkbox" is="emby-checkbox" /><span data-i18n="synchronizeProfileImagesLabel"></span></label><div class="fieldDescription checkboxFieldDescription" data-i18n="synchronizeProfileImagesHelp"></div></div>
                 <div class="checkboxContainer checkboxContainer-withDescription"><label><input id="RpInitiatedLogout" type="checkbox" is="emby-checkbox" /><span data-i18n="rpInitiatedLogoutLabel"></span></label><div class="fieldDescription checkboxFieldDescription" data-i18n="rpInitiatedLogoutHelp"></div></div>
             </div>
-            <div><button id="SaveButton" is="emby-button" type="submit" class="raised button-submit block" disabled><span>${Save}</span></button></div>
-        </form></div></div>
+            <div><button id="SaveButton" is="emby-button" type="submit" class="raised button-submit" disabled><span>${Save}</span></button></div>
+        </form></div>
         <script>
             const locale = document.documentElement.lang.toLowerCase();
             const locales = [locale, locale.split('-')[0], 'en-us'].filter((value, index, values) => values.indexOf(value) === index);
@@ -42,11 +98,12 @@
                 throw new Error('No OIDC configuration translation dictionary is available.');
             };
             const translate = (key, ...values) => dictionary[key].replace(/\{(\d+)\}/g, (_, index) => values[index]);
+            const page = document.querySelector('#OidcConfigPage');
             const localize = () => {
                 document.title = translate('pageTitle');
-                document.querySelectorAll('[data-i18n]').forEach(element => { element.textContent = translate(element.dataset.i18n); });
-                document.querySelectorAll('[data-i18n-placeholder]').forEach(element => { element.placeholder = translate(element.dataset.i18nPlaceholder); });
-                document.querySelectorAll('[data-i18n-label]').forEach(element => {
+                page.querySelectorAll('[data-i18n]').forEach(element => { element.textContent = translate(element.dataset.i18n); });
+                page.querySelectorAll('[data-i18n-placeholder]').forEach(element => { element.placeholder = translate(element.dataset.i18nPlaceholder); });
+                page.querySelectorAll('[data-i18n-label]').forEach(element => {
                     const text = translate(element.dataset.i18nLabel);
                     element.setAttribute('label', text);
                     if (element.labelElement) element.labelElement.textContent = text;
@@ -64,8 +121,9 @@
                 savedConfiguration = Object.fromEntries(fields.map(name => [name, name === 'LoginButtonText' && config[name] === 'Sign In with SSO' ? '' : config[name]]));
                 fields.forEach(name => { document.querySelector('#' + name)[checkboxes.includes(name) ? 'checked' : 'value'] = name === 'LoginButtonText' && config[name] === 'Sign In with SSO' ? '' : config[name]; }); updateRedirectSignInPageToProvider(); updateSaveButton();
             });
-            document.querySelector('#OidcConfigPage').addEventListener('pageshow', () => {
+            page.addEventListener('pageshow', () => {
                 if (dictionary) localize();
+                else initializeTranslations();
                 loadConfiguration();
             });
             const form = document.querySelector('#OidcConfigForm');
@@ -126,7 +184,20 @@
             ['PublicUrl', 'IssuerUrl'].forEach(name => document.querySelector('#' + name).addEventListener('input', () => validateHttpsUrl(name)));
             document.querySelector('#UserGroup').addEventListener('input', validateGroups);
             document.querySelector('#AdministratorGroup').addEventListener('input', validateGroups);
-            loadDictionary().then(strings => { dictionary = strings; localize(); updateClientSecretToggle(); loadConfiguration(); });
+            let translationLoad;
+            const initializeTranslations = () => {
+                if (dictionary || translationLoad) return;
+                translationLoad = loadDictionary().then(strings => {
+                    dictionary = strings;
+                    localize();
+                    updateClientSecretToggle();
+                    loadConfiguration();
+                }).catch(() => {
+                    translationLoad = null;
+                    if (page.isConnected) setTimeout(initializeTranslations, 1000);
+                });
+            };
+            initializeTranslations();
         </script>
     </div>
 </body>

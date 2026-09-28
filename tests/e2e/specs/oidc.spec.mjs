@@ -380,6 +380,40 @@ test("localizes the OIDC configuration page", async ({ page }) => {
   ).toBeVisible();
 });
 
+test("loads configuration translations after a temporary failure", async ({
+  page,
+}) => {
+  await showLogin(page);
+  await page.getByRole("textbox", { name: "User" }).fill("root");
+  await page.getByRole("button", { name: "Sign In", exact: true }).click();
+  await expect(page.getByRole("button", { name: "User Menu" })).toBeVisible();
+  let requests = 0;
+  await page.route("**/oidc/strings/*", (route) => {
+    if (++requests === 1) return route.fulfill({ status: 503 });
+    return route.continue();
+  });
+
+  await page.goto(
+    "/web/index.html#/configurationpage?name=OIDC%20Authentication",
+  );
+  await expect(page.locator("#OidcConfigPage h1")).toHaveText(
+    "OIDC Authentication",
+    { timeout: 10_000 },
+  );
+  expect(requests).toBeGreaterThan(1);
+  await page.evaluate(() => {
+    const oidcPage = document.querySelector("#OidcConfigPage");
+    const otherPage = document.createElement("div");
+    otherPage.dataset.i18n = "unrelatedTranslationKey";
+    oidcPage.before(otherPage);
+    oidcPage.querySelector("h1").textContent = "";
+    oidcPage.dispatchEvent(new Event("pageshow"));
+  });
+  await expect(page.locator("#OidcConfigPage h1")).toHaveText(
+    "OIDC Authentication",
+  );
+});
+
 test("shows OIDC-only controls and redirects root visits when local passwords are disabled for all users", async ({
   browser,
   page,
