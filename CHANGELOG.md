@@ -1,3 +1,13 @@
+## [0.2.3.0]
+
+### Changed
+
+- Refresh the OIDC configuration page layout and spacing.
+
+### Fixed
+
+- Load configuration-page translations after temporary failures, so settings labels appear without reopening the page.
+
 ## [0.2.2.0]
 
 ### Changed
