@@ -2,11 +2,7 @@ name: CodeQL
 
 on:
   pull_request:
-    paths-ignore:
-      - "**.md"
   push:
-    paths-ignore:
-      - "**.md"
   schedule:
     - cron: "17 3 * * 1"
 
