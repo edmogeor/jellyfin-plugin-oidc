@@ -5,7 +5,28 @@
     const isLoginPage = () => location.hash.includes('login');
     const hasOidcError = () => location.search.includes('oidcError=1') || location.hash.includes('oidcError=1');
     const isSignedOut = () => location.search.includes('oidcSignedOut=1');
-    const loginLabel = () => window.oidcButtonText || 'Sign In with SSO';
+    const loginLabel = () => window.oidcButtonText || 'Sign in with SSO';
+    window.oidcProviderIcon = (brand = window.oidcProviderBrand || 'Other') => {
+        const key = () => {
+            const icon = document.createElement('i');
+            icon.className = 'material-icons'; icon.textContent = 'vpn_key'; icon.setAttribute('aria-hidden', 'true');
+            return icon;
+        };
+        if (['Other', 'authelia', 'pocket-id'].includes(brand)) return key();
+        const icon = document.createElement('img');
+        icon.src = oidcUrl + 'icons/' + encodeURIComponent(brand); icon.alt = ''; icon.width = 24; icon.height = 24;
+        icon.style.cssText = 'object-fit:contain;background:#fff;border-radius:3px;padding:2px;box-sizing:border-box;';
+        icon.onerror = () => icon.replaceWith(key());
+        return icon;
+    };
+    const brandButton = button => {
+        if (button.dataset.oidcBrand === window.oidcProviderBrand) return;
+        button.querySelector('[data-oidc-icon]')?.remove();
+        const icon = document.createElement('span'); icon.dataset.oidcIcon = 'true'; icon.setAttribute('aria-hidden', 'true');
+        icon.style.cssText = 'display:inline-flex;align-items:center;margin-inline-end:.6em;vertical-align:middle;';
+        icon.append(window.oidcProviderIcon()); button.prepend(icon);
+        button.dataset.oidcBrand = window.oidcProviderBrand || 'Other';
+    };
     const signedOutLabel = () => window.oidcSignedOutText || 'Signed Out';
     const revealLogin = () => document.querySelector('#oidc-login-redirect-style')?.remove();
     const isPrimaryLogin = () => window.oidcPasswordLoginMode === 'DisableForAllUsers';
@@ -61,8 +82,9 @@
         const button = document.createElement('button');
         button.type = 'button'; button.setAttribute('is', 'emby-button'); button.className = 'raised block' + (isPrimaryLogin() ? ' button-submit' : '');
         button.dataset.oidcLogin = 'true'; button.setAttribute('aria-label', loginLabel());
-        const label = document.createElement('span'); label.textContent = loginLabel();
+        const label = document.createElement('span'); label.dataset.oidcLabel = 'true'; label.textContent = loginLabel();
         button.append(label);
+        brandButton(button);
         button.onclick = () => {
             button.disabled = true;
             button.setAttribute('aria-label', 'Redirecting...');
@@ -76,7 +98,8 @@
         document.querySelectorAll('[data-oidc-login]').forEach(button => {
             button.disabled = false;
             button.setAttribute('aria-label', loginLabel());
-            button.querySelector('span').textContent = loginLabel();
+            button.querySelector('[data-oidc-label]').textContent = loginLabel();
+            brandButton(button);
             button.classList.toggle('button-submit', isPrimaryLogin());
             updateLoginContainer(button);
         });
@@ -104,7 +127,7 @@
             shownError = false;
             return;
         }
-        if (!isLoginPage() || document.querySelector('[data-oidc-error]') || shownError) return;
+        if (!document.body || !isLoginPage() || document.querySelector('[data-oidc-error]') || shownError) return;
         shownError = true;
         const container = document.querySelector('.toastContainer') || document.body.appendChild(document.createElement('div'));
         container.classList.add('toastContainer');
@@ -146,10 +169,14 @@
         const config = response.ok ? await response.json() : null;
         if (!config) return;
         window.oidcButtonText = config.LoginButtonText;
+        window.oidcProviderBrand = config.ProviderBrand;
+        window.oidcProviderName = config.ProviderName;
+        window.oidcAllowSelfService = config.AllowSelfServiceIdentityLinks;
         window.oidcRpInitiatedLogout = config.RpInitiatedLogout;
         window.oidcPasswordLoginMode = config.PasswordLoginMode;
         window.oidcRedirectSignInPageToProvider = config.RedirectSignInPageToProvider;
         resetLoginButton();
+        dispatchEvent(new Event('oidcconfigured'));
         const redirectsToProvider = config.PasswordLoginMode === 'DisableForAllUsers' && config.RedirectSignInPageToProvider;
         if (redirectsToProvider && isSignedOut()) {
             window.oidcSignedOutText = (await loadStrings().catch(() => ({}))).signedOut;
@@ -165,6 +192,7 @@
     };
     addEventListener('oidcconfigurationchange', () => { void configure(); });
     addEventListener('hashchange', () => {
+        void configure();
         if (isSignedOut() && isLoginPage()) {
             location.reload();
             return;
@@ -174,7 +202,7 @@
         showError();
         void redirectToProvider();
     });
-    addEventListener('pageshow', () => { resetLoginButton(); void redirectToProvider(); });
+    addEventListener('pageshow', () => { resetLoginButton(); void configure(); void redirectToProvider(); });
     enableLogout();
     new MutationObserver(() => { addLogin(); showSignedOut(); showError(); void redirectToProvider(); }).observe(document.documentElement, { childList: true, subtree: true });
     addLogin();

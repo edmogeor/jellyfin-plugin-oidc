@@ -17,6 +17,8 @@ namespace Jellyfin.Plugin.Oidc;
 // ReSharper disable once ClassNeverInstantiated.Global
 public sealed class OidcPlugin : BasePlugin<PluginConfiguration>, IHasWebPages
 {
+    /// <summary>Serializes configuration replacement and identity operations within this Jellyfin process.</summary>
+    public static SemaphoreSlim IdentityGate { get; } = new(1, 1);
     private readonly ILogger<OidcPlugin> _logger;
     private readonly IUserManager _userManager;
     private readonly IOptionsMonitorCache<OpenIdConnectOptions> _optionsCache;
@@ -54,13 +56,55 @@ public sealed class OidcPlugin : BasePlugin<PluginConfiguration>, IHasWebPages
             throw new ArgumentException(error, nameof(configuration));
         }
 
-        base.UpdateConfiguration(configuration);
-        _optionsCache.TryRemove(OidcOptions.Scheme);
-        foreach (var user in _userManager.GetUsers())
+        IdentityGate.Wait();
+        try
         {
-            PasswordLoginEnforcer.EnforceAsync(_userManager, user, oidcConfiguration, _logger).GetAwaiter().GetResult();
+            // Identity records are server-owned. A stale dashboard save cannot replace them.
+            var state = Snapshot();
+            oidcConfiguration.IdentityLinks = state.IdentityLinks;
+            foreach (var link in oidcConfiguration.IdentityLinks.Where(link => string.IsNullOrEmpty(link.Issuer))) link.Issuer = Configuration.IssuerUrl.TrimEnd('/');
+            oidcConfiguration.UnlinkOptOuts = state.UnlinkOptOuts;
+            oidcConfiguration.PendingAdminMatches = state.PendingAdminMatches;
+            oidcConfiguration.IdentityRevision = state.IdentityRevision;
+            Commit(oidcConfiguration);
+            ConfigurationChanged?.Invoke(this, oidcConfiguration);
+            _optionsCache.TryRemove(OidcOptions.Scheme);
+            foreach (var user in _userManager.GetUsers())
+            {
+                PasswordLoginEnforcer.EnforceAsync(_userManager, user, oidcConfiguration, _logger).GetAwaiter().GetResult();
+            }
+        }
+        finally
+        {
+            IdentityGate.Release();
         }
     }
+
+    /// <inheritdoc />
+    public override void SaveConfiguration(PluginConfiguration config)
+    {
+        var path = ConfigurationFilePath + ".tmp";
+        Directory.CreateDirectory(Path.GetDirectoryName(path)!);
+        try
+        {
+            XmlSerializer.SerializeToFile(config, path);
+            File.Move(path, ConfigurationFilePath, overwrite: true);
+        }
+        finally
+        {
+            if (File.Exists(path)) File.Delete(path);
+        }
+    }
+
+    /// <summary>Persists a staged configuration before publishing it. Caller holds IdentityGate.</summary>
+    public void Commit(PluginConfiguration configuration)
+    {
+        SaveConfiguration(configuration);
+        Configuration = configuration;
+    }
+
+    /// <summary>Creates an isolated working copy for an atomic identity update.</summary>
+    public PluginConfiguration Snapshot() => System.Text.Json.JsonSerializer.Deserialize<PluginConfiguration>(System.Text.Json.JsonSerializer.Serialize(Configuration))!;
 
     /// <inheritdoc />
     public IEnumerable<PluginPageInfo> GetPages() =>

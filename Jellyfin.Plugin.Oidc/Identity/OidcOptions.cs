@@ -86,12 +86,37 @@ public sealed class OidcOptions : IConfigureNamedOptions<OpenIdConnectOptions>
             CopyUserInfoClaim(context.User.RootElement, identity, "email_verified");
             CopyUserInfoClaim(context.User.RootElement, identity, configuration.GroupClaim.Trim());
             CopyUserInfoClaim(context.User.RootElement, identity, "picture");
+            CopyUserInfoClaim(context.User.RootElement, identity, "preferred_username");
             return Task.CompletedTask;
         };
         options.Events.OnTicketReceived = async context =>
         {
+            if (context.Properties!.Items.TryGetValue("oidc_link_intent", out var linkTicket))
+            {
+                var store = context.HttpContext.RequestServices.GetRequiredService<OidcLinkStore>();
+                var current = OidcPlugin.Instance!.Configuration;
+                OidcLinkStore.LinkIntent? intent = null;
+                var valid = linkTicket is not null && store.TryGet(linkTicket, true, out intent)
+                    && intent.Principal is null && current.Enabled && intent.Issuer == IdentityRules.Issuer(current)
+                    && (intent.Administrator || current.AllowSelfServiceIdentityLinks)
+                    && IdentityClaims.TryCreate(context.Principal!, current, out _);
+                string? completion = null;
+                // The link callback never invokes provisioning, session handoff, or logout-cookie replacement.
+                if (valid && linkTicket is not null)
+                {
+                    completion = store.Create(intent! with { Principal = context.Principal });
+                }
+                context.Properties.Items.TryGetValue("oidc_link_return", out var storedReturn);
+                var destination = intent?.ReturnUrl ?? storedReturn;
+                context.Response.Headers["Referrer-Policy"] = "no-referrer";
+                context.Response.Redirect(PublicUrls.Get(context.Request, current) + OidcConstants.WebIndexPath
+                    + (completion is null ? "?oidcLinkError=1" : "?oidcLinkTicket=" + Uri.EscapeDataString(completion))
+                    + (ReturnUrls.Local(destination) ? "#!" + destination : "#!/userprofile"));
+                context.HandleResponse();
+                return;
+            }
             var provisioner = context.HttpContext.RequestServices.GetRequiredService<OidcUserProvisioner>();
-            var result = await provisioner.ProvisionAsync(context.Principal!).ConfigureAwait(false);
+            var result = await provisioner.ProvisionAsync(context.Principal!, configuration.IssuerUrl.TrimEnd('/')).ConfigureAwait(false);
             var returnUrl = context.Properties?.RedirectUri;
             var ticket = result is null ? null : context.HttpContext.RequestServices.GetRequiredService<OidcLoginStore>()
                 .Create(result.Value, ReturnUrls.Local(returnUrl) ? returnUrl! : "/");
@@ -122,7 +147,11 @@ public sealed class OidcOptions : IConfigureNamedOptions<OpenIdConnectOptions>
         options.Events.OnRemoteFailure = context =>
         {
             _logger.LogWarning("OIDC remote authentication failed.");
-            context.Response.Redirect(PublicUrls.Get(context.Request, configuration) + OidcConstants.WebIndexPath + "?oidcError=1#!/login");
+            var linking = context.Properties?.Items.ContainsKey("oidc_link_intent") == true;
+            string? destination = null;
+            context.Properties?.Items.TryGetValue("oidc_link_return", out destination);
+            context.Response.Redirect(PublicUrls.Get(context.Request, configuration) + OidcConstants.WebIndexPath
+                + (linking ? "?oidcLinkError=1#!" + (ReturnUrls.Local(destination) ? destination : "/userprofile") : "?oidcError=1#!/login"));
             context.HandleResponse();
             return Task.CompletedTask;
         };
@@ -130,7 +159,7 @@ public sealed class OidcOptions : IConfigureNamedOptions<OpenIdConnectOptions>
 
     private static void CopyUserInfoClaim(System.Text.Json.JsonElement userInfo, ClaimsIdentity identity, string claimType)
     {
-        if (!userInfo.TryGetProperty(claimType, out var value))
+        if (claimType == "sub" || !userInfo.TryGetProperty(claimType, out var value))
         {
             return;
         }

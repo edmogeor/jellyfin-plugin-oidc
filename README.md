@@ -24,6 +24,7 @@ Simple OpenID Connect sign-in for Jellyfin 12+, with one Identity Provider, grou
 - [Configuration](#configuration)
 - [Provider Setup](#provider-setup)
 - [Sign In](#sign-in)
+- [Identity Links](#identity-links)
 - [Password Login](#password-login)
 - [Custom Themes](#custom-themes)
 - [Logout](#logout)
@@ -39,7 +40,10 @@ Simple OpenID Connect sign-in for Jellyfin 12+, with one Identity Provider, grou
 - Show a configurable sign-in button, with an optional direct redirect to the sign-in service when local passwords are off
 - Allow access and administrator rights based on groups
 - Create Jellyfin users when eligible users sign in for the first time
-- Match existing Jellyfin users by verified email address
+- Match first sign-ins by verified email (default) or trusted preferred username
+- Link an Identity Provider identity explicitly from a Jellyfin User's profile or administrator OIDC tab
+- Opt out of automatic OIDC matching by unlinking, with administrator-directed recovery
+- Show locally served Identity Provider logos and configurable sign-in labels
 - Sign out from both Jellyfin and the sign-in service when supported
 - Localized OIDC configuration page: Danish, German, English (US), Spanish, Finnish, French, Italian, Japanese, Korean, Norwegian Bokmal, Dutch, Polish, Portuguese (Brazil), Russian, Swedish, and Chinese (Simplified)
 
@@ -47,8 +51,8 @@ Simple OpenID Connect sign-in for Jellyfin 12+, with one Identity Provider, grou
 
 - Jellyfin 12 or later
 - An OIDC service with a configured client ID, client secret, and callback URL. See [Provider Setup](#provider-setup).
-- At least one allowed or administrator group configured in the plugin.
-- Existing Jellyfin users must have usernames that case-insensitively match their verified OIDC email before their first OIDC sign-in.
+- Configure allowed/administrator groups, or deliberately leave both empty for Open enrollment with non-administrator access.
+- For automatic first-sign-in matching, existing Jellyfin Users need a username matching the selected claim. Explicit linking and administrator-directed pending matches support different local usernames.
 - An administrator group before disabling local passwords for every Jellyfin user. Test the OIDC flow in a separate browser session before signing out.
 
 ## Quick Start
@@ -66,7 +70,7 @@ Simple OpenID Connect sign-in for Jellyfin 12+, with one Identity Provider, grou
    https://jellyfin.example.com/oidc/callback
    ```
 
-4. Open **Dashboard > Plugins > OIDC Authentication**. Enter the issuer URL, client ID, client secret, and at least one allowed or administrator group.
+4. Open **Dashboard > Plugins > OIDC Authentication**. Enter the issuer URL, client ID, client secret, and your allowed/administrator groups. Leave both group lists empty only if you intend Open enrollment.
 5. Turn on OIDC and save your changes.
 
 OIDC sign-in requires an HTTPS public URL. If Jellyfin is behind a reverse proxy or has more than one public address, set **Public Jellyfin URL override** to its public HTTPS address. Otherwise, the plugin uses the HTTPS address in the browser.
@@ -80,11 +84,14 @@ OIDC sign-in requires an HTTPS public URL. If Jellyfin is behind a reverse proxy
 | Issuer URL                   | Yes                        | -                   | The HTTPS address of your OIDC service.                                                       |
 | Client ID                    | Yes                        | -                   | The client ID from your OIDC service.                                                         |
 | Client secret                | Yes                        | -                   | The client secret from your OIDC service.                                                     |
-| Allowed groups               | At least one group setting | -                   | Comma-separated groups that can sign in. New Jellyfin users can be created for their members. |
-| Administrator groups         | At least one group setting | -                   | Comma-separated groups that can sign in as Jellyfin administrators.                           |
+| Allowed groups               | No                         | -                   | Comma-separated groups that can sign in. Both lists empty means Open enrollment.               |
+| Administrator groups         | With all passwords disabled | -                  | Comma-separated groups that can sign in as Jellyfin administrators.                            |
+| First sign-in matching       | No                         | Verified email      | Match unlinked identities by verified email or explicitly trusted preferred username.          |
+| Allow self-service Identity Links | No                    | On                  | Allow users to link/unlink themselves; off retains read-only status and administrator actions. |
 | Group claim                  | No                         | `groups`            | The top-level claim that lists a user's groups.                                               |
 | Additional requested scopes  | No                         | -                   | Space-separated scopes requested in addition to `openid email profile`.                       |
-| Login button text            | No                         | `Sign In with SSO`  | The text on the Jellyfin sign-in button.                                                      |
+| Identity Provider brand       | No                         | Other               | Presentation-only name and local logo. Other uses SSO and a key icon.                         |
+| Login button text            | No                         | Generated by brand  | A custom label overrides generated wording. Clear it to use `Sign in with {Provider name}`.    |
 | Password login mode          | No                         | Allow for all users | Choose who can use local passwords.                                                           |
 | Redirect sign-in page to provider | No                    | Off                 | Directly redirect to the Identity Provider when passwords are disabled for all users.          |
 | RP-Initiated Logout          | No                         | Off                 | Also sign out from your OIDC service when it supports this.                                   |
@@ -93,7 +100,7 @@ The plugin supports one OIDC service and simple, top-level profile and group dat
 
 ## Provider Setup
 
-The plugin needs a confidential authorization-code client with the callback URL from the quick start. It requires top-level `sub`, `email`, and `email_verified` claims and a top-level group claim containing strings or a JSON string array.
+The plugin needs a confidential authorization-code client with the callback URL from the quick start. Every sign-in requires top-level `sub`. Automatic first sign-ins require verified `email` or top-level `preferred_username`, depending on the selected matching mode. Linked identities and explicit linking do not require either matching claim. When group admission is configured, a top-level group claim containing strings or a JSON string array is required.
 
 | Provider          | Setup                                                                                                                                                                                      |
 | ----------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
@@ -108,14 +115,33 @@ Do not add a scope solely because its name matches the group claim. Some provide
 ## Sign In
 
 > [!NOTE]
-> To sign in, a user needs a verified email address and a matching allowed or administrator group.
+> Leaving both group lists empty enables Open enrollment: anyone authenticated by the configured Identity Provider with the selected first-sign-in claim can receive a non-administrator Jellyfin User. With a public provider such as Google, this can mean anyone with a Google identity.
 
-1. The plugin first looks for the user's existing Jellyfin user.
-2. If it finds no match, it looks for a Jellyfin username that matches the verified email address.
-3. If it still finds no match, it creates a Jellyfin user with the verified email address as the username.
+1. The plugin first resolves an existing Identity Link by issuer and `sub`.
+2. Without a link, it checks an administrator-directed pending match, then a Jellyfin username matching the selected first-sign-in claim, ignoring case.
+3. Without a match, it creates a Jellyfin User with the selected claim as username. Missing claims, ambiguous matches, reserved users, and collisions are denied.
 4. It then updates administrator rights from the administrator groups.
 
-If a user's verified email address changes, the plugin updates the linked Jellyfin username. It keeps the same Jellyfin user and its viewing activity. It does not merge users.
+Email-matched and legacy Identity Links follow verified email changes. Explicit links and preferred-username-matched links preserve the Jellyfin username. Returning links need neither email nor preferred username; missing verified email skips email-based renaming. Changing the global matching setting never changes an existing link's target or username policy.
+
+Preferred usernames are not proof of ownership of a pre-existing Jellyfin User. Select that matching mode only when the Identity Provider keeps them unique and non-reassignable. Use explicit linking otherwise.
+
+## Identity Links
+
+In **Settings > Profile**, a signed-in Jellyfin User can inspect their Identity Provider card, select **Link Identity Provider**, or confirm **Unlink**. Linking preserves the current Jellyfin session. Disabling **Allow self-service Identity Links** leaves read-only status and rejects user-initiated actions, including in-flight linking attempts.
+
+Administrators manage one Jellyfin User at a time in **Dashboard > Users > Edit User > OIDC**:
+
+- **Link by signing in** authenticates the intended identity at the Identity Provider, then asks for explicit confirmation. The administrator stays signed in as themselves.
+- **Save pending match** reserves an unlinked Jellyfin User for an expected verified email or preferred username. One eligible OIDC sign-in consumes the directive and creates a durable Identity Link, regardless of the global matching mode.
+- **Cancel pending match** removes an unused directive. It does not unlink or clear an opt-out.
+- **Unlink** is a separate confirmed action. Replacement claim entry is unavailable while linked.
+
+The native **Add User** form also offers an optional expected identity. A blank entry uses ordinary Jellyfin creation. If creation succeeds but the pending match cannot be saved, the OIDC tab reports the partial result so you can retry without creating another Jellyfin User.
+
+Unlinking prevents automatic matching and provisioning for that issuer + `sub`, and reserves the former Jellyfin User. To restore access, explicitly relink the same identity, confirm an administrator-directed link, or successfully use a Pending Admin Match to the former user. Existing Jellyfin and Identity Provider sessions are not revoked. You still need a known local password if password policy permits local sign-in; a random provisioned password cannot be recovered.
+
+Self-service unlink is unavailable when all local passwords are disabled. Administrator unlink remains available with a lockout warning. Password fields and reset/change controls are hidden in both settings surfaces in that mode; the server-side authentication policy remains authoritative.
 
 ## Password Login
 

@@ -22,13 +22,13 @@ public static class OidcConfigurationValidator
             return "Client ID and client secret are required.";
         }
 
-        if (string.IsNullOrWhiteSpace(configuration.UserGroup) && string.IsNullOrWhiteSpace(configuration.AdministratorGroup))
+        if (!Enum.IsDefined(configuration.FirstSignInMatching) || !ProviderBrands.Names.ContainsKey(configuration.ProviderBrand))
         {
-            return "Configure a User Group, an Administrator Group, or both.";
+            return "Select a supported first-sign-in matching rule and provider brand.";
         }
 
         if (configuration.PasswordLoginMode == PasswordLoginMode.DisableForAllUsers
-            && string.IsNullOrWhiteSpace(configuration.AdministratorGroup))
+            && configuration.AdministratorGroup.Split(',', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries).Length == 0)
         {
             return "Disabling local credentials for all users requires an Administrator Group.";
         }

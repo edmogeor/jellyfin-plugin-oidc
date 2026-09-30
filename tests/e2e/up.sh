@@ -15,12 +15,12 @@ docker compose run --rm plugin-build || fail
 printf 'Starting Jellyfin and Keycloak...\n'
 docker compose pull jellyfin-server configure caddy &
 pull_pid=$!
-docker compose up -d --wait --wait-timeout 120 keycloak-server || fail
+docker compose up -d --wait --wait-timeout 240 keycloak-server || fail
 wait "$pull_pid" || fail
 docker compose up -d --wait --wait-timeout 120 --no-deps --force-recreate jellyfin-server || fail
 printf 'Configuring OIDC test settings...\n'
 docker compose run --rm configure || fail
 printf 'Starting local TLS proxy at https://localhost:8443...\n'
-docker compose up -d --no-deps caddy || fail
+docker compose up -d --no-deps --force-recreate caddy || fail
 printf 'Waiting for the proxied Jellyfin server...\n'
 curl --fail --insecure --retry 30 --retry-all-errors --retry-delay 1 https://localhost:8443/health >/dev/null || fail

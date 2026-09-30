@@ -18,6 +18,7 @@ public sealed class ServiceRegistrator : IPluginServiceRegistrator
     public void RegisterServices(IServiceCollection services, IServerApplicationHost applicationHost)
     {
         services.AddSingleton<OidcLoginStore>();
+        services.AddSingleton<OidcLinkStore>();
         services.AddSingleton<OidcProfileImageSynchronizer>();
         services.AddSingleton<OidcUserProvisioner>();
         services.AddSingleton<IAuthenticationProvider, OidcPasswordDisabledProvider>();

@@ -2,6 +2,42 @@ using MediaBrowser.Model.Plugins;
 
 namespace Jellyfin.Plugin.Oidc.Configuration;
 
+/// <summary>The claim trusted for an identity's first sign-in.</summary>
+public enum FirstSignInMatching
+{
+    /// <summary>Require a verified email.</summary>
+    VerifiedEmail,
+    /// <summary>Trust a provider-managed preferred username.</summary>
+    PreferredUsername,
+}
+
+/// <summary>The durable username synchronization policy of a link.</summary>
+public enum IdentityLinkOrigin
+{
+    /// <summary>Legacy and email-matched links follow verified email changes.</summary>
+    EmailMatch,
+    /// <summary>Preferred username matches preserve the local username.</summary>
+    PreferredUsernameMatch,
+    /// <summary>Explicit links preserve the local username.</summary>
+    Explicit,
+}
+
+/// <summary>An explicitly unlinked identity and its reserved Jellyfin User.</summary>
+public sealed record UnlinkOptOut(string Issuer, string Subject, Guid UserId)
+{
+    /// <summary>Initializes a record for XML serialization.</summary>
+    // ReSharper disable once UnusedMember.Global
+    public UnlinkOptOut() : this(string.Empty, string.Empty, Guid.Empty) { }
+}
+
+/// <summary>A single-use administrator-directed claim match.</summary>
+public sealed record PendingAdminMatch(string Issuer, Guid UserId, FirstSignInMatching Claim, string Value)
+{
+    /// <summary>Initializes a record for XML serialization.</summary>
+    // ReSharper disable once UnusedMember.Global
+    public PendingAdminMatch() : this(string.Empty, Guid.Empty, FirstSignInMatching.VerifiedEmail, string.Empty) { }
+}
+
 /// <summary>Local credential availability after OIDC is configured.</summary>
 public enum PasswordLoginMode
 {
@@ -28,6 +64,15 @@ public sealed class IdentityLink
 
     /// <summary>Gets or sets the Jellyfin User ID.</summary>
     public Guid UserId { get; set; }
+
+    /// <summary>Gets or sets the link's username policy.</summary>
+    public IdentityLinkOrigin Origin { get; set; }
+
+    /// <summary>Gets or sets the last verified email observed at eligible authentication.</summary>
+    public string Email { get; set; } = string.Empty;
+
+    /// <summary>Gets or sets the last preferred username observed at eligible authentication.</summary>
+    public string PreferredUsername { get; set; } = string.Empty;
 
     /// <summary>Gets or sets the source URL of the synchronized profile image.</summary>
     public string ProfileImageUrl { get; set; } = string.Empty;
@@ -77,6 +122,15 @@ public sealed class PluginConfiguration : BasePluginConfiguration
     /// <summary>Gets or sets the OIDC button label.</summary>
     public string LoginButtonText { get; set; } = string.Empty;
 
+    /// <summary>Gets or sets the selected presentation-only provider brand.</summary>
+    public string ProviderBrand { get; set; } = "Other";
+
+    /// <summary>Gets or sets the first-sign-in matching rule.</summary>
+    public FirstSignInMatching FirstSignInMatching { get; set; }
+
+    /// <summary>Gets or sets whether Jellyfin Users may manage their own Identity Link.</summary>
+    public bool AllowSelfServiceIdentityLinks { get; set; } = true;
+
     /// <summary>Gets or sets local credential availability.</summary>
     public PasswordLoginMode PasswordLoginMode { get; set; }
 
@@ -91,4 +145,13 @@ public sealed class PluginConfiguration : BasePluginConfiguration
 
     /// <summary>Gets or sets Identity Links owned by this plugin.</summary>
     public List<IdentityLink> IdentityLinks { get; set; } = [];
+
+    /// <summary>Gets or sets explicitly unlinked identities.</summary>
+    public List<UnlinkOptOut> UnlinkOptOuts { get; set; } = [];
+
+    /// <summary>Gets or sets single-use administrator-directed matches.</summary>
+    public List<PendingAdminMatch> PendingAdminMatches { get; set; } = [];
+
+    /// <summary>Gets or sets the revision used to reject stale identity-management writes.</summary>
+    public long IdentityRevision { get; set; }
 }

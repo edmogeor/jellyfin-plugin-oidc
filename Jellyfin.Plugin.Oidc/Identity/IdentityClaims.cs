@@ -6,7 +6,11 @@ using Jellyfin.Plugin.Oidc.Configuration;
 namespace Jellyfin.Plugin.Oidc.Identity;
 
 /// <summary>Validated identity details required for a Jellyfin sign-in.</summary>
-public sealed record OidcIdentity(string Subject, string Email, bool IsAdministrator);
+public sealed record OidcIdentity(string Subject, string Email, bool IsAdministrator, string PreferredUsername = "")
+{
+    /// <summary>Gets the selected matching claim, empty when unavailable or unverified.</summary>
+    public string MatchingKey(FirstSignInMatching matching) => matching == FirstSignInMatching.VerifiedEmail ? Email : PreferredUsername;
+}
 
 /// <summary>Extracts the deliberately small claim model supported by this plugin.</summary>
 public static class IdentityClaims
@@ -17,10 +21,7 @@ public static class IdentityClaims
         identity = null;
         var subject = ClaimValue(principal, "sub");
         var email = ClaimValue(principal, "email");
-        if (string.IsNullOrWhiteSpace(subject)
-            || string.IsNullOrWhiteSpace(email)
-            || !bool.TryParse(ClaimValue(principal, "email_verified"), out var verified)
-            || !verified)
+        if (string.IsNullOrWhiteSpace(subject) || principal.FindAll("sub").Count() != 1)
         {
             return false;
         }
@@ -32,12 +33,16 @@ public static class IdentityClaims
             .Any(groups.Contains);
         var isUser = configuration.UserGroup.Split(',', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries)
             .Any(groups.Contains);
-        if (!isAdministrator && !isUser)
+        var openEnrollment = configuration.UserGroup.Split(',', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries).Length == 0
+            && configuration.AdministratorGroup.Split(',', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries).Length == 0;
+        if (!openEnrollment && !isAdministrator && !isUser)
         {
             return false;
         }
 
-        identity = new OidcIdentity(subject, email, isAdministrator);
+        var verified = bool.TryParse(ClaimValue(principal, "email_verified"), out var value) && value;
+        identity = new OidcIdentity(subject, verified && !string.IsNullOrWhiteSpace(email) ? email : "", isAdministrator,
+            ClaimValue(principal, "preferred_username") is { } username && !string.IsNullOrWhiteSpace(username) ? username : "");
         return true;
     }
 

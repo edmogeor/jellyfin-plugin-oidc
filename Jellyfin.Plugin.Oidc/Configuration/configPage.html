@@ -72,12 +72,17 @@
                 <h2 class="sectionTitle" data-i18n="accessHeading">{{accessHeading}}</h2>
                 <div class="inputContainer inputContainer-withDescription"><input id="UserGroup" type="text" is="emby-input" label="{{userGroupLabel}}" data-i18n-label="userGroupLabel" /><div class="fieldDescription" data-i18n="userGroupHelp">{{userGroupHelp}}</div></div>
                 <div class="inputContainer inputContainer-withDescription"><input id="AdministratorGroup" type="text" is="emby-input" label="{{administratorGroupLabel}}" data-i18n-label="administratorGroupLabel" /><div class="fieldDescription" data-i18n="administratorGroupHelp">{{administratorGroupHelp}}</div></div>
+                <p class="fieldDescription" data-i18n="openEnrollmentHelp">{{openEnrollmentHelp}}</p>
+                <div class="selectContainer"><label for="FirstSignInMatching" data-i18n="firstSignInMatchingLabel">{{firstSignInMatchingLabel}}</label><select id="FirstSignInMatching" class="emby-select" is="emby-select"><option value="VerifiedEmail" data-i18n="verifiedEmail">{{verifiedEmail}}</option><option value="PreferredUsername" data-i18n="preferredUsername">{{preferredUsername}}</option></select><p class="fieldDescription" data-i18n="firstSignInMatchingHelp">{{firstSignInMatchingHelp}}</p></div>
                 <div class="inputContainer inputContainer-withDescription"><input id="GroupClaim" type="text" is="emby-input" label="{{groupClaimLabel}}" data-i18n-label="groupClaimLabel" /><div class="fieldDescription" data-i18n="groupClaimHelp">{{groupClaimHelp}}</div></div>
                 <div class="inputContainer inputContainer-withDescription"><input id="AdditionalScopes" type="text" is="emby-input" label="{{additionalScopesLabel}}" placeholder="{{additionalScopesPlaceholder}}" data-i18n-label="additionalScopesLabel" data-i18n-placeholder="additionalScopesPlaceholder" /><div class="fieldDescription" data-i18n="additionalScopesHelp">{{additionalScopesHelp}}</div></div>
             </div>
             <div class="verticalSection">
                 <h2 class="sectionTitle">${ButtonSignIn}</h2>
+                <div class="selectContainer"><label for="ProviderBrand" data-i18n="providerBrandLabel">{{providerBrandLabel}}</label><select id="ProviderBrand" class="emby-select" is="emby-select"><option value="Other" data-i18n="providerOther">{{providerOther}}</option><option value="auth0">Auth0</option><option value="authentik">Authentik</option><option value="authelia">Authelia</option><option value="fusionauth">FusionAuth</option><option value="google">Google</option><option value="keycloak">Keycloak</option><option value="microsoft-entra-id">Microsoft Entra ID</option><option value="okta">Okta</option><option value="pocket-id">Pocket ID</option><option value="zitadel">ZITADEL</option></select><p class="fieldDescription" data-i18n="providerBrandHelp">{{providerBrandHelp}}</p></div>
                 <div class="inputContainer inputContainer-withDescription"><input id="LoginButtonText" type="text" is="emby-input" placeholder="Sign In with SSO" label="{{loginButtonTextLabel}}" data-i18n-label="loginButtonTextLabel" /><div class="fieldDescription" data-i18n="loginButtonTextHelp">{{loginButtonTextHelp}}</div></div>
+                <p data-i18n="providerPreview">{{providerPreview}}</p><button id="ProviderPreview" type="button" class="emby-button raised block" aria-disabled="true" style="pointer-events:none"><span id="ProviderPreviewIcon" aria-hidden="true"></span><span id="ProviderPreviewText"></span></button>
+                <div class="checkboxContainer checkboxContainer-withDescription"><label><input id="AllowSelfServiceIdentityLinks" type="checkbox" is="emby-checkbox" /><span data-i18n="selfServiceLabel">{{selfServiceLabel}}</span></label><div class="fieldDescription checkboxFieldDescription" data-i18n="selfServiceHelp">{{selfServiceHelp}}</div></div>
                 <div class="selectContainer"><label for="PasswordLoginMode" data-i18n="passwordLoginModeLabel">{{passwordLoginModeLabel}}</label><select id="PasswordLoginMode" is="emby-select" class="emby-select"><option value="AllowForAllUsers" data-i18n="allowForAllUsers">{{allowForAllUsers}}</option><option value="DisableForLinkedUsersOnly" data-i18n="disableForLinkedUsersOnly">{{disableForLinkedUsersOnly}}</option><option value="DisableForAllUsers" data-i18n="disableForAllUsers">{{disableForAllUsers}}</option></select><div class="fieldDescription" data-i18n="passwordLoginModeHelp">{{passwordLoginModeHelp}}</div></div>
                 <div id="RedirectSignInPageToProviderContainer" class="checkboxContainer checkboxContainer-withDescription" style="display:none"><label><input id="RedirectSignInPageToProvider" type="checkbox" is="emby-checkbox" /><span data-i18n="redirectSignInPageToProviderLabel">{{redirectSignInPageToProviderLabel}}</span></label><div class="fieldDescription checkboxFieldDescription" data-i18n="redirectSignInPageToProviderHelp">{{redirectSignInPageToProviderHelp}}</div></div>
                 <div class="checkboxContainer checkboxContainer-withDescription"><label><input id="SynchronizeProfileImages" type="checkbox" is="emby-checkbox" /><span data-i18n="synchronizeProfileImagesLabel">{{synchronizeProfileImagesLabel}}</span></label><div class="fieldDescription checkboxFieldDescription" data-i18n="synchronizeProfileImagesHelp">{{synchronizeProfileImagesHelp}}</div></div>
@@ -90,9 +95,10 @@
             const locales = [locale, locale.split('-')[0], 'en-us'].filter((value, index, values) => values.indexOf(value) === index);
             let dictionary;
             const loadDictionary = async () => {
+                const english = await fetch('/oidc/strings/en-us').then(response => response.json());
                 for (const locale of locales) {
                     const response = await fetch('/oidc/strings/' + encodeURIComponent(locale));
-                    if (response.ok) return response.json();
+                    if (response.ok) return { ...english, ...await response.json() };
                 }
 
                 throw new Error('No OIDC configuration translation dictionary is available.');
@@ -111,11 +117,18 @@
             };
 
             const pluginId = '4c5b9b96-80cd-4c3d-9e3d-23fa4ebf6ce4';
-            const fields = ['Enabled', 'PublicUrl', 'IssuerUrl', 'ClientId', 'ClientSecret', 'UserGroup', 'AdministratorGroup', 'GroupClaim', 'AdditionalScopes', 'LoginButtonText', 'PasswordLoginMode', 'RedirectSignInPageToProvider', 'SynchronizeProfileImages', 'RpInitiatedLogout'];
-            const checkboxes = ['Enabled', 'RedirectSignInPageToProvider', 'SynchronizeProfileImages', 'RpInitiatedLogout'];
+            const fields = ['Enabled', 'PublicUrl', 'IssuerUrl', 'ClientId', 'ClientSecret', 'UserGroup', 'AdministratorGroup', 'GroupClaim', 'AdditionalScopes', 'LoginButtonText', 'ProviderBrand', 'FirstSignInMatching', 'AllowSelfServiceIdentityLinks', 'PasswordLoginMode', 'RedirectSignInPageToProvider', 'SynchronizeProfileImages', 'RpInitiatedLogout'];
+            const checkboxes = ['Enabled', 'AllowSelfServiceIdentityLinks', 'RedirectSignInPageToProvider', 'SynchronizeProfileImages', 'RpInitiatedLogout'];
             let savedConfiguration;
             const value = name => document.querySelector('#' + name)[checkboxes.includes(name) ? 'checked' : 'value'];
-            const updateSaveButton = () => { document.querySelector('#SaveButton').disabled = !savedConfiguration || fields.every(name => value(name) === savedConfiguration[name]); };
+            const updatePreview = () => {
+                const brand = value('ProviderBrand');
+                const name = brand === 'Other' ? 'SSO' : document.querySelector('#ProviderBrand').selectedOptions[0]?.textContent;
+                document.querySelector('#ProviderPreviewText').textContent = value('LoginButtonText').trim() ? value('LoginButtonText') : dictionary ? translate('generatedLoginLabel', name) : 'Sign in with ' + name;
+                const icon = document.querySelector('#ProviderPreviewIcon'); icon.replaceChildren(); icon.style.cssText = 'display:inline-flex;vertical-align:middle;margin-inline-end:.6em';
+                if (window.oidcProviderIcon) icon.append(window.oidcProviderIcon(brand));
+            };
+            const updateSaveButton = () => { document.querySelector('#SaveButton').disabled = !savedConfiguration || fields.every(name => value(name) === savedConfiguration[name]); updatePreview(); };
             const updateRedirectSignInPageToProvider = () => { document.querySelector('#RedirectSignInPageToProviderContainer').style.display = value('PasswordLoginMode') === 'DisableForAllUsers' ? '' : 'none'; };
             const loadConfiguration = () => ApiClient.getPluginConfiguration(pluginId).then(config => {
                 savedConfiguration = Object.fromEntries(fields.map(name => [name, name === 'LoginButtonText' && config[name] === 'Sign In with SSO' ? '' : config[name]]));
@@ -129,7 +142,7 @@
             const form = document.querySelector('#OidcConfigForm');
             const validateGroups = () => {
                 const userGroup = document.querySelector('#UserGroup');
-                userGroup.setCustomValidity(userGroup.value.trim() || document.querySelector('#AdministratorGroup').value.trim() ? '' : translate('groupValidation'));
+                userGroup.setCustomValidity(value('PasswordLoginMode') === 'DisableForAllUsers' && !document.querySelector('#AdministratorGroup').value.split(',').some(group => group.trim()) ? translate('identityAdminLockout') + ' Administrator Group is required.' : '');
             };
             const validateHttpsUrl = name => {
                 const input = document.querySelector('#' + name);

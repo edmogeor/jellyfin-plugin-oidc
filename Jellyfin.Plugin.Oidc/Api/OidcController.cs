@@ -40,9 +40,9 @@ public sealed class OidcController : ControllerBase
             return NotFound();
         }
 
-        var redirectsToProvider = configuration.PasswordLoginMode == PasswordLoginMode.DisableForAllUsers
-            && configuration.RedirectSignInPageToProvider;
-        return new WebConfiguration(configuration.LoginButtonText, configuration.PasswordLoginMode.ToString(), redirectsToProvider, configuration.RpInitiatedLogout);
+        var redirectsToProvider = configuration is { PasswordLoginMode: PasswordLoginMode.DisableForAllUsers, RedirectSignInPageToProvider: true };
+        return new WebConfiguration(ProviderBrands.LoginLabel(configuration), configuration.PasswordLoginMode.ToString(), redirectsToProvider, configuration.RpInitiatedLogout,
+            configuration.ProviderBrand, ProviderBrands.Names[configuration.ProviderBrand], configuration.AllowSelfServiceIdentityLinks);
     }
 
     /// <summary>Serves the small Jellyfin Web integration script.</summary>
@@ -58,7 +58,20 @@ public sealed class OidcController : ControllerBase
         }
 
         using var reader = new StreamReader(stream);
-        return Content(reader.ReadToEnd(), "application/javascript");
+        using var identityStream = typeof(OidcController).Assembly.GetManifestResourceStream("Jellyfin.Plugin.Oidc.Web.identity.js")!;
+        using var identityReader = new StreamReader(identityStream);
+        return Content(reader.ReadToEnd() + "\n" + identityReader.ReadToEnd(), "application/javascript");
+    }
+
+    /// <summary>Serves reviewed, locally bundled provider artwork.</summary>
+    [AllowAnonymous]
+    [HttpGet("icons/{brand}")]
+    public IActionResult Icon(string brand)
+    {
+        if (!ProviderBrands.Names.ContainsKey(brand)) return NotFound();
+        var stream = typeof(OidcController).Assembly.GetManifestResourceStream($"Jellyfin.Plugin.Oidc.Web.Icons.{brand}.svg");
+        Response.Headers["Content-Security-Policy"] = "default-src 'none'; style-src 'unsafe-inline'; sandbox";
+        return stream is null ? NotFound() : File(stream, "image/svg+xml");
     }
 
     /// <summary>Serves a plugin configuration-page translation dictionary.</summary>
@@ -152,6 +165,7 @@ public sealed class OidcController : ControllerBase
     /// <summary>Non-secret settings used by the browser integration.</summary>
     // JSON serialization reads these endpoint fields.
     // ReSharper disable NotAccessedPositionalProperty.Global
-    public sealed record WebConfiguration(string LoginButtonText, string PasswordLoginMode, bool RedirectSignInPageToProvider, bool RpInitiatedLogout);
+    public sealed record WebConfiguration(string LoginButtonText, string PasswordLoginMode, bool RedirectSignInPageToProvider, bool RpInitiatedLogout,
+        string ProviderBrand, string ProviderName, bool AllowSelfServiceIdentityLinks);
     // ReSharper restore NotAccessedPositionalProperty.Global
 }

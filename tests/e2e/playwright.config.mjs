@@ -4,6 +4,7 @@ export default defineConfig({
   testDir: "./specs",
   timeout: 60_000,
   retries: process.env.CI ? 1 : 0,
+  workers: 1,
   outputDir: "test-results",
   use: {
     baseURL: "https://localhost:8443",

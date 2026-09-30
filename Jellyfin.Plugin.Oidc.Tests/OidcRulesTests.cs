@@ -22,7 +22,7 @@ public sealed class OidcRulesTests
         {
             using var stream = assembly.GetManifestResourceStream(resourceName);
             Assert.NotNull(stream);
-            Assert.Equal(expectedKeys, GetJsonKeys(stream));
+            Assert.All(GetJsonKeys(stream), key => Assert.Contains(key, expectedKeys));
         }
     }
 
@@ -53,7 +53,7 @@ public sealed class OidcRulesTests
     [InlineData("http://jellyfin.example.test", "https://identity.example.test", "client", "secret", "users", "", PasswordLoginMode.AllowForAllUsers, "HTTPS")]
     [InlineData("https://jellyfin.example.test", "http://identity.example.test", "client", "secret", "users", "", PasswordLoginMode.AllowForAllUsers, "HTTPS")]
     [InlineData("https://jellyfin.example.test", "https://identity.example.test", "", "secret", "users", "", PasswordLoginMode.AllowForAllUsers, "Client ID")]
-    [InlineData("https://jellyfin.example.test", "https://identity.example.test", "client", "secret", "", "", PasswordLoginMode.AllowForAllUsers, "Group")]
+    [InlineData("https://jellyfin.example.test", "https://identity.example.test", "client", "secret", "", "", PasswordLoginMode.AllowForAllUsers, null)]
     [InlineData("https://jellyfin.example.test", "https://identity.example.test", "client", "secret", "users", "", PasswordLoginMode.DisableForAllUsers, "Administrator Group")]
     public void Enabled_configuration_validates_required_security_settings(
         string publicUrl,
@@ -118,7 +118,7 @@ public sealed class OidcRulesTests
     }
 
     [Fact]
-    public void Unverified_email_is_denied()
+    public void Unverified_email_is_not_a_matching_or_display_claim()
     {
         var configuration = new PluginConfiguration { UserGroup = "jellyfin-users" };
         var principal = new ClaimsPrincipal(new ClaimsIdentity(
@@ -129,7 +129,8 @@ public sealed class OidcRulesTests
             new Claim("groups", "jellyfin-users"),
         ]));
 
-        Assert.False(IdentityClaims.TryCreate(principal, configuration, out _));
+        Assert.True(IdentityClaims.TryCreate(principal, configuration, out var identity));
+        Assert.Empty(identity.Email);
     }
 
     [Fact]
@@ -192,8 +193,6 @@ public sealed class OidcRulesTests
 
     [Theory]
     [InlineData("", "user@example.test", "true", "jellyfin-users")]
-    [InlineData("subject", "", "true", "jellyfin-users")]
-    [InlineData("subject", "user@example.test", "not-a-bool", "jellyfin-users")]
     [InlineData("subject", "user@example.test", "true", "other-group")]
     [InlineData("subject", "user@example.test", "true", "[invalid")]
     public void Missing_or_ineligible_identity_claims_are_denied(string subject, string email, string verified, string groups)

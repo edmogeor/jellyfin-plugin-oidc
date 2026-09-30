@@ -1,3 +1,14 @@
 OIDC Authentication for Jellyfin
 Copyright (C) 2026 edmogeor
 Licensed under GPL-3.0-or-later. See LICENSE.
+
+Identity Provider SVG logos are downloaded unchanged from Auth.js (NextAuth):
+https://github.com/nextauthjs/next-auth/tree/main/docs/public/img/providers
+Files: auth0.svg, authentik.svg, fusionauth.svg, google.svg, keycloak.svg,
+microsoft-entra-id.svg, okta.svg, zitadel.svg.
+Reviewed for scripts, external references, event handlers, and embedded content.
+Provider names and logos remain the trademarks of their respective owners.
+
+Auth.js ISC License
+Copyright (c) 2022-2024, Balázs Orbán
+https://github.com/nextauthjs/next-auth/blob/main/LICENSE

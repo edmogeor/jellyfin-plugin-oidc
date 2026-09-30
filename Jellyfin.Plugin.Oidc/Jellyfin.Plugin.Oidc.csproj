@@ -19,6 +19,8 @@
     <EmbeddedResource Include="$(IntermediateOutputPath)configPage.html" LogicalName="Jellyfin.Plugin.Oidc.Configuration.configPage.html" />
     <EmbeddedResource Include="Configuration\\Strings\\*.json" />
     <EmbeddedResource Include="Web\\oidc.js" />
+    <EmbeddedResource Include="Web/identity.js" />
+    <EmbeddedResource Include="Web/Icons/*.svg" />
   </ItemGroup>
   <Target Name="EmbedEnglishStrings" BeforeTargets="AssignTargetPaths"
           Inputs="Configuration/configPage.html;Configuration/Strings/en-us.json;../scripts/embed-english.mjs"
