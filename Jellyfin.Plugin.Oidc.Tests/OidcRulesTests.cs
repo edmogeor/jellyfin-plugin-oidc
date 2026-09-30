@@ -26,6 +26,20 @@ public sealed class OidcRulesTests
         }
     }
 
+    [Fact]
+    public void Configuration_page_embeds_english_strings_before_translations_load()
+    {
+        var assembly = typeof(PluginConfiguration).Assembly;
+        using var stream = assembly.GetManifestResourceStream("Jellyfin.Plugin.Oidc.Configuration.configPage.html");
+        Assert.NotNull(stream);
+        using var reader = new StreamReader(stream);
+        var html = reader.ReadToEnd();
+
+        Assert.Contains("<title data-i18n=\"pageTitle\">OIDC Authentication</title>", html);
+        Assert.Contains("Add &lt;Public Jellyfin URL&gt;/web/index.html", html);
+        Assert.DoesNotContain("{{", html);
+    }
+
     private static string[] GetJsonKeys(Stream stream)
     {
         using var document = JsonDocument.Parse(stream);

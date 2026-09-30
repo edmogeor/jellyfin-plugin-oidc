@@ -16,8 +16,13 @@
     <None Remove="Configuration\\configPage.html" />
     <None Remove="Configuration\\Strings\\*.json" />
     <None Remove="Web\\oidc.js" />
-    <EmbeddedResource Include="Configuration\\configPage.html" />
+    <EmbeddedResource Include="$(IntermediateOutputPath)configPage.html" LogicalName="Jellyfin.Plugin.Oidc.Configuration.configPage.html" />
     <EmbeddedResource Include="Configuration\\Strings\\*.json" />
     <EmbeddedResource Include="Web\\oidc.js" />
   </ItemGroup>
+  <Target Name="EmbedEnglishStrings" BeforeTargets="AssignTargetPaths"
+          Inputs="Configuration/configPage.html;Configuration/Strings/en-us.json;../scripts/embed-english.mjs"
+          Outputs="$(IntermediateOutputPath)configPage.html">
+    <Exec Command="node &quot;$(MSBuildProjectDirectory)/../scripts/embed-english.mjs&quot; &quot;$(MSBuildProjectDirectory)/Configuration/configPage.html&quot; &quot;$(MSBuildProjectDirectory)/Configuration/Strings/en-us.json&quot; &quot;$(IntermediateOutputPath)configPage.html&quot;" />
+  </Target>
 </Project>

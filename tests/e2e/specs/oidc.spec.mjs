@@ -400,7 +400,7 @@ test("loads configuration translations after a temporary failure", async ({
     "OIDC Authentication",
     { timeout: 10_000 },
   );
-  expect(requests).toBeGreaterThan(1);
+  await expect.poll(() => requests).toBeGreaterThan(1);
   await page.evaluate(() => {
     const oidcPage = document.querySelector("#OidcConfigPage");
     const otherPage = document.createElement("div");

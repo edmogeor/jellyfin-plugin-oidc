@@ -5,7 +5,7 @@ services:
     volumes:
       - ../..:/src:ro
       - plugin:/output
-    command: sh -c 'rm -rf /work && cp -a /src /work && rm -rf /work/Jellyfin.Plugin.Oidc/bin /work/Jellyfin.Plugin.Oidc/obj && dotnet publish /work/Jellyfin.Plugin.Oidc/Jellyfin.Plugin.Oidc.csproj -c Release -o /output'
+    command: sh -c 'apt-get update && apt-get install -y --no-install-recommends nodejs && rm -rf /work && cp -a /src /work && rm -rf /work/Jellyfin.Plugin.Oidc/bin /work/Jellyfin.Plugin.Oidc/obj && dotnet publish /work/Jellyfin.Plugin.Oidc/Jellyfin.Plugin.Oidc.csproj -c Release -o /output'
 
   keycloak-server:
     image: quay.io/keycloak/keycloak:26.3.2@sha256:031845445213387a7b252d9b0898f401a1bbf7cd8b42400f014b9dfec0825991

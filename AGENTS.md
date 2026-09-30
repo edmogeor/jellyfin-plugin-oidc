@@ -21,7 +21,7 @@ Run `make check` after code or configuration changes. Run the relevant test targ
 - Preserve the one-Identity-Provider scope and local-relative return URL boundary.
 - Do not add unsupported claim paths, endpoint overrides, or protocol flows without updating `CONTEXT.md`.
 - Use CSharpier for C# and Prettier for e2e JavaScript, JSON, YAML, and HTML. The pre-commit hook formats staged supported files.
-- GitHub Actions runs `make check` and the test suites for all pushes and pull requests, including Markdown-only changes.
+- GitHub Actions runs `make check` and the test suites for pushes and pull requests with non-Markdown changes.
 
 ## Releases
 

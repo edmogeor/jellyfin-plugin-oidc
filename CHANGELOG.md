@@ -1,3 +1,9 @@
+## [0.2.4.0]
+
+### Fixed
+
+- Show English configuration text immediately from the embedded page while other translations load.
+
 ## [0.2.3.0]
 
 ### Changed
