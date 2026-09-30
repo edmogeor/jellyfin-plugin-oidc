@@ -9,6 +9,14 @@
     "owner": "jellyfin",
     "versions": [
       {
+        "changelog": "### Fixed\n\n- Show English configuration text immediately from the embedded page while other translations load.\n\n",
+        "checksum": "6274a560db961a8a62ec4fcf8c81dbb3",
+        "sourceUrl": "https://github.com/edmogeor/jellyfin-plugin-oidc/releases/download/v0.2.4.0/oidc-authentication_0.2.4.0.zip",
+        "targetAbi": "12.0.0.0",
+        "timestamp": "2026-09-30T18:58:04Z",
+        "version": "0.2.4.0"
+      },
+      {
         "changelog": "### Changed\n\n- Refresh the OIDC configuration page layout and spacing.\n\n### Fixed\n\n- Load configuration-page translations after temporary failures, so settings labels appear without reopening the page.\n\n",
         "checksum": "640495d4b95d6c240a6c2c8154064c18",
         "sourceUrl": "https://github.com/edmogeor/jellyfin-plugin-oidc/releases/download/v0.2.3.0/oidc-authentication_0.2.3.0.zip",
@@ -239,14 +247,6 @@
         "targetAbi": "12.0.0.0",
         "timestamp": "2026-09-13T20:14:07Z",
         "version": "0.1.2.0"
-      },
-      {
-        "changelog": "\n- Require an HTTPS public URL for OIDC sign-in and callback requests.\n\n",
-        "checksum": "7f07ce64195aca66be702c695cc7f073",
-        "sourceUrl": "https://github.com/edmogeor/jellyfin-plugin-oidc/releases/download/v0.1.1.0/oidc-authentication_0.1.1.0.zip",
-        "targetAbi": "12.0.0.0",
-        "timestamp": "2026-09-13T18:58:13Z",
-        "version": "0.1.1.0"
       }
     ]
   }
