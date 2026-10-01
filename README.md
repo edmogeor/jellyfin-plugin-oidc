@@ -128,6 +128,8 @@ Preferred usernames are not proof of ownership of a pre-existing Jellyfin User. 
 
 ## Identity Links
 
+Identity management and branded OIDC sign-in work in Jellyfin Web's Auto, Desktop (Legacy), and Mobile (Legacy) display modes.
+
 In **Settings > Profile**, a signed-in Jellyfin User can inspect their Identity Provider card, select **Link Identity Provider**, or confirm **Unlink**. Linking preserves the current Jellyfin session. Disabling **Allow self-service Identity Links** leaves read-only status and rejects user-initiated actions, including in-flight linking attempts.
 
 Administrators manage one Jellyfin User at a time in **Dashboard > Users > Edit User > OIDC**:

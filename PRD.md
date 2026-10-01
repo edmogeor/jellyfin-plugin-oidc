@@ -1,6 +1,6 @@
 # Identity linking and first-sign-in matching
 
-Status: Implemented. `CONTEXT.md` describes the implemented behavior. Verification: `make check`, 48 unit tests, and 29 end-to-end tests pass.
+Status: Implemented. `CONTEXT.md` describes the implemented behavior. Verification: `make check`, 48 unit tests, and 35 end-to-end tests pass, including Desktop (Legacy) and Mobile (Legacy) coverage.
 
 Implementation note: the supported Jellyfin 12 stack opens **Add User** as a page, rather than a modal. The optional expected identity entry extends that native creation form. New UI strings use the existing translation dictionaries with English fallback for entries not yet translated.
 

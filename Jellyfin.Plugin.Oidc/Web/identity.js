@@ -73,7 +73,12 @@
         [data-oidc-hidden] { display: none !important; }
         [data-oidc-tab].Mui-selected { border-bottom: 2px solid var(--jf-palette-primary-main, #00a4dc); }
         [data-oidc-tab-scroller] { overflow-x: auto !important; }
-        @media (max-width: 480px) { .oidc-card dl { grid-template-columns: 1fr; } .oidc-card dd { margin-bottom: .5rem; } }
+        @media (max-width: 480px) {
+            .oidc-card dl { grid-template-columns: 1fr; }
+            .oidc-card dd { margin-bottom: .5rem; }
+            #userProfilePage .readOnlyContent { flex-wrap: wrap; justify-content: center; }
+            #userProfilePage .username { overflow-wrap: anywhere; }
+        }
     `;
     document.head.append(style);
     const setHidden = (node, hidden) => {

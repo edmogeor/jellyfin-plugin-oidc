@@ -34,7 +34,7 @@ _Avoid_: SSO provider, OIDC provider.
 - The plugin uses OpenID Connect discovery, confidential authorization-code flow, PKCE, and HTTPS metadata.
 - Supported claims are top-level `sub`, `email`, `email_verified`, `preferred_username`, `picture`, and a configurable top-level group claim. The group claim may be a string, JSON string array, or multiple claims.
 - Nested group paths and manual endpoint overrides are unsupported. Map nested Identity Provider data to a top-level claim instead.
-- Jellyfin Web supports self-service linking and per-user administrator management. Other clients retain ordinary OIDC sign-in.
+- Jellyfin Web supports self-service linking and per-user administrator management in Auto, Desktop (Legacy), and Mobile (Legacy) display modes. Other clients retain ordinary OIDC sign-in.
 - SAML, LDAP, OAuth-only flows, multiple providers, and Identity Provider-initiated sign-in are unsupported.
 
 ## Configuration

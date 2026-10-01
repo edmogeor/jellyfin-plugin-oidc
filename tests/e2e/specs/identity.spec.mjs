@@ -111,7 +111,23 @@ async function localSignIn(page, name, pw = password) {
   await page.locator("#txtManualName").fill(name);
   await page.locator("#txtManualPassword").fill(pw);
   await page.locator("form.manualLoginForm button[type=submit]").click();
-  await expect(page.getByRole("button", { name: "User Menu" })).toBeVisible();
+  await waitForUserMenu(page);
+}
+
+async function waitForUserMenu(page) {
+  const menu = page
+    .getByRole("button", { name: "User Menu" })
+    .or(page.locator(".headerUserButton"))
+    .filter({ visible: true });
+  await expect(menu.first()).toBeVisible({ timeout: 30_000 });
+}
+
+async function linkSignIn(page, identity, label = "Link Identity Provider") {
+  await Promise.all([
+    page.waitForURL(/oidc\.localhost/, { waitUntil: "commit" }),
+    page.getByRole("button", { name: label, exact: true }).click(),
+  ]);
+  await providerLogin(page, identity);
 }
 
 async function providerLogin(page, identity) {
@@ -138,7 +154,7 @@ async function oidcSignIn(page, identity) {
       JSON.parse(localStorage.getItem("jellyfin_credentials") || "{}")
         .Servers?.[0]?.AccessToken,
   );
-  await expect(page.getByRole("button", { name: "User Menu" })).toBeVisible();
+  await waitForUserMenu(page);
   return page.evaluate(async () => {
     const token = JSON.parse(localStorage.getItem("jellyfin_credentials"))
       .Servers[0].AccessToken;
@@ -250,9 +266,7 @@ test("self-service links preserve the session, unlink opts out, and explicit rel
         .AccessToken,
   );
   await page.goto("/web/index.html#/userprofile");
-  await page.getByRole("button", { name: "Link Identity Provider" }).click();
-  await page.waitForURL(/oidc\.localhost/);
-  await providerLogin(page, identity);
+  await linkSignIn(page, identity);
   await expect(page.getByText("Linked to SSO", { exact: true })).toBeVisible();
   expect(
     await page.evaluate(
@@ -284,8 +298,7 @@ test("self-service links preserve the session, unlink opts out, and explicit rel
   await providerLogin(page, identity);
   await expect(page).toHaveURL(/oidcError=1/);
   await page.goto("/web/index.html#/userprofile");
-  await page.getByRole("button", { name: "Link Identity Provider" }).click();
-  await providerLogin(page, identity);
+  await linkSignIn(page, identity);
   await expect(page.getByText("Linked to SSO", { exact: true })).toBeVisible();
   expect((await status(request, identity, local.Id)).HasOptOut).toBe(false);
   await configuration(request, identity, {
@@ -317,16 +330,13 @@ test("admin link-by-sign-in requires confirmation and retains the administrator 
         .AccessToken,
   );
   await edit(page, local.Id);
-  await page.getByRole("button", { name: "Link by signing in" }).click();
-  await page.waitForURL(/oidc\.localhost/);
-  await providerLogin(page, identity);
+  await linkSignIn(page, identity, "Link by signing in");
   await expect(page.getByRole("dialog")).toContainText(local.Name);
   await expect(page.getByRole("dialog")).toContainText(identity.provider.email);
   expect((await status(request, identity, local.Id)).Linked).toBe(false);
   await page.getByRole("button", { name: "Cancel", exact: true }).click();
   expect((await status(request, identity, local.Id)).Linked).toBe(false);
-  await page.getByRole("button", { name: "Link by signing in" }).click();
-  await providerLogin(page, identity);
+  await linkSignIn(page, identity, "Link by signing in");
   await page.getByRole("button", { name: "Confirm", exact: true }).click();
   await expect(page.getByText("Linked to SSO", { exact: true })).toBeVisible();
   expect(
@@ -715,3 +725,179 @@ test("provider branding uses local logos, generated wording, custom overrides, a
     expect(response.headers()["content-type"]).toContain("image/svg+xml");
   }
 });
+
+for (const layout of ["desktop-legacy", "mobile-legacy"]) {
+  test(`${layout}: branded sign-in and native logout show the same OIDC-only button`, async ({
+    page,
+    request,
+    identity,
+  }) => {
+    await page.addInitScript(
+      (value) => localStorage.setItem("layout", value),
+      layout,
+    );
+    if (layout === "mobile-legacy")
+      await page.setViewportSize({ width: 390, height: 844 });
+    await configuration(request, identity, {
+      ProviderBrand: "keycloak",
+      LoginButtonText: "",
+    });
+    await page.goto("/web/index.html#!/login");
+    const login = page.getByRole("button", {
+      name: "Sign in with Keycloak",
+      exact: true,
+    });
+    await expect(login.locator("img")).toHaveAttribute(
+      "src",
+      /\/oidc\/icons\/keycloak$/,
+    );
+    await login.click();
+    await page.waitForURL(/oidc\.localhost/);
+    await providerLogin(page, identity);
+    await waitForUserMenu(page);
+    await configuration(request, identity, {
+      PasswordLoginMode: "DisableForAllUsers",
+      RedirectSignInPageToProvider: true,
+      RpInitiatedLogout: false,
+    });
+    await page.evaluate(() =>
+      dispatchEvent(new Event("oidcconfigurationchange")),
+    );
+    await page.waitForFunction(
+      () => window.oidcRedirectSignInPageToProvider === true,
+    );
+    await page.locator(".headerUserButton:visible").click();
+    await page.locator(".btnLogout.listItem-border").click();
+    await expect(page).toHaveURL(/oidcSignedOut=1/);
+    await expect(login).toBeVisible();
+    await expect(login.locator("img")).toHaveAttribute(
+      "src",
+      /\/oidc\/icons\/keycloak$/,
+    );
+    await expect(
+      page.getByRole("heading", { name: "Signed Out", exact: true }),
+    ).toBeVisible();
+  });
+
+  test(`${layout}: profile linking survives cached-page visits and restores password controls`, async ({
+    page,
+    request,
+    identity,
+  }) => {
+    await page.addInitScript(
+      (value) => localStorage.setItem("layout", value),
+      layout,
+    );
+    if (layout === "mobile-legacy")
+      await page.setViewportSize({ width: 390, height: 844 });
+    const local = await localUser(
+      request,
+      identity,
+      "legacy-" + identity.provider.username,
+    );
+    await localSignIn(page, local.Name);
+    const token = await page.evaluate(
+      () =>
+        JSON.parse(localStorage.getItem("jellyfin_credentials")).Servers[0]
+          .AccessToken,
+    );
+    for (let visit = 0; visit < 2; visit++) {
+      await page.goto(`/web/index.html#/userprofile?userId=${local.Id}`);
+      await expect(page.locator("[data-oidc-surface]:visible")).toHaveCount(1);
+      await expect(
+        page.getByRole("button", { name: "Link Identity Provider" }),
+      ).toBeVisible();
+      await page.goto("/web/index.html#/home");
+    }
+    await page.goto(`/web/index.html#/userprofile?userId=${local.Id}`);
+    await linkSignIn(page, identity);
+    await expect(
+      page.getByText("Linked to SSO", { exact: true }),
+    ).toBeVisible();
+    expect(
+      await page.evaluate(
+        () =>
+          JSON.parse(localStorage.getItem("jellyfin_credentials")).Servers[0]
+            .AccessToken,
+      ),
+    ).toBe(token);
+    await configuration(request, identity, {
+      PasswordLoginMode: "DisableForAllUsers",
+    });
+    await page.goto("/web/index.html#/home");
+    await page.goto(`/web/index.html#/userprofile?userId=${local.Id}`);
+    await expect(
+      page.locator("#userProfilePage .passwordSection"),
+    ).toBeHidden();
+    await expect(
+      page.getByRole("button", { name: "Unlink", exact: true }),
+    ).toBeDisabled();
+    await configuration(request, identity, {
+      PasswordLoginMode: "AllowForAllUsers",
+    });
+    await page.goto("/web/index.html#/home");
+    await page.goto(`/web/index.html#/userprofile?userId=${local.Id}`);
+    await expect(
+      page.locator("#userProfilePage .passwordSection"),
+    ).toBeVisible();
+    await page.getByRole("button", { name: "Unlink", exact: true }).click();
+    await page.getByRole("button", { name: "Confirm", exact: true }).click();
+    await expect(page.getByText("Not linked", { exact: true })).toBeVisible();
+    expect((await status(request, identity, local.Id)).HasOptOut).toBe(true);
+    expect(
+      await page.evaluate(() => document.documentElement.scrollWidth),
+    ).toBeLessThanOrEqual(await page.evaluate(() => innerWidth));
+  });
+
+  test(`${layout}: administrator linking and New User matching retain native navigation`, async ({
+    page,
+    request,
+    identity,
+  }) => {
+    await page.addInitScript(
+      (value) => localStorage.setItem("layout", value),
+      layout,
+    );
+    if (layout === "mobile-legacy")
+      await page.setViewportSize({ width: 390, height: 844 });
+    await localSignIn(page, "root", "");
+    const local = await localUser(
+      request,
+      identity,
+      "legacy-admin-" + identity.provider.username,
+    );
+    await edit(page, local.Id);
+    await page.getByRole("tab", { name: "Profile", exact: true }).click();
+    await expect(page.locator(".editUserProfileForm")).toBeVisible();
+    await page.getByRole("tab", { name: "OIDC", exact: true }).click();
+    await linkSignIn(page, identity, "Link by signing in");
+    await expect(page.getByRole("dialog")).toContainText(local.Name);
+    await page.getByRole("button", { name: "Confirm", exact: true }).click();
+    await expect(page.locator("#oidc-user-panel")).toContainText(
+      "Linked to SSO",
+    );
+    await expect(
+      page.getByRole("tab", { name: "OIDC", exact: true }),
+    ).toHaveCount(1);
+    await page.goto("/web/index.html#/dashboard/users");
+    await page.getByRole("button", { name: "Add User", exact: true }).click();
+    await page
+      .locator("#txtUsername")
+      .fill("legacy-new-" + identity.provider.username);
+    await page
+      .locator("#oidc-new-value")
+      .fill("pending-" + identity.provider.email);
+    await page.getByRole("button", { name: "Save", exact: true }).click();
+    await expect(page.locator("#oidc-user-panel")).toBeVisible();
+    await expect(page.locator("#oidc-edit-value")).toHaveValue(
+      "pending-" + identity.provider.email,
+    );
+    const createdId = await page.evaluate(
+      () => location.hash.match(/users\/([^/]+)/)[1],
+    );
+    identity.localUsers.push(createdId);
+    expect(
+      (await status(request, identity, createdId)).PendingMatch.Value,
+    ).toBe("pending-" + identity.provider.email);
+  });
+}
