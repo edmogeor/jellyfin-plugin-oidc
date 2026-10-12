@@ -9,6 +9,14 @@
     "owner": "jellyfin",
     "versions": [
       {
+        "changelog": "### Security\n\n- Persist provisioned Jellyfin Users with their random password and local-password policy in the initial database insert, preventing passwordless access during provisioning or after a partial failure.\n- Reject automatic Email Match for Jellyfin Users already owned by another Identity Link, while preserving automatic matching for unlinked users.\n- Serialize provisioning and administrator configuration saves, reject stale callbacks, and prevent sign-in from reverting administrator access restrictions.\n\n### Fixed\n\n- Prevent delayed configuration responses from replacing saved settings or unsaved edits in the configuration page.\n- Track submitted settings during saves and show save failures while retaining the draft for retry.\n\n",
+        "checksum": "6570456a407dc4c1fcee239790b91469",
+        "sourceUrl": "https://github.com/edmogeor/jellyfin-plugin-oidc/releases/download/v0.2.5.0/oidc-authentication_0.2.5.0.zip",
+        "targetAbi": "12.0.0.0",
+        "timestamp": "2026-10-12T09:22:08Z",
+        "version": "0.2.5.0"
+      },
+      {
         "changelog": "### Fixed\n\n- Show English configuration text immediately from the embedded page while other translations load.\n\n",
         "checksum": "6274a560db961a8a62ec4fcf8c81dbb3",
         "sourceUrl": "https://github.com/edmogeor/jellyfin-plugin-oidc/releases/download/v0.2.4.0/oidc-authentication_0.2.4.0.zip",
@@ -239,14 +247,6 @@
         "targetAbi": "12.0.0.0",
         "timestamp": "2026-09-13T21:17:48Z",
         "version": "0.1.3.0"
-      },
-      {
-        "changelog": "\n- Align the plugin and repository descriptions and list supported configuration-page languages.\n- Validate HTTPS URLs directly in the OIDC configuration form.\n- Add a localized Client Secret visibility toggle.\n\n",
-        "checksum": "c2c99b09c17730f4d0927e13a4407e5d",
-        "sourceUrl": "https://github.com/edmogeor/jellyfin-plugin-oidc/releases/download/v0.1.2.0/oidc-authentication_0.1.2.0.zip",
-        "targetAbi": "12.0.0.0",
-        "timestamp": "2026-09-13T20:14:07Z",
-        "version": "0.1.2.0"
       }
     ]
   }
