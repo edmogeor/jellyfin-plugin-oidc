@@ -97,6 +97,9 @@ public sealed class PluginConfiguration : BasePluginConfiguration
     /// <summary>Gets or sets the automatic matching rule, preserving email matching by default.</summary>
     public AutomaticLinkingMode AutomaticLinkingMode { get; set; }
 
+    /// <summary>Gets or sets whether users can link or unlink their Provider from their own profile.</summary>
+    public bool AllowSelfServiceLinking { get; set; } = true;
+
     /// <summary>Gets or sets the source of new Jellyfin usernames.</summary>
     public ProvisioningUsernameMode ProvisioningUsernameMode { get; set; }
 

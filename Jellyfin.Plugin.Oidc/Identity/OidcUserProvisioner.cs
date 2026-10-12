@@ -374,6 +374,7 @@ public sealed class OidcUserProvisioner
             if (
                 !ReferenceEquals(configuration, authenticatedConfiguration)
                 || !configuration.Enabled
+                || !configuration.AllowSelfServiceLinking
                 || (expectedRevision.HasValue && expectedRevision != configuration.IdentityRevision)
                 || user is null
                 || _userManager.GetUserDto(user).Policy.IsDisabled

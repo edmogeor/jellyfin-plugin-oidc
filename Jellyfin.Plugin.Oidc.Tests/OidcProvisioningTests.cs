@@ -37,6 +37,20 @@ namespace Jellyfin.Plugin.Oidc.Tests;
 public sealed class OidcProvisioningTests
 {
     [Theory]
+    [InlineData(true, AutomaticLinkingMode.None)]
+    [InlineData(false, AutomaticLinkingMode.EmailToUsername)]
+    public void New_install_disables_automatic_linking_without_changing_existing_configuration(bool freshInstall, AutomaticLinkingMode expected)
+    {
+        using var fixture = new ProvisioningFixture(freshInstall);
+        Assert.Equal(expected, fixture.Plugin.Configuration.AutomaticLinkingMode);
+        Assert.Equal(!freshInstall, fixture.Plugin.Configuration.AllowSelfServiceLinking);
+        if (freshInstall)
+        {
+            Assert.Same(fixture.Plugin.Configuration, fixture.SavedConfiguration);
+        }
+    }
+
+    [Theory]
     [InlineData(PasswordLoginMode.AllowForAllUsers)]
     [InlineData(PasswordLoginMode.DisableForLinkedUsersOnly)]
     [InlineData(PasswordLoginMode.DisableForAllUsers)]
@@ -725,6 +739,28 @@ public sealed class OidcProvisioningTests
     }
 
     [Fact]
+    public async Task Disabled_self_service_blocks_linking_and_unlinking_but_preserves_admin_management()
+    {
+        using var fixture = new ProvisioningFixture();
+        var owner = await fixture.SeedUserAsync("owner");
+        Assert.True(await fixture.LinkAsync(owner.Id, "subject"));
+        var version = AdministrationRules.Version(fixture.Configuration, owner.Id);
+        var controller = fixture.Profile(owner.Id);
+        fixture.Configuration.AllowSelfServiceLinking = false;
+        var response = Assert.IsType<OkObjectResult>(await controller.Status());
+        using var status = JsonDocument.Parse(JsonSerializer.Serialize(response.Value));
+        Assert.False(status.RootElement.GetProperty("CanLink").GetBoolean());
+        Assert.False(status.RootElement.GetProperty("CanUnlink").GetBoolean());
+        Assert.IsType<NotFoundResult>(await controller.Initiate("/userprofile"));
+        Assert.IsType<ForbidResult>(await controller.Unlink(version));
+        Assert.False(await fixture.LinkAsync(owner.Id, "subject"));
+        Assert.Single(fixture.Configuration.IdentityLinks);
+        var admin = await fixture.AdminAsync();
+        Assert.IsType<OkObjectResult>(await admin.Unlink(owner.Id, version));
+        Assert.Empty(fixture.Configuration.IdentityLinks);
+    }
+
+    [Fact]
     public async Task Profile_unlink_rolls_back_failed_saves_and_supports_disabled_plugin_recovery()
     {
         using var fixture = new ProvisioningFixture();
@@ -760,8 +796,13 @@ public sealed class OidcProvisioningTests
         private readonly OidcUserProvisioner _provisioner;
         private readonly IUserManager _manager;
 
-        public ProvisioningFixture()
+        public ProvisioningFixture(bool freshInstall = false)
         {
+            if (!freshInstall)
+            {
+                Directory.CreateDirectory(_directory);
+                File.WriteAllText(Path.Combine(_directory, "Jellyfin.Plugin.Oidc.xml"), string.Empty);
+            }
             _connection.Open();
             using (var context = CreateDbContext())
             {

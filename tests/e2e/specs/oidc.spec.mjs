@@ -290,6 +290,7 @@ test("loads the seeded OIDC settings and validates changes for an administrator"
     "preferred_username",
   );
   await expect(page.locator("#RequireVerifiedEmail")).toBeChecked();
+  await expect(page.locator("#AllowSelfServiceLinking")).toBeChecked();
   await expect(page.locator("#AdministratorGroup")).toHaveValue(
     "jellyfin-admins",
   );
@@ -358,6 +359,10 @@ test("loads the seeded OIDC settings and validates changes for an administrator"
   await expect(
     page.getByRole("heading", { name: "You could be locked out" }),
   ).toBeVisible();
+  await expect(page.locator(".formDialogHeaderTitle")).toHaveCSS(
+    "margin-inline-start",
+    "0px",
+  );
   await expect(
     page.getByText(
       "Local password sign-in will be disabled for linked users. Verify OIDC sign-in is working before saving.",
@@ -1064,6 +1069,22 @@ for (const layout of ["modern", "desktop-legacy"]) {
       await page.unroute(`**${path}`);
       await panel.getByRole("button", { name: "Retry", exact: true }).click();
       await expect(panel).toContainText("Not linked");
+      await expect(panel).toHaveClass(/readOnlyContent/);
+      await expect(
+        panel.getByRole("button", { name: "Link on next sign-in" }),
+      ).toHaveCSS("align-self", "flex-start");
+      expect(
+        await panel
+          .getByRole("button", { name: "Link on next sign-in" })
+          .locator(".material-icons")
+          .evaluate((icon) =>
+            parseFloat(getComputedStyle(icon).marginInlineEnd),
+          ),
+      ).toBeGreaterThan(0);
+      await expect(
+        panel.getByRole("status").locator(".material-icons"),
+      ).toHaveText("link_off");
+      await expect(panel.getByRole("status")).toHaveClass(/secondaryText/);
       await page.getByRole("tab", { name: "Password", exact: true }).click();
       await expect(
         page.getByRole("button", { name: "Save Password" }),
@@ -1085,9 +1106,35 @@ for (const layout of ["modern", "desktop-legacy"]) {
       await expect(
         panel.getByRole("textbox", { name: "Value", exact: true }),
       ).toHaveClass(/emby-input/);
+      const approveButton = panel.getByRole("button", { name: "Approve link" });
+      await expect(
+        panel.getByRole("combobox", { name: "Match by" }),
+      ).toHaveValue("Subject");
+      await panel
+        .getByRole("combobox", { name: "Match by" })
+        .selectOption("Email");
+      await expect(approveButton).toBeDisabled();
+      await panel
+        .getByRole("textbox", { name: "Value", exact: true })
+        .fill("   ");
+      await expect(approveButton).toBeDisabled();
+      await panel
+        .getByRole("textbox", { name: "Value", exact: true })
+        .fill("invalid-email");
+      await expect(approveButton).toBeDisabled();
+      await panel
+        .getByRole("combobox", { name: "Match by" })
+        .selectOption("Subject");
+      await expect(approveButton).toBeEnabled();
+      await panel
+        .getByRole("combobox", { name: "Match by" })
+        .selectOption("Email");
+      await expect(approveButton).toBeDisabled();
+      await expect(panel.locator("form button").first()).toHaveText("Cancel");
       await panel
         .getByRole("textbox", { name: "Value", exact: true })
         .fill(` ${name}@example.test `);
+      await expect(approveButton).toBeEnabled();
       await expect(
         panel.getByRole("combobox", { name: "Match by" }),
       ).toHaveValue("Email");
@@ -1102,17 +1149,16 @@ for (const layout of ["modern", "desktop-legacy"]) {
       });
       await page.setViewportSize({ width: 1280, height: 720 });
       await panel.getByRole("button", { name: "Approve link" }).click();
-      await expect(panel).toContainText(
-        "Waiting for Identity Provider sign-in",
-      );
+      await expect(panel).toContainText("Waiting for Provider sign-in");
+      await expect(
+        panel.getByRole("status").locator(".material-icons"),
+      ).toHaveText("schedule");
       await page.evaluate(() => {
         document.documentElement.lang = "de";
       });
       await page.getByRole("tab", { name: "Password", exact: true }).click();
       await page.getByRole("tab", { name: "OIDC", exact: true }).click();
-      await expect(panel).toContainText(
-        "Anmeldung beim Identitätsanbieter ausstehend",
-      );
+      await expect(panel).toContainText("Anmeldung beim Anbieter ausstehend");
       await expect(
         panel.getByRole("button", { name: "Genehmigung bearbeiten" }),
       ).toBeVisible();
@@ -1120,9 +1166,7 @@ for (const layout of ["modern", "desktop-legacy"]) {
         route.fulfill({ status: 503 }),
       );
       await page.reload();
-      await expect(panel).toContainText(
-        "Waiting for Identity Provider sign-in",
-      );
+      await expect(panel).toContainText("Waiting for Provider sign-in");
       await expect(
         panel.getByRole("button", { name: "Edit approval" }),
       ).toBeVisible();
@@ -1144,9 +1188,7 @@ for (const layout of ["modern", "desktop-legacy"]) {
       await restartJellyfin(request, path, headers);
       expect((await status()).Request.Email).toBe(`${name}@example.test`);
       await page.reload();
-      await expect(panel).toContainText(
-        "Waiting for Identity Provider sign-in",
-      );
+      await expect(panel).toContainText("Waiting for Provider sign-in");
       await page.screenshot({
         path: test.info().outputPath("admin-desktop.png"),
         fullPage: true,
@@ -1202,8 +1244,11 @@ for (const layout of ["modern", "desktop-legacy"]) {
       ).toHaveCount(0);
       await panel.getByRole("button", { name: "Unlink account" }).click();
       await expect(page.getByRole("dialog")).toContainText(
-        "older untracked sessions stay active",
+        "Other sessions stay active",
       );
+      await expect(
+        page.getByRole("dialog").locator(".formDialogHeaderTitle"),
+      ).toHaveCSS("margin-inline-start", "0px");
       await page
         .getByRole("dialog")
         .getByRole("button", { name: "Unlink account", exact: true })
@@ -1242,9 +1287,7 @@ for (const layout of ["modern", "desktop-legacy"]) {
           .getByRole("textbox", { name: "Value", exact: true })
           .fill(value);
         await panel.getByRole("button", { name: "Approve link" }).click();
-        await expect(panel).toContainText(
-          "Waiting for Identity Provider sign-in",
-        );
+        await expect(panel).toContainText("Waiting for Provider sign-in");
         const context = await browser.newContext({ ignoreHTTPSErrors: true });
         contexts.push(context);
         const signedIn = await context.newPage();
@@ -1499,7 +1542,7 @@ for (const layout of ["modern", "desktop-legacy"]) {
           "This is the only administrator",
         );
         await expect(oidc.getByRole("dialog")).toContainText(
-          "If you signed in through OIDC, this session will end",
+          "If you used OIDC, you’ll be signed out",
         );
         await oidc
           .getByRole("dialog")
@@ -1950,6 +1993,14 @@ for (const layout of ["modern", "desktop-legacy"]) {
       await expect(section.locator("[data-oidc-status-text]")).toHaveText(
         "Not linked",
       );
+      await expect(
+        section.getByRole("status").locator(".material-icons"),
+      ).toHaveText("link_off");
+      expect(
+        await section
+          .getByRole("status")
+          .evaluate((element) => element.style.color),
+      ).toBe("");
       await expect(section).toContainText(
         "Linking will disable password sign-in",
       );
@@ -2004,7 +2055,7 @@ for (const layout of ["modern", "desktop-legacy"]) {
         },
       );
       await expect(profile.getByRole("alert")).toHaveText(
-        "We couldn't link your Identity Provider. Please try again.",
+        "We couldn't link your Provider. Please try again.",
       );
       expect((await currentUser(profile)).Id).toBe(localUser.Id);
       await profile.getByRole("button", { name: "Link account" }).click();
@@ -2027,7 +2078,7 @@ for (const layout of ["modern", "desktop-legacy"]) {
         },
       );
       await expect(profile.getByRole("alert")).toHaveText(
-        "We couldn't link your Identity Provider. Please try again.",
+        "We couldn't link your Provider. Please try again.",
       );
       await setConfigurationValue(page, "RequireVerifiedEmail", false);
       await profile.getByRole("button", { name: "Link account" }).click();
@@ -2044,6 +2095,17 @@ for (const layout of ["modern", "desktop-legacy"]) {
         },
       );
       await expect(section.locator("button")).toHaveCount(1);
+      await expect(
+        section.getByRole("button", { name: "Unlink account" }),
+      ).toBeVisible();
+      await setConfigurationValue(page, "AllowSelfServiceLinking", false);
+      await profile.reload();
+      await expect(section.locator("[data-oidc-status-text]")).toHaveText(
+        "Linked as " + providerName,
+      );
+      await expect(section.locator("button")).toBeHidden();
+      await setConfigurationValue(page, "AllowSelfServiceLinking", true);
+      await profile.reload();
       await expect(
         section.getByRole("button", { name: "Unlink account" }),
       ).toBeVisible();
@@ -2125,6 +2187,9 @@ for (const layout of ["modern", "desktop-legacy"]) {
         await profile.goto("/web/index.html#/userprofile");
         await section.getByRole("button", { name: "Unlink account" }).click();
         await expect(profile.getByRole("dialog")).toHaveClass(/formDialog/);
+        await expect(
+          profile.getByRole("dialog").locator(".formDialogHeaderTitle"),
+        ).toHaveCSS("margin-inline-start", "0px");
         await expect(
           profile
             .getByRole("dialog")

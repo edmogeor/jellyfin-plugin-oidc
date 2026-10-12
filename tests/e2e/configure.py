@@ -58,6 +58,8 @@ configuration.update(
         "ClientSecret": "oidc-test-secret",
         "GroupClaim": "groups",
         "UsernameClaim": "preferred_username",
+        "AutomaticLinkingMode": "EmailToUsername",
+        "AllowSelfServiceLinking": True,
         "RequireVerifiedEmail": True,
         "UserGroup": "jellyfin-users",
         "AdministratorGroup": "jellyfin-admins",

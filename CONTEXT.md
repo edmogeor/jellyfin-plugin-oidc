@@ -10,6 +10,8 @@ _Avoid_: Account.
 **Identity Provider**: The OpenID Connect service that authenticates a user.
 _Avoid_: SSO provider, OIDC provider.
 
+**Provider**: The shorter UI label for an Identity Provider.
+
 **Provisioning**: Creating a Jellyfin User when an eligible Identity Provider identity has no existing Identity Link, fulfilled approval, or automatic match.
 
 **Allowed Group**: An Identity Provider group permitted to sign in and provision Jellyfin Users.
@@ -57,7 +59,7 @@ The Username claim setting defaults to `preferred_username` and reads an exact t
 
 New-user username selection is independent of matching and display. `UsernameClaim` is the backward-compatible default, using the configured username claim and falling back to verified email when absent. `VerifiedEmail` names new Jellyfin Users only from current verified email; missing or unverified email denies provisioning even when `RequireVerifiedEmail` is off. This requirement does not affect resolution of existing links, approvals, or automatic matches. Changing the selection never renames existing Jellyfin Users.
 
-Automatic linking has three modes: `None`, `EmailToUsername` (the backward-compatible default), and `UsernameToUsername`. `None` disables automatic attachment to existing users, not provisioning, self-service linking, or administrator approvals. Username matching is opt-in and requires the Identity Provider's username namespace to correspond to the intended Jellyfin Users.
+Automatic linking has three modes: `None`, `EmailToUsername`, and `UsernameToUsername`. New installs default to `None`. Existing saved configurations retain their selected mode; older configurations without a mode retain backward-compatible `EmailToUsername` behavior. `None` disables automatic attachment to existing users, not provisioning, self-service linking, or administrator approvals. Username matching is opt-in and requires the Identity Provider's username namespace to correspond to the intended Jellyfin Users.
 
 Profile image synchronization is disabled by default. When enabled, the standard `picture` claim updates the Jellyfin User profile image at sign-in.
 
@@ -86,9 +88,11 @@ Provisioning, explicit linking, administrator operations, session handoffs, and 
 
 ## Self-Service Identity Provider Linking
 
-The signed-in Jellyfin User's own profile page shows an `SSO` card above the password fields when those fields are available. It displays `Linked as <email>` when a verified email is retained, falling back to `Linked as <Identity Provider username>` when only the configured username claim is retained, or `Linked` when neither is recorded. Linked users see `Unlink account`; unlinked users see `Link account`. The card has no hover behavior and uses Jellyfin's shared components in modern and legacy UI.
+`AllowSelfServiceLinking` controls whether signed-in Jellyfin Users can link or unlink their Provider from their own profile. It is off for new installs; older saved configurations without this setting retain self-service access. When off, existing links are read-only and new self-service links and unlinks are rejected server-side. Administrator management and retries of already-outstanding sign-out operations remain available.
 
-Profile unlink and revocation retry derive ownership from the header-authenticated Jellyfin session, never a browser user ID. They share the administrator unlink implementation, version checks, suppression, password-policy rollback, and exact OIDC-token selection. The confirmation uses the same `Dashboard.confirm` component and styling as configuration-page confirmations. Linked users can recover while OIDC is disabled or invalid, including links from an older issuer. Partial revocation remains visible with a retry action. Local sessions remain active and password controls are restored subject to policy; a revoked OIDC-origin initiating session returns to sign-in without an automatic redirect loop.
+The signed-in Jellyfin User's own profile page shows an `SSO` card above the password fields when those fields are available. It displays `Linked as <email>` when a verified email is retained, falling back to `Linked as <Provider username>` when only the configured username claim is retained, or `Linked` when neither is recorded. When self-service linking is allowed, linked users see `Unlink account`; eligible unlinked users see `Link account`. Otherwise, existing links remain visible without either action. The card has no hover behavior and uses Jellyfin's shared components in modern and legacy UI.
+
+Profile unlink and revocation retry derive ownership from the header-authenticated Jellyfin session, never a browser user ID. They share the administrator unlink implementation, version checks, suppression, password-policy rollback, and exact OIDC-token selection. The confirmation uses the same `Dashboard.confirm` component and styling as configuration-page confirmations. When self-service linking is allowed, linked users can unlink while OIDC is disabled or invalid, including links from an older issuer. Partial revocation remains visible with a retry action even when self-service linking is off. Local sessions remain active and password controls are restored subject to policy; a revoked OIDC-origin initiating session returns to sign-in without an automatic redirect loop.
 
 Explicit linking requires a valid Jellyfin session, a validated Identity Provider issuer and non-empty `sub`, membership in an Allowed Group, and a supplied verified email when the requirement is enabled. Email Match does not choose the target Jellyfin User. The Identity Link binds directly to the initiating Jellyfin User. Existing links cannot be overwritten or transferred.
 

@@ -34,6 +34,11 @@ public sealed class OidcPlugin : BasePlugin<PluginConfiguration>, IHasWebPages
         _optionsCache = optionsCache;
         _logger = logger;
         Instance = this;
+        if (!File.Exists(ConfigurationFilePath))
+        {
+            Configuration = new PluginConfiguration { AutomaticLinkingMode = AutomaticLinkingMode.None, AllowSelfServiceLinking = false };
+            SaveConfiguration();
+        }
     }
 
     /// <summary>Gets the loaded plugin instance.</summary>

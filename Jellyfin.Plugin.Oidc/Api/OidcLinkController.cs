@@ -81,6 +81,8 @@ public sealed class OidcLinkController(
         await plugin.ConfigurationGate.WaitAsync().ConfigureAwait(false);
         try
         {
+            if (version.HasValue && !plugin.Configuration.AllowSelfServiceLinking)
+                return Forbid();
             var state = AdministrationRules.State(plugin.Configuration, auth.UserId);
             if (version.HasValue)
             {
@@ -124,7 +126,7 @@ public sealed class OidcLinkController(
             link?.Email,
             link?.Username,
             CanLink = EnabledConfiguration() is not null && link is null,
-            CanUnlink = link is not null,
+            CanUnlink = configuration.AllowSelfServiceLinking && link is not null,
             PasswordLoginDisabled = configuration.PasswordLoginMode
                 == PasswordLoginMode.DisableForAllUsers
                 || (
@@ -250,7 +252,7 @@ public sealed class OidcLinkController(
     {
         var configuration = OidcPlugin.Instance?.Configuration;
         return
-            configuration is { Enabled: true }
+            configuration is { Enabled: true, AllowSelfServiceLinking: true }
             && OidcConfigurationValidator.Validate(configuration) is null
             ? configuration
             : null;

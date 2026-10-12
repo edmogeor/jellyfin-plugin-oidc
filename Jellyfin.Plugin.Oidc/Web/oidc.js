@@ -25,9 +25,20 @@
         return {};
     };
     const profileStrings = /* @english-strings */ {};
+    const uiStyle = document.createElement('style');
+    uiStyle.textContent = '.formDialogHeader.justify-content-center > .formDialogHeaderTitle { margin-inline: 0; } #oidc-admin-panel .emby-button .material-icons { font-size: 1.2em; margin-inline-end: 0.4em; }';
+    document.head.append(uiStyle);
     function linkedIdentityText(state) {
         const identity = state.Email || state.Username;
         return identity ? profileStrings.linkLinkedAs.replace('{0}', identity) : profileStrings.linkLinked;
+    }
+    const statusIconStyle = { fontSize: '1.1em', verticalAlign: 'middle', marginInlineEnd: '0.3em' };
+    function identityStatus(state) {
+        return {
+            text: state.Linked ? linkedIdentityText(state) : state.Request ? profileStrings.adminPending : profileStrings.linkNotLinked,
+            icon: state.Linked ? 'check' : state.Request ? 'schedule' : 'link_off',
+            color: state.Linked ? 'var(--jf-palette-success-main, inherit)' : undefined,
+        };
     }
     function approvalCriterion(request) {
         if (request.Subject) return 'Subject';
@@ -139,16 +150,16 @@
         heading.setAttribute('role', 'heading'); heading.setAttribute('aria-level', '2');
         Object.assign(heading.style, { fontWeight: '600', color: 'var(--jf-palette-text-primary, inherit)' });
         const status = document.createElement('p'); status.className = 'listItemBodyText secondaryText'; status.setAttribute('role', 'status');
-        status.style.overflowWrap = 'anywhere';
+        Object.assign(status.style, { overflowWrap: 'anywhere', margin: '0' });
         const icon = document.createElement('span'); icon.className = 'material-icons hide'; icon.setAttribute('aria-hidden', 'true');
-        Object.assign(icon.style, { fontSize: '1.1em', verticalAlign: 'middle', marginInlineEnd: '0.3em' });
+        Object.assign(icon.style, statusIconStyle);
         const statusText = document.createElement('span'); statusText.dataset.oidcStatusText = 'true'; status.append(icon, statusText);
-        const setStatus = (text, linked = null) => {
+        const setStatus = (text, presentation = null) => {
             statusText.textContent = text;
-            icon.classList.toggle('hide', linked === null);
-            icon.textContent = linked ? 'check' : 'close';
-            if (linked === null) status.style.removeProperty('color');
-            else status.style.color = linked ? 'var(--jf-palette-success-main)' : 'var(--jf-palette-error-main)';
+            icon.classList.toggle('hide', presentation === null);
+            icon.textContent = presentation?.icon || '';
+            if (presentation?.color) status.style.color = presentation.color;
+            else status.style.removeProperty('color');
         };
         setStatus(profileStrings.linkChecking);
         const help = document.createElement('p'); help.className = 'fieldDescription hide';
@@ -225,7 +236,8 @@
                 if (!current()) return;
                 section.passwordLoginDisabled = state.PasswordLoginDisabled;
                 setProfilePasswordVisibility(content, state.PasswordLoginDisabled);
-                setStatus(state.Linked ? linkedIdentityText(state) : profileStrings.linkNotLinked, state.Linked);
+                const status = identityStatus(state);
+                setStatus(status.text, status);
                 const messages = [];
                 if (state.PartialRevocation) messages.push(profileStrings.adminPartial);
                 if (state.AutomaticReattachmentBlocked) messages.push(profileStrings.adminBlocked);
@@ -445,11 +457,16 @@
             const [error, setError] = React.useState('');
             const [busy, setBusy] = React.useState(false);
             const [editing, setEditing] = React.useState(false);
-            const [matchBy, setMatchBy] = React.useState('Email');
+            const [matchBy, setMatchBy] = React.useState('Subject');
             const [value, setValue] = React.useState('');
+            const [valueValid, setValueValid] = React.useState(false);
             const [toast, setToast] = React.useState('');
             const selectContainer = React.useRef(null);
             const alive = React.useRef(true);
+            React.useEffect(() => {
+                const input = document.getElementById('oidc-admin-value');
+                setValueValid(!!value.trim() && !!input?.validity.valid && input.value.length <= input.maxLength);
+            }, [editing, matchBy, value]);
             React.useEffect(() => {
                 const container = selectContainer.current;
                 if (!container) return;
@@ -506,10 +523,10 @@
                 } catch { if (current()) setError(text('adminError')); }
                 finally { if (current()) setBusy(false); }
             };
-            const button = (key, onClick, props = {}) => h(Button, { key, type: 'button', className: 'raised', title: text(key), disabled: busy, onClick, ...props });
+            const button = (key, onClick, props = {}) => h(Button, { key, type: 'button', className: 'raised', title: text(key), iconPos: 'LEFT', style: { alignSelf: 'flex-start' }, disabled: busy, onClick, ...props });
             const approval = () => {
                 if (state.Request) setMatchBy(approvalCriterion(state.Request));
-                else setMatchBy(state.AutomaticLinkingMode === 'UsernameToUsername' ? 'Username' : 'Email');
+                else setMatchBy('Subject');
                 setValue(state.Request?.Subject || state.Request?.Email || state.Request?.Username || '');
                 setEditing(true);
             };
@@ -527,29 +544,29 @@
             if (error) children.push(h(Alert, { key: 'error', severity: 'error' }, error), button('linkRetry', load));
             if (!state && busy) children.push(h(Loading, { key: 'loading' }));
             if (state) {
-                let status = text('linkNotLinked');
-                if (state.Linked) status = linkedIdentityText(state);
-                else if (state.Request) status = text('adminPending');
-                children.push(h(Alert, { key: 'status', severity: state.Linked ? 'success' : 'info', role: 'status' }, status));
+                const status = identityStatus(state);
+                children.push(h('p', { key: 'status', className: 'listItemBodyText secondaryText', role: 'status', style: { margin: 0, color: status.color } },
+                    h('span', { className: 'material-icons', 'aria-hidden': 'true', style: statusIconStyle }, status.icon),
+                    h('span', { 'data-oidc-status-text': 'true' }, status.text)));
                 if (!state.OidcAvailable) children.push(h(Alert, { key: 'disabled', severity: 'warning' }, text('adminDisabled')));
                 if (state.AutomaticReattachmentBlocked) children.push(h('p', { key: 'block', className: 'fieldDescription' }, text('adminBlocked')));
-                if (state.PartialRevocation) children.push(h(Alert, { key: 'partial', severity: 'warning' }, text('adminPartial')), button('adminRetrySignOut', () => mutate('/retry-sign-out', 'POST', { Operation: state.UnlinkOperation })));
+                if (state.PartialRevocation) children.push(h(Alert, { key: 'partial', severity: 'warning' }, text('adminPartial')), button('adminRetrySignOut', () => mutate('/retry-sign-out', 'POST', { Operation: state.UnlinkOperation }), { icon: 'refresh' }));
                 if (state.Request && !editing) children.push(h('p', { key: 'criteria' }, text('admin' + approvalCriterion(state.Request)) + ': ' + (state.Request.Subject || state.Request.Username || state.Request.Email)), h('p', { key: 'approval-help', className: 'fieldDescription' }, text('adminApprovalHelp')));
-                if (editing) children.push(h('form', { key: 'form', onSubmit: event => { event.preventDefault(); void mutate('/link-request', 'PUT', { Version: state.Version, [matchBy]: value }); } },
+                if (editing) children.push(h('form', { key: 'form', onSubmit: event => { event.preventDefault(); if (valueValid) void mutate('/link-request', 'PUT', { Version: state.Version, [matchBy]: value }); } },
                     h('div', { className: 'selectContainer', ref: selectContainer }),
                     h('div', { className: 'inputContainer' }, h(Input, { id: 'oidc-admin-value', label: text('adminValue'), type: matchBy === 'Email' ? 'email' : 'text', value, required: true, maxLength: matchBy === 'Email' ? 320 : 1024, disabled: busy, 'aria-describedby': 'oidc-admin-match-help', onChange: event => setValue(event.target.value) })),
                     h('p', { id: 'oidc-admin-match-help', className: 'fieldDescription' }, text('admin' + matchBy + 'Help')),
                     h('p', { className: 'fieldDescription' }, text('adminApprovalHelp')),
-                    h(Button, { type: 'submit', className: 'raised button-submit', title: text('adminSave'), disabled: busy || !value.trim() }),
-                    h(Button, { type: 'button', className: 'raised', title: cancelText(), disabled: busy, onClick: () => setEditing(false) })));
-                else if (state.Linked) children.push(button('adminUnlink', () => { void unlink(); }, { className: 'raised button-delete' }));
+                    h(Button, { type: 'button', className: 'raised', title: cancelText(), disabled: busy, onClick: () => setEditing(false) }),
+                    h(Button, { type: 'submit', className: 'raised button-submit', title: text('adminSave'), disabled: busy || !valueValid })));
+                else if (state.Linked) children.push(button('adminUnlink', () => { void unlink(); }, { className: 'raised button-delete', icon: 'link_off' }));
                 else {
-                    children.push(button(state.Request ? 'adminEdit' : 'adminApprove', approval, { disabled: busy || !state.CanCreateRequest }));
+                    children.push(button(state.Request ? 'adminEdit' : 'adminApprove', approval, { icon: state.Request ? 'edit' : 'link', disabled: busy || !state.CanCreateRequest }));
                     if (state.Request) children.push(button('adminCancelRequest', () => mutate('/link-request?version=' + state.Version, 'DELETE')));
                 }
             }
             children.push(h(Toast, { key: 'toast', open: !!toast, message: toast, autoHideDuration: 5000, onClose: () => setToast('') }));
-            return h(Stack, { spacing: 2, sx: { overflowWrap: 'anywhere', minWidth: 0 }, role: 'tabpanel', id: 'oidc-admin-panel', 'aria-labelledby': 'oidc-admin-tab', 'aria-busy': busy, 'data-oidc-admin': userId }, ...children);
+            return h(Stack, { className: 'readOnlyContent', spacing: 2, sx: { overflowWrap: 'anywhere', minWidth: 0 }, role: 'tabpanel', id: 'oidc-admin-panel', 'aria-labelledby': 'oidc-admin-tab', 'aria-busy': busy, 'data-oidc-admin': userId }, ...children);
         };
         const Editor = () => {
             const session = activeSession();
