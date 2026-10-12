@@ -70,9 +70,11 @@
             </div>
             <div class="verticalSection">
                 <h2 class="sectionTitle" data-i18n="accessHeading">{{accessHeading}}</h2>
+                <div class="checkboxContainer checkboxContainer-withDescription"><label><input id="RequireVerifiedEmail" type="checkbox" is="emby-checkbox" /><span data-i18n="requireVerifiedEmailLabel">{{requireVerifiedEmailLabel}}</span></label><div class="fieldDescription checkboxFieldDescription" data-i18n="requireVerifiedEmailHelp">{{requireVerifiedEmailHelp}}</div></div>
                 <div class="inputContainer inputContainer-withDescription"><input id="UserGroup" type="text" is="emby-input" label="{{userGroupLabel}}" data-i18n-label="userGroupLabel" /><div class="fieldDescription" data-i18n="userGroupHelp">{{userGroupHelp}}</div></div>
                 <div class="inputContainer inputContainer-withDescription"><input id="AdministratorGroup" type="text" is="emby-input" label="{{administratorGroupLabel}}" data-i18n-label="administratorGroupLabel" /><div class="fieldDescription" data-i18n="administratorGroupHelp">{{administratorGroupHelp}}</div></div>
                 <div class="inputContainer inputContainer-withDescription"><input id="GroupClaim" type="text" is="emby-input" label="{{groupClaimLabel}}" data-i18n-label="groupClaimLabel" /><div class="fieldDescription" data-i18n="groupClaimHelp">{{groupClaimHelp}}</div></div>
+                <div class="inputContainer inputContainer-withDescription"><input id="UsernameClaim" type="text" required is="emby-input" label="{{usernameClaimLabel}}" placeholder="preferred_username" data-i18n-label="usernameClaimLabel" /><div class="fieldDescription" data-i18n="usernameClaimHelp">{{usernameClaimHelp}}</div></div>
                 <div class="inputContainer inputContainer-withDescription"><input id="AdditionalScopes" type="text" is="emby-input" label="{{additionalScopesLabel}}" placeholder="{{additionalScopesPlaceholder}}" data-i18n-label="additionalScopesLabel" data-i18n-placeholder="additionalScopesPlaceholder" /><div class="fieldDescription" data-i18n="additionalScopesHelp">{{additionalScopesHelp}}</div></div>
             </div>
             <div class="verticalSection">
@@ -111,8 +113,8 @@
             };
 
             const pluginId = '4c5b9b96-80cd-4c3d-9e3d-23fa4ebf6ce4';
-            const fields = ['Enabled', 'PublicUrl', 'IssuerUrl', 'ClientId', 'ClientSecret', 'UserGroup', 'AdministratorGroup', 'GroupClaim', 'AdditionalScopes', 'LoginButtonText', 'PasswordLoginMode', 'RedirectSignInPageToProvider', 'SynchronizeProfileImages', 'RpInitiatedLogout'];
-            const checkboxes = ['Enabled', 'RedirectSignInPageToProvider', 'SynchronizeProfileImages', 'RpInitiatedLogout'];
+            const fields = ['Enabled', 'PublicUrl', 'IssuerUrl', 'ClientId', 'ClientSecret', 'RequireVerifiedEmail', 'UserGroup', 'AdministratorGroup', 'GroupClaim', 'UsernameClaim', 'AdditionalScopes', 'LoginButtonText', 'PasswordLoginMode', 'RedirectSignInPageToProvider', 'SynchronizeProfileImages', 'RpInitiatedLogout'];
+            const checkboxes = ['Enabled', 'RequireVerifiedEmail', 'RedirectSignInPageToProvider', 'SynchronizeProfileImages', 'RpInitiatedLogout'];
             let savedConfiguration;
             let configurationLoad = 0;
             let saving = false;

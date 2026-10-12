@@ -56,6 +56,10 @@ public sealed class OidcOptions : IConfigureNamedOptions<OpenIdConnectOptions>
         options.Events.OnRedirectToIdentityProvider = context =>
         {
             context.ProtocolMessage.RedirectUri = PublicUrls.Get(context.Request, configuration) + OidcConstants.CallbackPath;
+            if (context.Properties.Items.ContainsKey("oidc_link"))
+            {
+                context.ProtocolMessage.Prompt = "login";
+            }
             return Task.CompletedTask;
         };
         options.Events.OnMessageReceived = context =>
@@ -84,12 +88,24 @@ public sealed class OidcOptions : IConfigureNamedOptions<OpenIdConnectOptions>
             var identity = (ClaimsIdentity)context.Principal!.Identity!;
             CopyUserInfoClaim(context.User.RootElement, identity, "email");
             CopyUserInfoClaim(context.User.RootElement, identity, "email_verified");
+            CopyUserInfoClaim(context.User.RootElement, identity, configuration.UsernameClaim.Trim());
             CopyUserInfoClaim(context.User.RootElement, identity, configuration.GroupClaim.Trim());
             CopyUserInfoClaim(context.User.RootElement, identity, "picture");
             return Task.CompletedTask;
         };
         options.Events.OnTicketReceived = async context =>
         {
+            if (context.Properties?.Items.TryGetValue("oidc_link", out var transaction) == true)
+            {
+                var completion = transaction is null ? null : context.HttpContext.RequestServices.GetRequiredService<OidcLinkStore>()
+                    .Validate(transaction, context.Principal!, configuration);
+                var profileRoute = ReturnUrls.Local(context.Properties.RedirectUri) ? context.Properties.RedirectUri! : "/userprofile";
+                context.Response.Headers["Referrer-Policy"] = "no-referrer";
+                context.Response.Redirect(PublicUrls.Get(context.Request, configuration) + OidcConstants.WebIndexPath
+                    + (completion is null ? "?oidcLinkError=1" : "?oidcLinkTicket=" + Uri.EscapeDataString(completion)) + "#!" + profileRoute);
+                context.HandleResponse();
+                return;
+            }
             var provisioner = context.HttpContext.RequestServices.GetRequiredService<OidcUserProvisioner>();
             var result = await provisioner.ProvisionAsync(context.Principal!, configuration).ConfigureAwait(false);
             var returnUrl = context.Properties?.RedirectUri;
@@ -122,6 +138,13 @@ public sealed class OidcOptions : IConfigureNamedOptions<OpenIdConnectOptions>
         options.Events.OnRemoteFailure = context =>
         {
             _logger.LogWarning("OIDC remote authentication failed.");
+            if (context.Properties?.Items.ContainsKey("oidc_link") == true)
+            {
+                var profileRoute = ReturnUrls.Local(context.Properties.RedirectUri) ? context.Properties.RedirectUri! : "/userprofile";
+                context.Response.Redirect(PublicUrls.Get(context.Request, configuration) + OidcConstants.WebIndexPath + "?oidcLinkError=1#!" + profileRoute);
+                context.HandleResponse();
+                return Task.CompletedTask;
+            }
             context.Response.Redirect(PublicUrls.Get(context.Request, configuration) + OidcConstants.WebIndexPath + "?oidcError=1#!/login");
             context.HandleResponse();
             return Task.CompletedTask;
@@ -140,7 +163,8 @@ public sealed class OidcOptions : IConfigureNamedOptions<OpenIdConnectOptions>
             identity.RemoveClaim(claim);
         }
 
-        identity.AddClaim(new Claim(claimType, value.ValueKind == System.Text.Json.JsonValueKind.String ? value.GetString()! : value.GetRawText()));
+        identity.AddClaim(new Claim(claimType, value.ValueKind == System.Text.Json.JsonValueKind.String ? value.GetString()! : value.GetRawText(),
+            value.ValueKind == System.Text.Json.JsonValueKind.String ? ClaimValueTypes.String : "JSON"));
     }
 
     /// <summary>Gets the standard scopes plus administrator-configured provider scopes.</summary>

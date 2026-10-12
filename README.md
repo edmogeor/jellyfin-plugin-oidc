@@ -24,6 +24,7 @@ Simple OpenID Connect sign-in for Jellyfin 12+, with one Identity Provider, grou
 - [Configuration](#configuration)
 - [Provider Setup](#provider-setup)
 - [Sign In](#sign-in)
+- [Link Your Identity Provider](#link-your-identity-provider)
 - [Password Login](#password-login)
 - [Custom Themes](#custom-themes)
 - [Logout](#logout)
@@ -40,6 +41,7 @@ Simple OpenID Connect sign-in for Jellyfin 12+, with one Identity Provider, grou
 - Allow access and administrator rights based on groups
 - Create Jellyfin users when eligible users sign in for the first time
 - Match existing Jellyfin users by verified email address
+- Link an existing Jellyfin User from their profile in modern or legacy UI without changing their username
 - Sign out from both Jellyfin and the sign-in service when supported
 - Localized OIDC configuration page: Danish, German, English (US), Spanish, Finnish, French, Italian, Japanese, Korean, Norwegian Bokmal, Dutch, Polish, Portuguese (Brazil), Russian, Swedish, and Chinese (Simplified)
 
@@ -48,7 +50,7 @@ Simple OpenID Connect sign-in for Jellyfin 12+, with one Identity Provider, grou
 - Jellyfin 12 or later
 - An OIDC service with a configured client ID, client secret, and callback URL. See [Provider Setup](#provider-setup).
 - At least one allowed or administrator group configured in the plugin.
-- Existing Jellyfin users must have usernames that case-insensitively match their verified OIDC email before their first OIDC sign-in.
+- For automatic matching, existing Jellyfin users must have usernames that case-insensitively match their verified OIDC email. Alternatively, sign in locally and link your Identity Provider from your profile. Email is optional when **Require verified email** is disabled.
 - An administrator group before disabling local passwords for every Jellyfin user. Test the OIDC flow in a separate browser session before signing out.
 
 ## Quick Start
@@ -83,6 +85,8 @@ OIDC sign-in requires an HTTPS public URL. If Jellyfin is behind a reverse proxy
 | Allowed groups               | At least one group setting | -                   | Comma-separated groups that can sign in. New Jellyfin users can be created for their members. |
 | Administrator groups         | At least one group setting | -                   | Comma-separated groups that can sign in as Jellyfin administrators.                           |
 | Group claim                  | No                         | `groups`            | The top-level claim that lists a user's groups.                                               |
+| Username claim               | Yes                        | `preferred_username` | Top-level string claim used to name newly provisioned Jellyfin Users, falling back to verified email. Also supplies the linked-profile username fallback. Existing Jellyfin usernames are preserved. |
+| Require verified email       | No                         | On                  | Require a supplied email with `email_verified=true` for linking and all Identity Provider sign-ins, including linked users. |
 | Additional requested scopes  | No                         | -                   | Space-separated scopes requested in addition to `openid email profile`.                       |
 | Login button text            | No                         | `Sign In with SSO`  | The text on the Jellyfin sign-in button.                                                      |
 | Password login mode          | No                         | Allow for all users | Choose who can use local passwords.                                                           |
@@ -93,7 +97,7 @@ The plugin supports one OIDC service and simple, top-level profile and group dat
 
 ## Provider Setup
 
-The plugin needs a confidential authorization-code client with the callback URL from the quick start. It requires top-level `sub`, `email`, and `email_verified` claims and a top-level group claim containing strings or a JSON string array.
+The plugin needs a confidential authorization-code client with the callback URL from the quick start. It requires top-level `sub` and a top-level group claim containing strings or a JSON string array. By default, `email` and `email_verified=true` are also required. Supply the configured top-level username claim, normally `preferred_username`, to name newly provisioned Jellyfin Users.
 
 | Provider          | Setup                                                                                                                                                                                      |
 | ----------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
@@ -108,21 +112,33 @@ Do not add a scope solely because its name matches the group claim. Some provide
 ## Sign In
 
 > [!NOTE]
-> To sign in, a user needs a verified email address and a matching allowed or administrator group.
+> A user needs a matching allowed or administrator group. **Require verified email** is enabled by default and applies to linking and every Identity Provider sign-in. When disabled, identities may sign in without email; new Jellyfin Users need a username claim or verified email, and automatic Email Match still requires a verified email.
 
 1. The plugin first looks for the user's existing Jellyfin user.
 2. If it finds no match, it looks for a Jellyfin username that matches the verified email address.
-3. If it still finds no match, it creates a Jellyfin user with the verified email address as the username.
+3. If it still finds no match, it creates a Jellyfin User using the **Username claim**, defaulting to `preferred_username`, or verified email if that claim is absent. An existing username collision is rejected rather than attaching an unrelated Jellyfin User.
 4. It then updates administrator rights from the administrator groups.
 
-If a user's verified email address changes, the plugin updates the linked Jellyfin username. It keeps the same Jellyfin user and its viewing activity. It does not merge users.
+Identity Provider sign-in preserves an existing Jellyfin username even when the verified email changes. It keeps the same Jellyfin User and viewing activity and does not merge users.
+
+## Link Your Identity Provider
+
+Sign in to Jellyfin, open your own **Profile**, and select **Link account** in the **SSO** card above the password fields. Authenticate with the configured Identity Provider, then return to the profile. Its status shows **Linked as your verified email**, or the Identity Provider username when no email is recorded. Older links without either value show **Linked** until a successful sign-in supplies display metadata. This works in both modern UI and legacy UI. The identity must belong to an allowed or administrator group and supply a verified email unless **Require verified email** is disabled.
+
+Linking preserves your username, permissions, and current Jellyfin session. Under **Disable for linked users only**, it disables local-password sign-in immediately. Future Identity Provider sign-ins update administrator access from group membership and optionally synchronize your profile image.
+
+Your profile hides the password fields and save/reset buttons when password sign-in is disabled for you. Under **Disable for linked users only**, unlinked Jellyfin Users keep those controls. Under **Disable for all users**, they are hidden for every Jellyfin User. Allowing local passwords again restores the controls, subject to Jellyfin's normal permissions.
+
+There is no self-service unlink action. If an identity is already linked to another Jellyfin User or you need to replace an existing link, ask an administrator to clear the old Identity Link. Linking cannot merge or transfer Jellyfin Users.
+
+The plugin retains supplied verified email and username metadata on the Identity Link and refreshes it on successful sign-in. Only your authenticated profile receives those display values. Neither changes your existing Jellyfin username. Changing **Username claim** affects future provisioning and refreshed display metadata, not existing Jellyfin usernames.
 
 ## Password Login
 
 | Mode                          | Behavior                                                                         |
 | ----------------------------- | -------------------------------------------------------------------------------- |
 | Allow for all users           | Local passwords remain available.                                                |
-| Disable for linked users only | Local passwords are unavailable for Jellyfin users who have signed in with OIDC. |
+| Disable for linked users only | Local passwords are unavailable for Jellyfin Users with an Identity Link. |
 | Disable for all users         | Local passwords are unavailable for every Jellyfin User.                         |
 
 When local passwords are disabled for all users, **Redirect sign-in page to provider** is available. Off keeps the Jellyfin sign-in URL and shows only the OIDC sign-in button. On redirects directly to the Identity Provider and provides an OIDC-only signed-out page.

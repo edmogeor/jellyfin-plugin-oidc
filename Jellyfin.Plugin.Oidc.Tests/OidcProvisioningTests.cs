@@ -47,6 +47,7 @@ public sealed class OidcProvisioningTests
         Assert.Equal(firstSavedUser.Id, userId);
         Assert.Single(fixture.Users());
         Assert.Equal("user@example.test", fixture.Users().Single().Username);
+        Assert.Equal("user@example.test", Assert.Single(fixture.Configuration.IdentityLinks).Email);
     }
 
     [Fact]
@@ -138,6 +139,202 @@ public sealed class OidcProvisioningTests
         Assert.Empty(fixture.Users());
     }
 
+    [Theory]
+    [InlineData(PasswordLoginMode.AllowForAllUsers)]
+    [InlineData(PasswordLoginMode.DisableForLinkedUsersOnly)]
+    [InlineData(PasswordLoginMode.DisableForAllUsers)]
+    public async Task Explicit_link_preserves_username_and_permissions_and_applies_password_policy(PasswordLoginMode mode)
+    {
+        using var fixture = new ProvisioningFixture();
+        fixture.Configuration.PasswordLoginMode = mode;
+        var user = await fixture.SeedUserAsync("local-name");
+
+        Assert.True(await fixture.LinkAsync(user.Id, "subject", administrator: true));
+        Assert.True(await fixture.LinkAsync(user.Id, "subject", administrator: true));
+        var savedUser = Assert.Single(fixture.Users());
+        Assert.Equal("local-name", savedUser.Username);
+        Assert.False(savedUser.HasPermission(PermissionKind.IsAdministrator));
+        Assert.Equal("existing-password", savedUser.Password);
+        Assert.Equal(mode == PasswordLoginMode.AllowForAllUsers ? ProvisioningFixture.DefaultProvider : typeof(OidcPasswordDisabledProvider).FullName, savedUser.AuthenticationProviderId);
+        Assert.Equal(user.Id, Assert.Single(fixture.Configuration.IdentityLinks).UserId);
+        Assert.Equal("user@example.test", Assert.Single(fixture.Configuration.IdentityLinks).Email);
+    }
+
+    [Fact]
+    public async Task Explicit_link_and_returning_sign_in_work_without_email_and_never_rename_the_user()
+    {
+        using var fixture = new ProvisioningFixture();
+        fixture.Configuration.RequireVerifiedEmail = false;
+        var user = await fixture.SeedUserAsync("local-name");
+        Assert.Null(await fixture.SignInAsync("subject", email: null));
+        Assert.True(await fixture.LinkAsync(user.Id, "subject", email: null, username: "provider-user"));
+        var link = Assert.Single(fixture.Configuration.IdentityLinks);
+        Assert.Empty(link.Email);
+        Assert.Equal("provider-user", link.Username);
+        Assert.Equal(user.Id, await fixture.SignInAsync("subject", email: null));
+        Assert.Equal(user.Id, await fixture.SignInAsync("subject", email: "changed@example.test"));
+        Assert.Equal("changed@example.test", link.Email);
+        Assert.Equal(user.Id, await fixture.SignInAsync("subject", verified: false));
+        Assert.Equal(user.Id, await fixture.SignInAsync("subject", email: null));
+        Assert.Equal("changed@example.test", link.Email);
+        Assert.Equal("local-name", Assert.Single(fixture.Users()).Username);
+    }
+
+    [Fact]
+    public async Task Explicit_link_does_not_retain_unverified_email_and_refreshes_only_supplied_verified_email()
+    {
+        using var fixture = new ProvisioningFixture();
+        fixture.Configuration.RequireVerifiedEmail = false;
+        var user = await fixture.SeedUserAsync("local-name");
+        Assert.True(await fixture.LinkAsync(user.Id, "subject", verified: false));
+        var link = Assert.Single(fixture.Configuration.IdentityLinks);
+        Assert.Empty(link.Email);
+        Assert.True(await fixture.LinkAsync(user.Id, "subject", email: "verified@example.test"));
+        Assert.Equal("verified@example.test", link.Email);
+        Assert.True(await fixture.LinkAsync(user.Id, "subject", email: null));
+        Assert.True(await fixture.LinkAsync(user.Id, "subject", email: "unverified@example.test", verified: false));
+        Assert.False(await fixture.LinkAsync(user.Id, "other-subject", email: "other@example.test"));
+        Assert.Equal("verified@example.test", link.Email);
+        Assert.Equal("local-name", Assert.Single(fixture.Users()).Username);
+    }
+
+    [Fact]
+    public async Task Failed_configuration_saves_do_not_replace_retained_email()
+    {
+        using var fixture = new ProvisioningFixture();
+        var user = await fixture.SeedUserAsync("local-name");
+        Assert.True(await fixture.LinkAsync(user.Id, "subject", username: "provider-user"));
+        var link = Assert.Single(fixture.Configuration.IdentityLinks);
+        fixture.FailConfigurationSave = true;
+        await Assert.ThrowsAsync<InvalidOperationException>(() => fixture.LinkAsync(user.Id, "subject", email: "changed@example.test", username: "changed-user"));
+        Assert.Equal("user@example.test", link.Email);
+        Assert.Equal("provider-user", link.Username);
+        await Assert.ThrowsAsync<InvalidOperationException>(() => fixture.SignInAsync("subject", email: "changed@example.test", username: "changed-user"));
+        Assert.Equal("user@example.test", link.Email);
+        Assert.Equal("provider-user", link.Username);
+    }
+
+    [Fact]
+    public async Task Explicit_link_rejects_conflicting_links_and_serializes_competing_attempts()
+    {
+        using var fixture = new ProvisioningFixture();
+        var first = await fixture.SeedUserAsync("first");
+        var second = await fixture.SeedUserAsync("second");
+        var results = await Task.WhenAll(fixture.LinkAsync(first.Id, "subject"), fixture.LinkAsync(second.Id, "subject"));
+        Assert.Single(results, result => result);
+        var link = Assert.Single(fixture.Configuration.IdentityLinks);
+        Assert.False(await fixture.LinkAsync(link.UserId, "different-subject"));
+        Assert.Equal("subject", link.Subject);
+        Assert.Equal(2, fixture.Users().Length);
+    }
+
+    [Fact]
+    public async Task Explicit_link_rejects_missing_user_ineligible_identity_and_replaced_configuration()
+    {
+        using var fixture = new ProvisioningFixture();
+        var user = await fixture.SeedUserAsync("local-name");
+        Assert.False(await fixture.LinkAsync(Guid.NewGuid(), "subject"));
+        Assert.False(await fixture.LinkAsync(user.Id, ""));
+        Assert.False(await fixture.LinkAsync(user.Id, "subject", group: "unapproved"));
+        fixture.Plugin.UpdateConfiguration(new PluginConfiguration { Enabled = false });
+        Assert.False(await fixture.LinkAsync(user.Id, "subject"));
+        Assert.Empty(fixture.Configuration.IdentityLinks);
+    }
+
+    [Fact]
+    public async Task Unlinked_sign_in_requires_a_username_or_verified_email_when_email_is_optional()
+    {
+        using var fixture = new ProvisioningFixture();
+        fixture.Configuration.RequireVerifiedEmail = false;
+        Assert.Null(await fixture.SignInAsync("subject", verified: false));
+        Assert.Null(await fixture.SignInAsync("subject", email: null));
+        Assert.Empty(fixture.Users());
+        Assert.Empty(fixture.Configuration.IdentityLinks);
+    }
+
+    [Theory]
+    [InlineData(null, true)]
+    [InlineData("", true)]
+    [InlineData("unverified@example.test", false)]
+    public async Task Required_verified_email_is_enforced_for_linking_and_linked_sign_in(string? email, bool verified)
+    {
+        using var fixture = new ProvisioningFixture();
+        Assert.True(fixture.Configuration.RequireVerifiedEmail);
+        var user = await fixture.SeedUserAsync("local-name");
+        Assert.False(await fixture.LinkAsync(user.Id, "subject", email: email, verified: verified));
+        Assert.Empty(fixture.Configuration.IdentityLinks);
+        Assert.True(await fixture.LinkAsync(user.Id, "subject"));
+        Assert.Null(await fixture.SignInAsync("subject", email: email, verified: verified));
+        Assert.Equal("user@example.test", Assert.Single(fixture.Configuration.IdentityLinks).Email);
+        Assert.Equal("local-name", Assert.Single(fixture.Users()).Username);
+    }
+
+    [Fact]
+    public async Task Provider_username_is_metadata_and_refreshes_without_changing_the_identity_key()
+    {
+        using var fixture = new ProvisioningFixture();
+        fixture.Configuration.RequireVerifiedEmail = false;
+        var user = await fixture.SeedUserAsync("local-name");
+        Assert.True(await fixture.LinkAsync(user.Id, "subject", email: null, username: "provider-name"));
+        var link = Assert.Single(fixture.Configuration.IdentityLinks);
+        Assert.Equal("provider-name", link.Username);
+        Assert.Equal(user.Id, await fixture.SignInAsync("subject", email: null, username: "renamed-provider"));
+        Assert.Equal("renamed-provider", link.Username);
+        Assert.Equal(user.Id, await fixture.SignInAsync("subject", email: null, username: null));
+        Assert.Equal("renamed-provider", link.Username);
+        Assert.Equal("subject", link.Subject);
+        Assert.Equal("local-name", Assert.Single(fixture.Users()).Username);
+    }
+
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task Provisioning_uses_preferred_username_and_preserves_it_on_returning_sign_in(bool requireVerifiedEmail)
+    {
+        using var fixture = new ProvisioningFixture();
+        fixture.Configuration.RequireVerifiedEmail = requireVerifiedEmail;
+        var email = requireVerifiedEmail ? "user@example.test" : null;
+        var userId = await fixture.SignInAsync("subject", email: email, username: "preferred-name");
+        Assert.NotNull(userId);
+        Assert.Equal("preferred-name", Assert.Single(fixture.Users()).Username);
+        Assert.Equal(userId, await fixture.SignInAsync("subject", email: "changed@example.test", username: "changed-name"));
+        Assert.Equal("preferred-name", Assert.Single(fixture.Users()).Username);
+        Assert.Equal("changed-name", Assert.Single(fixture.Configuration.IdentityLinks).Username);
+    }
+
+    [Fact]
+    public async Task Preferred_username_collision_never_attaches_an_unrelated_user()
+    {
+        using var fixture = new ProvisioningFixture();
+        var unrelated = await fixture.SeedUserAsync("PREFERRED-NAME");
+        Assert.Null(await fixture.SignInAsync("subject", username: "preferred-name"));
+        Assert.Empty(fixture.Configuration.IdentityLinks);
+        Assert.Equal(unrelated.Id, Assert.Single(fixture.Users()).Id);
+    }
+
+    [Fact]
+    public async Task Verified_email_match_still_precedes_preferred_username_provisioning()
+    {
+        using var fixture = new ProvisioningFixture();
+        var matched = await fixture.SeedUserAsync("user@example.test");
+        Assert.Equal(matched.Id, await fixture.SignInAsync("subject", username: "preferred-name"));
+        Assert.Equal("user@example.test", Assert.Single(fixture.Users()).Username);
+    }
+
+    [Fact]
+    public async Task Failed_link_save_removes_the_link_and_restores_password_login()
+    {
+        using var fixture = new ProvisioningFixture();
+        var user = await fixture.SeedUserAsync("local-name");
+        fixture.Configuration.PasswordLoginMode = PasswordLoginMode.DisableForLinkedUsersOnly;
+        fixture.FailConfigurationSave = true;
+
+        await Assert.ThrowsAsync<InvalidOperationException>(() => fixture.LinkAsync(user.Id, "subject"));
+
+        Assert.Empty(fixture.Configuration.IdentityLinks);
+        Assert.Equal(ProvisioningFixture.DefaultProvider, Assert.Single(fixture.Users()).AuthenticationProviderId);
+    }
+
     private sealed class ProvisioningFixture : IDisposable, IDbContextFactory<JellyfinDbContext>
     {
         public const string DefaultProvider = "Jellyfin.Server.Implementations.Users.DefaultAuthenticationProvider";
@@ -169,6 +366,10 @@ public sealed class OidcProvisioningTests
                 }
                 if (method.Name == "SerializeToFile")
                 {
+                    if (FailConfigurationSave)
+                    {
+                        throw new InvalidOperationException("Injected configuration save failure.");
+                    }
                     SavedConfiguration = (PluginConfiguration)args![0]!;
                     return null;
                 }
@@ -194,14 +395,28 @@ public sealed class OidcProvisioningTests
         public TestCrypto Crypto { get; } = new();
         public Action<User>? BeforeSave { get; set; }
         public Func<Task>? BeforePolicyUpdate { get; set; }
+        public bool FailConfigurationSave { get; set; }
 
-        public Task<Guid?> SignInAsync(string subject, bool administrator = false) => _provisioner.ProvisionAsync(new ClaimsPrincipal(new ClaimsIdentity(
-        [
-            new Claim("sub", subject),
-            new Claim("email", "user@example.test"),
-            new Claim("email_verified", "true"),
-            new Claim("groups", administrator ? "admins" : "users"),
-        ])), Configuration);
+        public Task<Guid?> SignInAsync(string subject, bool administrator = false, string? email = "user@example.test", bool verified = true, string? username = null)
+            => _provisioner.ProvisionAsync(Principal(subject, administrator, email, verified, null, username), Configuration);
+
+        public Task<bool> LinkAsync(Guid userId, string subject, bool administrator = false, string? email = "user@example.test", string? group = null, bool verified = true, string? username = null)
+            => _provisioner.LinkAsync(userId, Principal(subject, administrator, email, verified, group, username), Configuration);
+
+        private static ClaimsPrincipal Principal(string subject, bool administrator, string? email, bool verified, string? group, string? username)
+        {
+            var claims = new List<Claim> { new("sub", subject), new("groups", group ?? (administrator ? "admins" : "users")) };
+            if (username is not null)
+            {
+                claims.Add(new Claim("preferred_username", username));
+            }
+            if (email is not null)
+            {
+                claims.Add(new Claim("email", email));
+                claims.Add(new Claim("email_verified", verified ? "true" : "false"));
+            }
+            return new ClaimsPrincipal(new ClaimsIdentity(claims));
+        }
 
         public User[] Users()
         {

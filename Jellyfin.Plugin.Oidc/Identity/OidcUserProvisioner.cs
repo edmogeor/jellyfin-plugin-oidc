@@ -69,8 +69,14 @@ public sealed class OidcUserProvisioner
                 link.Issuer = issuer;
             }
 
+            if (user is null && string.IsNullOrEmpty(identity.Email) && string.IsNullOrEmpty(identity.Username))
+            {
+                _logger.LogWarning("OIDC sign-in denied because an unlinked identity requires a username or verified email for provisioning.");
+                return null;
+            }
+
             var matches = _userManager.GetUsers()
-                .Where(candidate => string.Equals(candidate.Username, identity.Email, StringComparison.OrdinalIgnoreCase))
+                .Where(candidate => !string.IsNullOrEmpty(identity.Email) && string.Equals(candidate.Username, identity.Email, StringComparison.OrdinalIgnoreCase))
                 .ToList();
             if (user is null && matches.Count > 1)
             {
@@ -87,25 +93,14 @@ public sealed class OidcUserProvisioner
 
             if (user is null)
             {
-                user = await CreateUserAsync(identity.Email, configuration).ConfigureAwait(false);
-                _logger.LogInformation("Provisioned Jellyfin User for an eligible OIDC identity.");
-            }
-            else if (!string.Equals(user.Username, identity.Email, StringComparison.OrdinalIgnoreCase))
-            {
-                if (matches.Any(candidate => candidate.Id != user.Id))
+                var username = string.IsNullOrEmpty(identity.Username) ? identity.Email : identity.Username;
+                if (_userManager.GetUsers().Any(candidate => string.Equals(candidate.Username, username, StringComparison.OrdinalIgnoreCase)))
                 {
-                    _logger.LogWarning("OIDC sign-in denied because the changed email is already used by another Jellyfin User.");
+                    _logger.LogWarning("OIDC provisioning denied because the requested username is already used by a Jellyfin User.");
                     return null;
                 }
-
-                await _userManager.RenameUser(user.Id, user.Username, identity.Email).ConfigureAwait(false);
-                user = _userManager.GetUserById(user.Id);
-                _logger.LogInformation("Updated a linked Jellyfin User username after a verified OIDC email change.");
-            }
-
-            if (user is null)
-            {
-                return null;
+                user = await CreateUserAsync(username, configuration).ConfigureAwait(false);
+                _logger.LogInformation("Provisioned Jellyfin User for an eligible OIDC identity.");
             }
 
             if (link is null)
@@ -134,7 +129,26 @@ public sealed class OidcUserProvisioner
                 await _profileImageSynchronizer.SynchronizeAsync(user, link, principal.FindFirst("picture")?.Value, issuer).ConfigureAwait(false);
             }
 
-            plugin.SaveConfiguration();
+            var oldEmail = link.Email;
+            var oldUsername = link.Username;
+            if (!string.IsNullOrEmpty(identity.Email))
+            {
+                link.Email = identity.Email;
+            }
+            if (!string.IsNullOrEmpty(identity.Username))
+            {
+                link.Username = identity.Username;
+            }
+            try
+            {
+                plugin.SaveConfiguration();
+            }
+            catch
+            {
+                link.Email = oldEmail;
+                link.Username = oldUsername;
+                throw;
+            }
             return user.Id;
         }
         finally
@@ -143,16 +157,92 @@ public sealed class OidcUserProvisioner
         }
     }
 
-    private async Task<User> CreateUserAsync(string email, PluginConfiguration configuration)
+    /// <summary>Links a validated identity to an explicitly authenticated Jellyfin User without provisioning or synchronization.</summary>
+    public async Task<bool> LinkAsync(Guid userId, ClaimsPrincipal principal, PluginConfiguration authenticatedConfiguration)
     {
-        if (!Regex.IsMatch(email, @"^(?!\s)[\w\ \-'._@+]+(?<!\s)$", RegexOptions.CultureInvariant) || email is "." or "..")
+        var plugin = OidcPlugin.Instance;
+        if (plugin is null)
         {
-            throw new ArgumentException("The verified email is not a valid Jellyfin username.", nameof(email));
+            return false;
+        }
+
+        await plugin.ConfigurationGate.WaitAsync().ConfigureAwait(false);
+        try
+        {
+            var configuration = plugin.Configuration;
+            var user = _userManager.GetUserById(userId);
+            if (!ReferenceEquals(configuration, authenticatedConfiguration) || !configuration.Enabled
+                || user is null || _userManager.GetUserDto(user).Policy.IsDisabled
+                || !IdentityClaims.TryCreate(principal, configuration, out var identity))
+            {
+                return false;
+            }
+
+            var issuer = configuration.IssuerUrl.TrimEnd('/');
+            var existing = configuration.IdentityLinks.SingleOrDefault(item => item.UserId == userId);
+            if ((existing is not null && (existing.Subject != identity.Subject || (existing.Issuer != issuer && !string.IsNullOrEmpty(existing.Issuer))))
+                || configuration.IdentityLinks.Any(item => item.UserId != userId && item.Subject == identity.Subject && (item.Issuer == issuer || string.IsNullOrEmpty(item.Issuer))))
+            {
+                return false;
+            }
+
+            var link = existing ?? new IdentityLink { Issuer = issuer, Subject = identity.Subject, UserId = userId };
+            if (existing is null)
+            {
+                configuration.IdentityLinks.Add(link);
+            }
+
+            var oldIssuer = link.Issuer;
+            var oldEmail = link.Email;
+            var oldUsername = link.Username;
+            try
+            {
+                await PasswordLoginEnforcer.EnforceAsync(_userManager, user, configuration, _logger).ConfigureAwait(false);
+                link.Issuer = issuer;
+                if (!string.IsNullOrEmpty(identity.Email))
+                {
+                    link.Email = identity.Email;
+                }
+                if (!string.IsNullOrEmpty(identity.Username))
+                {
+                    link.Username = identity.Username;
+                }
+                plugin.SaveConfiguration();
+                return true;
+            }
+            catch
+            {
+                link.Issuer = oldIssuer;
+                link.Email = oldEmail;
+                link.Username = oldUsername;
+                if (existing is null)
+                {
+                    configuration.IdentityLinks.Remove(link);
+                    var currentUser = _userManager.GetUserById(userId);
+                    if (currentUser is not null)
+                    {
+                        await PasswordLoginEnforcer.EnforceAsync(_userManager, currentUser, configuration, _logger).ConfigureAwait(false);
+                    }
+                }
+                throw;
+            }
+        }
+        finally
+        {
+            plugin.ConfigurationGate.Release();
+        }
+    }
+
+    private async Task<User> CreateUserAsync(string username, PluginConfiguration configuration)
+    {
+        if (!Regex.IsMatch(username, @"^(?!\s)[\w\ \-'._@+]+(?<!\s)$", RegexOptions.CultureInvariant) || username is "." or "..")
+        {
+            throw new ArgumentException("The Identity Provider supplied an invalid Jellyfin username.", nameof(username));
         }
 
         var password = _cryptoProvider.CreatePasswordHash(Convert.ToBase64String(RandomNumberGenerator.GetBytes(64))).ToString();
         await using var dbContext = await _dbContextFactory.CreateDbContextAsync().ConfigureAwait(false);
-        var user = new User(email,
+        var user = new User(username,
             configuration.PasswordLoginMode == PasswordLoginMode.AllowForAllUsers
                 ? "Jellyfin.Server.Implementations.Users.DefaultAuthenticationProvider"
                 : typeof(OidcPasswordDisabledProvider).FullName!,

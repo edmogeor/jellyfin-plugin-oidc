@@ -57,6 +57,8 @@ configuration.update(
         "ClientId": "jellyfin",
         "ClientSecret": "oidc-test-secret",
         "GroupClaim": "groups",
+        "UsernameClaim": "preferred_username",
+        "RequireVerifiedEmail": True,
         "UserGroup": "jellyfin-users",
         "AdministratorGroup": "jellyfin-admins",
         "LoginButtonText": "Sign In with SSO",

@@ -6,7 +6,7 @@ using Jellyfin.Plugin.Oidc.Configuration;
 namespace Jellyfin.Plugin.Oidc.Identity;
 
 /// <summary>Validated identity details required for a Jellyfin sign-in.</summary>
-public sealed record OidcIdentity(string Subject, string Email, bool IsAdministrator);
+public sealed record OidcIdentity(string Subject, string Email, bool IsAdministrator, string Username = "");
 
 /// <summary>Extracts the deliberately small claim model supported by this plugin.</summary>
 public static class IdentityClaims
@@ -16,11 +16,9 @@ public static class IdentityClaims
     {
         identity = null;
         var subject = ClaimValue(principal, "sub");
-        var email = ClaimValue(principal, "email");
-        if (string.IsNullOrWhiteSpace(subject)
-            || string.IsNullOrWhiteSpace(email)
-            || !bool.TryParse(ClaimValue(principal, "email_verified"), out var verified)
-            || !verified)
+        var email = bool.TryParse(ClaimValue(principal, "email_verified"), out var verified) && verified
+            ? ClaimValue(principal, "email") : null;
+        if (string.IsNullOrWhiteSpace(subject) || (configuration.RequireVerifiedEmail && string.IsNullOrWhiteSpace(email)))
         {
             return false;
         }
@@ -37,7 +35,10 @@ public static class IdentityClaims
             return false;
         }
 
-        identity = new OidcIdentity(subject, email, isAdministrator);
+        var usernameClaim = configuration.UsernameClaim.Trim();
+        var username = usernameClaim == "email" ? email
+            : principal.FindFirst(usernameClaim) is { ValueType: ClaimValueTypes.String } usernameValue ? usernameValue.Value : null;
+        identity = new OidcIdentity(subject, string.IsNullOrWhiteSpace(email) ? string.Empty : email, isAdministrator, string.IsNullOrWhiteSpace(username) ? string.Empty : username);
         return true;
     }
 

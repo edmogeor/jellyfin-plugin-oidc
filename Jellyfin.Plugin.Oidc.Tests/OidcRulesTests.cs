@@ -102,6 +102,47 @@ public sealed class OidcRulesTests
     }
 
     [Fact]
+    public void Verified_email_is_required_by_default_and_username_claim_defaults_to_preferred_username()
+    {
+        var configuration = new PluginConfiguration();
+        Assert.True(configuration.RequireVerifiedEmail);
+        Assert.Equal("preferred_username", configuration.UsernameClaim);
+    }
+
+    [Fact]
+    public void Configured_username_claim_reads_only_a_top_level_string_and_does_not_change_the_subject()
+    {
+        var principal = new ClaimsPrincipal(new ClaimsIdentity([
+            new Claim("sub", "subject"), new Claim("email", "user@example.test"), new Claim("email_verified", "true"),
+            new Claim("groups", "users"), new Claim("preferred_username", "default-name"), new Claim("login_name", "mapped-name"),
+            new Claim("profile", "{\"name\":\"nested-name\"}", "JSON"),
+        ]));
+        var configuration = new PluginConfiguration { UserGroup = "users", UsernameClaim = " login_name " };
+        Assert.True(IdentityClaims.TryCreate(principal, configuration, out var identity));
+        Assert.Equal("mapped-name", identity.Username);
+        Assert.Equal("subject", identity.Subject);
+        configuration.UsernameClaim = "profile.name";
+        Assert.True(IdentityClaims.TryCreate(principal, configuration, out identity));
+        Assert.Empty(identity.Username);
+        configuration.UsernameClaim = "profile";
+        Assert.True(IdentityClaims.TryCreate(principal, configuration, out identity));
+        Assert.Empty(identity.Username);
+    }
+
+    [Fact]
+    public void Email_username_claim_never_uses_unverified_email()
+    {
+        var configuration = new PluginConfiguration { UserGroup = "users", UsernameClaim = "email", RequireVerifiedEmail = false };
+        var principal = new ClaimsPrincipal(new ClaimsIdentity([
+            new Claim("sub", "subject"), new Claim("groups", "users"),
+            new Claim("email", "unverified@example.test"), new Claim("email_verified", "false"),
+        ]));
+        Assert.True(IdentityClaims.TryCreate(principal, configuration, out var identity));
+        Assert.Empty(identity.Email);
+        Assert.Empty(identity.Username);
+    }
+
+    [Fact]
     public void Verified_administrator_group_is_eligible()
     {
         var configuration = new PluginConfiguration { AdministratorGroup = "jellyfin-admins" };

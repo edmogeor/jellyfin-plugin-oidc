@@ -4,7 +4,7 @@ const abyssTheme = process.env.ABYSS_THEME === "1";
 const elegantFinTheme = process.env.ELEGANTFIN_THEME === "1";
 let loginAttempt = 0;
 
-async function signIn(page) {
+async function signIn(page, providerUsername = "user") {
   await clearJellyfinSession(page);
   await showLogin(page);
   await page
@@ -19,7 +19,7 @@ async function signIn(page) {
       .then(() => false),
   ]);
   if (needsCredentials) {
-    await username.fill("user");
+    await username.fill(providerUsername);
     await page.locator("#password").fill("password");
     await page.locator("#kc-login").click({ noWaitAfter: true });
   }
@@ -40,7 +40,7 @@ async function signIn(page) {
   });
 }
 
-async function signInDenied(page) {
+async function signInDenied(page, providerUsername = "user") {
   await clearJellyfinSession(page);
   await showLogin(page);
   await page
@@ -48,7 +48,7 @@ async function signInDenied(page) {
     .click({ noWaitAfter: true });
   const username = page.locator("#username");
   await username.waitFor({ state: "visible", timeout: 30_000 });
-  await username.fill("user");
+  await username.fill(providerUsername);
   await page.locator("#password").fill("password");
   await page.locator("#kc-login").click({ noWaitAfter: true });
   await expect(page).toHaveURL(/oidcError=1/, { timeout: 30_000 });
@@ -167,7 +167,7 @@ test("provisions the allowed OIDC test user and starts a Jellyfin session", asyn
 
   const user = await currentUser(page);
 
-  expect(user.Name).toBe("oidc-test@example.test");
+  expect(user.Name).toBe("user");
   expect(user.Policy.IsAdministrator).toBe(true);
   expect((await authenticatePassword(page.request, user.Name, "")).ok()).toBe(
     false,
@@ -249,6 +249,10 @@ test("loads the seeded OIDC settings and validates changes for an administrator"
   );
   await expect(page.locator("#ClientId")).toHaveValue("jellyfin");
   await expect(page.locator("#UserGroup")).toHaveValue("jellyfin-users");
+  await expect(page.locator("#UsernameClaim")).toHaveValue(
+    "preferred_username",
+  );
+  await expect(page.locator("#RequireVerifiedEmail")).toBeChecked();
   await expect(page.locator("#AdministratorGroup")).toHaveValue(
     "jellyfin-admins",
   );
@@ -323,6 +327,44 @@ test("loads the seeded OIDC settings and validates changes for an administrator"
     ),
   ).toBeVisible();
   await page.getByRole("button", { name: "Cancel" }).click();
+});
+
+test("saves the verified-email requirement and username claim without renaming existing users", async ({
+  page,
+}) => {
+  await signIn(page);
+  const originalUser = await currentUser(page);
+  await page.goto(
+    "/web/index.html#/configurationpage?name=OIDC%20Authentication",
+  );
+  await expect(page.locator("#RequireVerifiedEmail")).toBeChecked();
+  await expect(page.locator("#UsernameClaim")).toHaveValue(
+    "preferred_username",
+  );
+  try {
+    await page.getByText("Require verified email", { exact: true }).click();
+    await expect(page.locator("#RequireVerifiedEmail")).not.toBeChecked();
+    await page.locator("#UsernameClaim").fill("email");
+    const saved = page.waitForResponse(
+      (response) =>
+        response.request().method() === "POST" &&
+        response
+          .url()
+          .includes(
+            "/Plugins/4c5b9b96-80cd-4c3d-9e3d-23fa4ebf6ce4/Configuration",
+          ),
+    );
+    await page.locator("#SaveButton").click();
+    expect((await saved).ok()).toBe(true);
+    await expect(page.locator("#SaveButton")).toBeDisabled();
+    await page.reload();
+    await expect(page.locator("#RequireVerifiedEmail")).not.toBeChecked();
+    await expect(page.locator("#UsernameClaim")).toHaveValue("email");
+    expect((await currentUser(page)).Name).toBe(originalUser.Name);
+  } finally {
+    await setConfigurationValue(page, "UsernameClaim", "preferred_username");
+    await setConfigurationValue(page, "RequireVerifiedEmail", true);
+  }
 });
 
 test("keeps saved configuration visible when an older load finishes late", async ({
@@ -795,7 +837,19 @@ test("keeps an Identity Link when the Identity Provider email changes", async ({
     await signIn(updatedPage);
     const updatedUser = await currentUser(updatedPage);
     expect(updatedUser.Id).toBe(originalUser.Id);
-    expect(updatedUser.Name).toBe(changedEmail);
+    expect(updatedUser.Name).toBe(originalUser.Name);
+    const retainedEmail = await updatedPage.evaluate(async (userId) => {
+      const configuration = await ApiClient.getPluginConfiguration(
+        "4c5b9b96-80cd-4c3d-9e3d-23fa4ebf6ce4",
+      );
+      return configuration.IdentityLinks.find((link) => link.UserId === userId)
+        .Email;
+    }, originalUser.Id);
+    expect(retainedEmail).toBe(changedEmail);
+    await updatedPage.goto("/web/index.html#/userprofile");
+    await expect(
+      updatedPage.locator("[data-oidc-profile] [data-oidc-status-text]"),
+    ).toHaveText("Linked as " + changedEmail);
     await updatedContext.close();
   } finally {
     user.email = originalEmail;
@@ -893,7 +947,7 @@ test("denies OIDC sign-in when the Identity Provider removes all allowed groups"
   }
 });
 
-test("denies Email Match when the Jellyfin User is linked to another subject", async ({
+test("denies provisioning when the requested username is linked to another subject", async ({
   browser,
   page,
 }) => {
@@ -934,7 +988,7 @@ test("denies Email Match when the Jellyfin User is linked to another subject", a
   }
 });
 
-test("denies a verified email that belongs to another Jellyfin User", async ({
+test("keeps the linked Jellyfin User when verified email matches another username", async ({
   browser,
   request,
 }) => {
@@ -951,13 +1005,23 @@ test("denies a verified email that belongs to another Jellyfin User", async ({
   const headers = await providerAdmin(request);
   const user = await providerUser(request, headers);
   const originalEmail = user.email;
+  const originalContext = await browser.newContext({ ignoreHTTPSErrors: true });
+  const originalPage = await originalContext.newPage();
+  await signIn(originalPage);
+  const originalUser = await currentUser(originalPage);
+  await originalContext.close();
 
   try {
     user.email = email;
     expect((await updateProviderUser(request, headers, user)).ok()).toBe(true);
-    const deniedContext = await browser.newContext({ ignoreHTTPSErrors: true });
-    await signInDenied(await deniedContext.newPage());
-    await deniedContext.close();
+    const returningContext = await browser.newContext({
+      ignoreHTTPSErrors: true,
+    });
+    const returningPage = await returningContext.newPage();
+    await signIn(returningPage);
+    expect((await currentUser(returningPage)).Id).toBe(originalUser.Id);
+    expect((await currentUser(returningPage)).Name).toBe(originalUser.Name);
+    await returningContext.close();
   } finally {
     user.email = originalEmail;
     expect((await updateProviderUser(request, headers, user)).ok()).toBe(true);
@@ -1004,6 +1068,359 @@ test("reprovisions a Jellyfin User after its linked user is deleted", async ({
     }),
   ).toBe(1);
   await returningContext.close();
+});
+
+for (const layout of ["modern", "desktop-legacy"]) {
+  test(`links an email-free identity from the ${layout} profile without changing the user`, async ({
+    browser,
+    page,
+    request,
+  }) => {
+    await signIn(page);
+    const originalLinks = await page.evaluate(
+      async () =>
+        (
+          await ApiClient.getPluginConfiguration(
+            "4c5b9b96-80cd-4c3d-9e3d-23fa4ebf6ce4",
+          )
+        ).IdentityLinks,
+    );
+    const originalMode = await setConfigurationValue(
+      page,
+      "PasswordLoginMode",
+      "DisableForLinkedUsersOnly",
+    );
+    const originalEmailRequirement = await setConfigurationValue(
+      page,
+      "RequireVerifiedEmail",
+      true,
+    );
+    const root = await (await authenticatePassword(request, "root", "")).json();
+    const rootHeaders = {
+      Authorization: `MediaBrowser Token="${root.AccessToken}"`,
+    };
+    const name = `local-link-${layout}`;
+    const created = await request.post("/Users/New", {
+      headers: rootHeaders,
+      data: { Name: name, Password: "local-password" },
+    });
+    expect(created.ok()).toBe(true);
+    const localUser = await created.json();
+    const providerHeaders = await providerAdmin(request);
+    const profileUrl =
+      "https://oidc.localhost:8443/keycloak/admin/realms/jellyfin/users/profile";
+    const originalProfile = await (
+      await request.get(profileUrl, { headers: providerHeaders })
+    ).json();
+    const optionalEmailProfile = structuredClone(originalProfile);
+    delete optionalEmailProfile.attributes.find(
+      (attribute) => attribute.name === "email",
+    ).required;
+    expect(
+      (
+        await request.put(profileUrl, {
+          headers: providerHeaders,
+          data: optionalEmailProfile,
+        })
+      ).ok(),
+    ).toBe(true);
+    const providerName = `link-${layout}`;
+    const providerCreated = await request.post(
+      "https://oidc.localhost:8443/keycloak/admin/realms/jellyfin/users",
+      {
+        headers: providerHeaders,
+        data: {
+          username: providerName,
+          firstName: "Link",
+          lastName: "Test",
+          enabled: true,
+          groups: ["/jellyfin-users"],
+          credentials: [
+            { type: "password", value: "password", temporary: false },
+          ],
+        },
+      },
+    );
+    expect(providerCreated.ok()).toBe(true);
+    const providerLocation = providerCreated.headers().location;
+    const context = await browser.newContext({ ignoreHTTPSErrors: true });
+    const profile = await context.newPage();
+    try {
+      await profile.goto("/web/index.html#!/login");
+      await profile.evaluate(
+        (layout) => localStorage.setItem("layout", layout),
+        layout,
+      );
+      await profile.reload();
+      await profile
+        .getByRole("textbox", { name: "User", exact: true })
+        .fill(name);
+      await profile
+        .getByRole("textbox", { name: "Password", exact: true })
+        .fill("local-password");
+      await profile
+        .getByRole("button", { name: "Sign In", exact: true })
+        .click();
+      await profile.waitForFunction(
+        (userId) => window.ApiClient?.getCurrentUserId() === userId,
+        localUser.Id,
+      );
+      await expect(profile).toHaveURL(/#!?\/home/);
+      const localToken = await profile.evaluate(() => ApiClient.accessToken());
+      await profile.route("**/oidc/link", (route) =>
+        route.fulfill({ status: 503 }),
+      );
+      await profile.goto("/web/index.html#/userprofile");
+      const section = profile.locator("[data-oidc-profile]");
+      await expect(section.locator("[data-oidc-status-text]")).toHaveText(
+        "Unable to check link status.",
+      );
+      await expect(
+        section.getByRole("button", { name: "Link account" }),
+      ).toHaveCount(0);
+      await profile.unroute("**/oidc/link");
+      await section.getByRole("button", { name: "Retry" }).click();
+      await expect(section.locator("[data-oidc-status-text]")).toHaveText(
+        "Not linked",
+      );
+      await expect(section).toContainText(
+        "Linking will disable password sign-in",
+      );
+      await expect(
+        section.getByRole("button", { name: "Link account" }),
+      ).toHaveClass(/emby-button/);
+      await expect(
+        section
+          .getByRole("button", { name: "Link account" })
+          .locator(".material-icons"),
+      ).toHaveText("link");
+      await expect(profile.locator(".updatePasswordForm")).toBeVisible();
+      await setPasswordLoginMode(page, "DisableForAllUsers");
+      await profile.reload();
+      await expect(section.locator("[data-oidc-status-text]")).toHaveText(
+        "Not linked",
+      );
+      await expect(profile.locator(".updatePasswordForm")).toBeHidden();
+      await expect(
+        profile.getByRole("button", { name: "Save Password" }),
+      ).toHaveCount(0);
+      await setPasswordLoginMode(page, "DisableForLinkedUsersOnly");
+      await profile.reload();
+      await expect(section.locator("[data-oidc-status-text]")).toHaveText(
+        "Not linked",
+      );
+      await expect(profile.locator(".updatePasswordForm")).toBeVisible();
+      await profile.screenshot({
+        path: test.info().outputPath("profile-desktop.png"),
+        fullPage: true,
+      });
+      await profile.setViewportSize({ width: 375, height: 812 });
+      await profile.screenshot({
+        path: test.info().outputPath("profile-mobile.png"),
+        fullPage: true,
+      });
+      await profile.setViewportSize({ width: 1280, height: 720 });
+      await profile.getByRole("button", { name: "Link account" }).click();
+      await expect(profile).toHaveURL(/oidc\.localhost/);
+      await profile.goBack();
+      await expect(
+        profile.getByRole("button", { name: "Link account" }),
+      ).toBeEnabled();
+      await profile.getByRole("button", { name: "Link account" }).click();
+      await profile.locator("#username").fill("user");
+      await profile.locator("#password").fill("password");
+      await profile.locator("#kc-login").click();
+      await expect(section.locator("[data-oidc-status-text]")).toHaveText(
+        "Not linked",
+        {
+          timeout: 30_000,
+        },
+      );
+      await expect(profile.getByRole("alert")).toHaveText(
+        "We couldn't link your Identity Provider. Please try again.",
+      );
+      expect((await currentUser(profile)).Id).toBe(localUser.Id);
+      await profile.getByRole("button", { name: "Link account" }).click();
+      await expect(profile.locator("#password")).toBeVisible();
+      if (await profile.locator("#reset-login").isVisible()) {
+        await profile.locator("#reset-login").click();
+      }
+      await profile.locator("#username").fill(providerName);
+      await profile.locator("#password").fill("password");
+      let completionTicket;
+      profile.on("request", (request) => {
+        if (request.url().endsWith("/oidc/link/complete"))
+          completionTicket = request.postDataJSON().Ticket;
+      });
+      await profile.locator("#kc-login").click();
+      await expect(section.locator("[data-oidc-status-text]")).toHaveText(
+        "Not linked",
+        {
+          timeout: 30_000,
+        },
+      );
+      await expect(profile.getByRole("alert")).toHaveText(
+        "We couldn't link your Identity Provider. Please try again.",
+      );
+      await setConfigurationValue(page, "RequireVerifiedEmail", false);
+      await profile.getByRole("button", { name: "Link account" }).click();
+      await expect(profile.locator("#password")).toBeVisible();
+      if (await profile.locator("#reset-login").isVisible())
+        await profile.locator("#reset-login").click();
+      await profile.locator("#username").fill(providerName);
+      await profile.locator("#password").fill("password");
+      await profile.locator("#kc-login").click();
+      await expect(section.locator("[data-oidc-status-text]")).toHaveText(
+        "Linked as " + providerName,
+        {
+          timeout: 30_000,
+        },
+      );
+      await expect(section.locator("button")).toHaveCount(1);
+      await expect(section.locator("button")).toBeHidden();
+      await expect(profile.locator(".updatePasswordForm")).toBeHidden();
+      await expect(
+        profile.getByRole("button", { name: "Save Password" }),
+      ).toHaveCount(0);
+      await expect(
+        profile.getByRole("button", { name: "Reset Password" }),
+      ).toHaveCount(0);
+      const linkedUser = await currentUser(profile);
+      expect(linkedUser.Id).toBe(localUser.Id);
+      expect(linkedUser.Name).toBe(name);
+      expect(linkedUser.Policy.IsAdministrator).toBe(false);
+      expect(await profile.evaluate(() => ApiClient.accessToken())).toBe(
+        localToken,
+      );
+      expect(
+        (await authenticatePassword(request, name, "local-password")).ok(),
+      ).toBe(false);
+      expect(completionTicket).toBeTruthy();
+      const replay = await request.post("/oidc/link/complete", {
+        headers: {
+          Authorization: `MediaBrowser Token="${localToken}"`,
+        },
+        data: { Ticket: completionTicket },
+      });
+      expect(replay.status()).toBe(409);
+      await setPasswordLoginMode(page, "AllowForAllUsers");
+      await profile.reload();
+      await expect(section.locator("[data-oidc-status-text]")).toHaveText(
+        "Linked as " + providerName,
+      );
+      await expect(profile.locator(".updatePasswordForm")).toBeVisible();
+      await expect(
+        profile.getByRole("button", { name: "Save Password" }),
+      ).toBeVisible();
+      await setPasswordLoginMode(page, "DisableForLinkedUsersOnly");
+      await profile.reload();
+      await expect(profile.locator(".updatePasswordForm")).toBeHidden();
+      for (let visit = 0; visit < 2; visit += 1) {
+        await profile.goto("/web/index.html#/mypreferencesmenu");
+        await profile.goto("/web/index.html#/userprofile");
+        await expect(section).toHaveCount(1);
+        await expect(section.locator("[data-oidc-status-text]")).toHaveText(
+          "Linked as " + providerName,
+        );
+      }
+      await profile.setViewportSize({ width: 375, height: 812 });
+      await expect(section).toBeVisible();
+      expect(
+        await profile.evaluate(() => {
+          const section = document.querySelector("[data-oidc-profile]");
+          return (
+            section.getBoundingClientRect().right <= innerWidth &&
+            section.scrollWidth <= section.clientWidth
+          );
+        }),
+      ).toBe(true);
+      await profile.goto(`/web/index.html#/userprofile?userId=${root.User.Id}`);
+      await expect(section).toHaveCount(0);
+      await setConfigurationValue(page, "RequireVerifiedEmail", true);
+      const denied = await browser.newContext({ ignoreHTTPSErrors: true });
+      try {
+        await signInDenied(await denied.newPage(), providerName);
+      } finally {
+        await denied.close();
+      }
+      await setConfigurationValue(page, "RequireVerifiedEmail", false);
+      const returning = await browser.newContext({ ignoreHTTPSErrors: true });
+      try {
+        const returningPage = await returning.newPage();
+        await signIn(returningPage, providerName);
+        expect((await currentUser(returningPage)).Id).toBe(localUser.Id);
+        expect((await currentUser(returningPage)).Name).toBe(name);
+      } finally {
+        await returning.close();
+      }
+    } finally {
+      await context.close();
+      await setConfigurationValue(page, "IdentityLinks", originalLinks);
+      await setConfigurationValue(page, "PasswordLoginMode", originalMode);
+      await setConfigurationValue(
+        page,
+        "RequireVerifiedEmail",
+        originalEmailRequirement,
+      );
+      expect(
+        (
+          await request.delete(`/Users/${localUser.Id}`, {
+            headers: rootHeaders,
+          })
+        ).ok(),
+      ).toBe(true);
+      expect(
+        (
+          await request.delete(providerLocation, { headers: providerHeaders })
+        ).ok(),
+      ).toBe(true);
+      expect(
+        (
+          await request.put(profileUrl, {
+            headers: providerHeaders,
+            data: originalProfile,
+          })
+        ).ok(),
+      ).toBe(true);
+    }
+  });
+}
+
+test("link endpoints reject anonymous requests and invalid return URLs", async ({
+  request,
+}) => {
+  expect((await request.get("/oidc/link")).status()).toBe(401);
+  expect(
+    (await request.post("/oidc/link?returnUrl=/userprofile")).status(),
+  ).toBe(401);
+  expect(
+    (
+      await request.post("/oidc/link/complete", { data: { Ticket: "missing" } })
+    ).status(),
+  ).toBe(401);
+  const root = await (await authenticatePassword(request, "root", "")).json();
+  for (const returnUrl of [
+    "https://attacker.test",
+    "//attacker.test",
+    "/\\attacker.test",
+  ]) {
+    const response = await request.post("/oidc/link", {
+      headers: { Authorization: `MediaBrowser Token="${root.AccessToken}"` },
+      params: { returnUrl },
+    });
+    expect(response.status()).toBe(400);
+  }
+  const response = await request.get("/oidc/link", {
+    headers: { Authorization: `MediaBrowser Token="${root.AccessToken}"` },
+  });
+  expect(response.ok()).toBe(true);
+  expect(response.headers()["cache-control"]).toContain("no-store");
+  expect(Object.keys(await response.json()).sort()).toEqual([
+    "CanLink",
+    "Linked",
+    "PasswordLoginDisabled",
+    "PasswordLoginMode",
+  ]);
 });
 
 test("returns to Jellyfin login when no logout token is available", async ({

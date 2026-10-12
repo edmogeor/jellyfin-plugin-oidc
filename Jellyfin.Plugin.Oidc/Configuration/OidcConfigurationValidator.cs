@@ -22,6 +22,11 @@ public static class OidcConfigurationValidator
             return "Client ID and client secret are required.";
         }
 
+        if (string.IsNullOrWhiteSpace(configuration.UsernameClaim))
+        {
+            return "Username claim is required. Use a top-level string claim such as preferred_username.";
+        }
+
         if (string.IsNullOrWhiteSpace(configuration.UserGroup) && string.IsNullOrWhiteSpace(configuration.AdministratorGroup))
         {
             return "Configure a User Group, an Administrator Group, or both.";

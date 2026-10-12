@@ -24,6 +24,160 @@
         }
         return {};
     };
+    const profileStrings = {
+        linkHeading: 'SSO', linkChecking: 'Checking link status...', linkNotLinked: 'Not linked',
+        linkLinked: 'Linked', linkLinkedAs: 'Linked as {0}', linkButton: 'Link account',
+        linkRedirecting: 'Redirecting...', linkStatusError: 'Unable to check link status.', linkRetry: 'Retry',
+        linkError: 'We couldn\'t link your Identity Provider. Please try again.', linkSuccess: 'Identity Provider linked.',
+        linkPasswordHelp: 'Linking will disable password sign-in for this Jellyfin User.',
+        linkConflict: 'This identity cannot be linked. Ask an administrator to check existing Identity Links.',
+    };
+    const activeSession = () => {
+        const client = window.ApiClient;
+        if (!client?.accessToken() || !client.getCurrentUserId()) return null;
+        const address = new URL(client.serverAddress(), location.href);
+        if (address.origin !== serverUrl.origin || address.pathname.replace(/\/$/, '') !== serverUrl.pathname.replace(/\/$/, '')) return null;
+        return { userId: client.getCurrentUserId(), token: client.accessToken() };
+    };
+    const profileRoute = () => {
+        const route = location.hash.replace(/^#!?/, '');
+        const url = new URL(route, location.origin);
+        return url.pathname === '/userprofile' ? url : null;
+    };
+    const linkRequest = (session, path, options = {}) => fetch(oidcUrl + path, {
+        ...options, cache: 'no-store', headers: { Authorization: `MediaBrowser Token="${session.token}"`, 'Content-Type': 'application/json' },
+    });
+    const linkNotification = (text, error = false) => {
+        const container = document.querySelector('.toastContainer') || document.body.appendChild(document.createElement('div'));
+        container.classList.add('toastContainer');
+        const message = document.createElement('div');
+        message.className = 'toast'; message.textContent = text; message.setAttribute('role', error ? 'alert' : 'status');
+        container.append(message);
+        setTimeout(() => message.classList.add('toastVisible'), 300);
+        setTimeout(() => message.remove(), 5000);
+    };
+    let profileSection;
+    let profileUnavailableKey;
+    let completingLink;
+    const restoreProfilePasswords = () => document.querySelectorAll('[data-oidc-password-hidden]').forEach(form => {
+        form.removeAttribute('data-oidc-password-hidden'); display([form]);
+    });
+    const updateProfile = () => {
+        const session = activeSession();
+        const route = profileRoute();
+        const requestedUser = route?.searchParams.get('userId');
+        const content = document.querySelector('#userProfilePage .padded-left.padded-right.padded-bottom-page');
+        if (!session || !route || !content || (requestedUser && requestedUser.replaceAll('-', '').toLowerCase() !== session.userId.replaceAll('-', '').toLowerCase())) {
+            profileSection?.remove(); profileSection = null;
+            restoreProfilePasswords();
+            return;
+        }
+        const setPasswordVisibility = disabled => {
+            if (disabled === undefined) return;
+            const form = content.querySelector('.updatePasswordForm');
+            if (!form) return;
+            if (disabled) { form.dataset.oidcPasswordHidden = 'true'; display([form], 'none'); }
+            else if (form.hasAttribute('data-oidc-password-hidden')) { form.removeAttribute('data-oidc-password-hidden'); display([form]); }
+        };
+        const key = session.userId + ':' + session.token;
+        if (profileUnavailableKey === key) return;
+        if (profileSection?.isConnected && profileSection.sessionKey === key) {
+            setPasswordVisibility(profileSection.passwordLoginDisabled);
+            return;
+        }
+        profileSection?.remove();
+        restoreProfilePasswords();
+        const section = document.createElement('section');
+        profileSection = section; section.sessionKey = key;
+        section.dataset.oidcProfile = 'true'; section.className = 'readOnlyContent detailSection';
+        section.style.margin = '0 auto 2em';
+        const card = document.createElement('div'); card.className = 'paperList';
+        const body = document.createElement('div'); body.className = 'listItemBody';
+        Object.assign(body.style, { display: 'flex', flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: '1rem', padding: '1em', boxSizing: 'border-box', width: '100%' });
+        const details = document.createElement('div'); Object.assign(details.style, { flex: '1 1 14rem', minWidth: '0' });
+        const heading = document.createElement('div'); heading.className = 'listItemBodyText'; heading.textContent = profileStrings.linkHeading;
+        heading.setAttribute('role', 'heading'); heading.setAttribute('aria-level', '2');
+        Object.assign(heading.style, { fontWeight: '600', color: 'var(--jf-palette-text-primary, inherit)' });
+        const status = document.createElement('p'); status.className = 'listItemBodyText secondaryText'; status.setAttribute('role', 'status');
+        status.style.overflowWrap = 'anywhere';
+        const icon = document.createElement('span'); icon.className = 'material-icons hide'; icon.setAttribute('aria-hidden', 'true');
+        Object.assign(icon.style, { fontSize: '1.1em', verticalAlign: 'middle', marginInlineEnd: '0.3em' });
+        const statusText = document.createElement('span'); statusText.dataset.oidcStatusText = 'true'; status.append(icon, statusText);
+        const setStatus = (text, linked = null) => {
+            statusText.textContent = text;
+            icon.classList.toggle('hide', linked === null);
+            icon.textContent = linked ? 'check' : 'close';
+            if (linked === null) status.style.removeProperty('color');
+            else status.style.color = linked ? 'var(--jf-palette-success-main)' : 'var(--jf-palette-error-main)';
+        };
+        setStatus(profileStrings.linkChecking);
+        const help = document.createElement('p'); help.className = 'fieldDescription hide';
+        const actions = document.createElement('div'); actions.style.marginInlineStart = 'auto';
+        const button = document.createElement('button'); button.type = 'button'; button.setAttribute('is', 'emby-button'); button.className = 'emby-button raised hide'; button.style.margin = '0';
+        const showButton = visible => button.classList.toggle('hide', !visible);
+        const buttonIcon = document.createElement('span'); buttonIcon.className = 'material-icons'; buttonIcon.textContent = 'link'; buttonIcon.setAttribute('aria-hidden', 'true');
+        Object.assign(buttonIcon.style, { fontSize: '1.2em', marginInlineEnd: '0.4em' });
+        const label = document.createElement('span'); button.append(buttonIcon, label);
+        details.append(heading, status, help); actions.append(button); body.append(details, actions); card.append(body); section.append(card);
+        let anchor = content.querySelector('.updatePasswordForm');
+        while (anchor && anchor.parentElement !== content) anchor = anchor.parentElement;
+        content.insertBefore(section, anchor);
+        if (isPrimaryLogin()) { section.passwordLoginDisabled = true; setPasswordVisibility(true); }
+        const current = () => section === profileSection && section.isConnected && activeSession()?.token === session.token;
+        const loadStatus = async () => {
+            showButton(false); buttonIcon.classList.add('hide'); help.classList.add('hide'); setStatus(profileStrings.linkChecking);
+            try {
+                Object.assign(profileStrings, await loadStrings());
+                if (!current()) return;
+                heading.textContent = profileStrings.linkHeading;
+                const response = await linkRequest(session, 'link');
+                if (!current()) return;
+                if (response.status === 404) { profileUnavailableKey = key; section.remove(); restoreProfilePasswords(); return; }
+                if (!response.ok) throw new Error('Link status unavailable');
+                const state = await response.json();
+                if (!current()) return;
+                section.passwordLoginDisabled = state.PasswordLoginDisabled;
+                setPasswordVisibility(state.PasswordLoginDisabled);
+                const linkedIdentity = state.Email || state.Username;
+                setStatus(state.Linked ? (linkedIdentity ? profileStrings.linkLinkedAs.replace('{0}', linkedIdentity) : profileStrings.linkLinked) : profileStrings.linkNotLinked, state.Linked);
+                help.textContent = state.CanLink ? (state.PasswordLoginMode === 'DisableForLinkedUsersOnly' ? profileStrings.linkPasswordHelp : '') : profileStrings.linkConflict;
+                help.classList.toggle('hide', state.Linked || !help.textContent);
+                showButton(state.CanLink && !state.Linked);
+                buttonIcon.classList.remove('hide');
+                button.disabled = false; label.textContent = profileStrings.linkButton;
+                button.onclick = async () => {
+                    button.disabled = true; label.textContent = profileStrings.linkRedirecting;
+                    try {
+                        const response = await linkRequest(session, 'link?returnUrl=' + encodeURIComponent(route.pathname + route.search), { method: 'POST' });
+                        if (!response.ok) throw new Error('Link initiation failed');
+                        const result = await response.json();
+                        if (current()) location.assign(result.Url);
+                    } catch {
+                        if (current()) { button.disabled = false; label.textContent = profileStrings.linkButton; linkNotification(profileStrings.linkError, true); }
+                    }
+                };
+            } catch {
+                if (!current()) return;
+                setStatus(profileStrings.linkStatusError);
+                buttonIcon.classList.add('hide');
+                showButton(true); button.disabled = false; label.textContent = profileStrings.linkRetry;
+                button.onclick = () => { void loadStatus(); };
+            }
+        };
+        const complete = async () => {
+            const params = new URLSearchParams(location.search);
+            const ticket = params.get('oidcLinkTicket');
+            const error = params.has('oidcLinkError');
+            if (!ticket && !error) return;
+            params.delete('oidcLinkTicket'); params.delete('oidcLinkError');
+            history.replaceState(null, '', location.pathname + (params.size ? '?' + params : '') + location.hash);
+            if (error) { linkNotification(profileStrings.linkError, true); return; }
+            const response = await linkRequest(session, 'link/complete', { method: 'POST', body: JSON.stringify({ Ticket: ticket }) });
+            if (current()) linkNotification(response.ok ? profileStrings.linkSuccess : profileStrings.linkError, !response.ok);
+        };
+        if (!completingLink) completingLink = complete().catch(() => { if (current()) linkNotification(profileStrings.linkError, true); }).finally(() => { completingLink = null; });
+        void completingLink.then(loadStatus);
+    };
     const updateLoginContainer = button => {
         const login = button.closest('#loginPage');
         const form = login?.querySelector('form.manualLoginForm');
@@ -163,20 +317,22 @@
         if (redirectsToProvider) void redirectToProvider();
         showError();
     };
-    addEventListener('oidcconfigurationchange', () => { void configure(); });
+    addEventListener('oidcconfigurationchange', () => { profileUnavailableKey = null; profileSection?.remove(); profileSection = null; updateProfile(); void configure(); });
     addEventListener('hashchange', () => {
         if (isSignedOut() && isLoginPage()) {
             location.reload();
             return;
         }
         addLogin();
+        updateProfile();
         showSignedOut();
         showError();
         void redirectToProvider();
     });
-    addEventListener('pageshow', () => { resetLoginButton(); void redirectToProvider(); });
+    addEventListener('pageshow', () => { resetLoginButton(); profileSection?.remove(); profileSection = null; updateProfile(); void redirectToProvider(); });
+    addEventListener('storage', updateProfile);
     enableLogout();
-    new MutationObserver(() => { addLogin(); showSignedOut(); showError(); void redirectToProvider(); }).observe(document.documentElement, { childList: true, subtree: true });
+    new MutationObserver(() => { addLogin(); updateProfile(); showSignedOut(); showError(); void redirectToProvider(); }).observe(document.documentElement, { childList: true, subtree: true });
     addLogin();
     document.querySelectorAll('[data-oidc-login]').forEach(updateLoginContainer);
     void redirectToProvider();

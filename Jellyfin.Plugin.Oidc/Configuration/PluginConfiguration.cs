@@ -29,6 +29,12 @@ public sealed class IdentityLink
     /// <summary>Gets or sets the Jellyfin User ID.</summary>
     public Guid UserId { get; set; }
 
+    /// <summary>Gets or sets the last supplied verified email, retained as optional metadata only.</summary>
+    public string Email { get; set; } = string.Empty;
+
+    /// <summary>Gets or sets the last supplied Identity Provider username, used only for display.</summary>
+    public string Username { get; set; } = string.Empty;
+
     /// <summary>Gets or sets the source URL of the synchronized profile image.</summary>
     public string ProfileImageUrl { get; set; } = string.Empty;
 
@@ -65,6 +71,9 @@ public sealed class PluginConfiguration : BasePluginConfiguration
     /// <summary>Gets or sets the top-level claim containing group values.</summary>
     public string GroupClaim { get; set; } = "groups";
 
+    /// <summary>Gets or sets the top-level claim used for provisioning names and linked username display.</summary>
+    public string UsernameClaim { get; set; } = "preferred_username";
+
     /// <summary>Gets or sets optional space-separated OIDC scopes requested in addition to the standard scopes.</summary>
     public string AdditionalScopes { get; set; } = string.Empty;
 
@@ -73,6 +82,9 @@ public sealed class PluginConfiguration : BasePluginConfiguration
 
     /// <summary>Gets or sets the group permitted administrator access.</summary>
     public string AdministratorGroup { get; set; } = string.Empty;
+
+    /// <summary>Gets or sets whether linking and sign-in require a supplied verified email.</summary>
+    public bool RequireVerifiedEmail { get; set; } = true;
 
     /// <summary>Gets or sets the OIDC button label.</summary>
     public string LoginButtonText { get; set; } = string.Empty;

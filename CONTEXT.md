@@ -24,9 +24,9 @@ _Avoid_: SSO provider, OIDC provider.
 
 - One Identity Provider is supported.
 - The plugin uses OpenID Connect discovery, confidential authorization-code flow, PKCE, and HTTPS metadata.
-- Supported claims are top-level `sub`, `email`, `email_verified`, `picture`, and a configurable top-level group claim. The group claim may be a string, JSON string array, or multiple claims.
-- Nested group paths and manual endpoint overrides are unsupported. Map nested Identity Provider data to a top-level claim instead.
-- SAML, LDAP, OAuth-only flows, multiple providers, self-service linking, and Identity Provider-initiated sign-in are unsupported.
+- Supported claims are top-level `sub`, `email`, `email_verified`, `picture`, a configurable top-level string username claim, and a configurable top-level group claim. The username claim defaults to `preferred_username`; the group claim may be a string, JSON string array, or multiple claims.
+- Nested claim paths and manual endpoint overrides are unsupported. Map nested Identity Provider data to a top-level claim instead.
+- SAML, LDAP, OAuth-only flows, multiple providers, self-service unlinking, and Identity Provider-initiated sign-in are unsupported.
 
 ## Configuration
 
@@ -43,6 +43,10 @@ The plugin always requests `openid`, `email`, and `profile`. Additional requeste
 
 Group lists are comma-separated exact values. Administrator Group membership grants access even when the User Group is empty. The default group claim is `groups`; the default login button label is `Sign In with SSO`.
 
+`RequireVerifiedEmail` is enabled by default. Linking and all Identity Provider sign-ins, including those with an existing Identity Link, then require a supplied non-empty email with `email_verified=true`. Disabling it permits email-free identities. Email Match always requires a supplied verified email; provisioning requires either a supplied username claim or a verified email. A previously retained email does not satisfy the requirement for a new authentication response.
+
+The Username claim setting defaults to `preferred_username` and reads an exact top-level string claim. It supplies the username for newly provisioned Jellyfin Users and the linked-identity display fallback. If absent, provisioning uses verified email. Selecting `email` uses only verified email. The setting does not change existing Jellyfin usernames or identity resolution.
+
 Profile image synchronization is disabled by default. When enabled, the standard `picture` claim updates the Jellyfin User profile image at sign-in.
 
 Password login modes are:
@@ -51,22 +55,34 @@ Password login modes are:
 - `DisableForLinkedUsersOnly`, local passwords are unavailable for Jellyfin Users with an Identity Link.
 - `DisableForAllUsers`, local passwords are unavailable for every Jellyfin User.
 
-Saving configuration reapplies the selected local-password policy to all Jellyfin Users.
+Saving configuration reapplies the selected local-password policy to all Jellyfin Users. The signed-in Jellyfin User's profile hides the complete password form, including save/reset controls, when local-password sign-in is disabled for that user. Unlinked users retain password controls under `DisableForLinkedUsersOnly`; all users lose them under `DisableForAllUsers`. Re-enabling local passwords restores the controls without overriding Jellyfin's own permission-based visibility.
 
 ## Sign-In Behavior
 
-1. The plugin validates the OpenID Connect response and requires a non-empty `sub`, a non-empty verified email, and membership in an Allowed Group.
+1. The plugin validates the OpenID Connect response and requires a non-empty `sub`, membership in an Allowed Group, and a supplied verified email when `RequireVerifiedEmail` is enabled.
 2. It resolves an Identity Link by `sub` first.
-3. Without a link, it resolves an Email Match by verified email and Jellyfin username. Automatic matching is permitted only for a Jellyfin User without an existing Identity Link; a match already linked to another identity is denied.
-4. Without either, it provisions a Jellyfin User with the verified email as username. The undisclosed random local password and configured local-password policy are present in the initial database insert, so a partial failure cannot leave a passwordless user.
+3. Without a link, it attempts Email Match only when a non-empty verified email is supplied. Automatic matching is permitted only for a Jellyfin User without an existing Identity Link; a match already linked to another identity is denied.
+4. Without either, it provisions a Jellyfin User with the configured username claim as username, falling back to verified email when the claim is absent. Missing both values or a case-insensitive collision with another Jellyfin username denies provisioning; the username claim never attaches an unrelated Jellyfin User. The undisclosed random local password and configured local-password policy are present in the initial database insert, so a partial failure cannot leave a passwordless user.
 5. It creates an Identity Link when needed and synchronizes administrator status from Administrator Group membership.
 6. It creates a single-use, five-minute Jellyfin session handoff ticket and returns only to a local relative route.
 
-An Identity Link is authoritative for returning identities. If its verified email changes, the linked Jellyfin User is renamed unless another Jellyfin User already owns that username. The plugin never merges users or reassigns media activity. A stale link to a deleted Jellyfin User is removed, then the identity is matched or provisioned again.
+An Identity Link is authoritative for returning identities, including identities without email when the verified-email requirement is disabled. Sign-in never renames an existing Jellyfin User, even when the verified email or username claim changes. The plugin never merges users or reassigns media activity. A stale link to a deleted Jellyfin User is removed, then the eligible identity is matched or provisioned again using the same rules.
 
 Group membership is evaluated at OIDC sign-in. Removing all Allowed Groups denies the next sign-in; removing Administrator Group membership removes administrator status at the next sign-in. Existing Jellyfin sessions are not terminated in the background.
 
-Provisioning and administrator configuration saves are serialized. A callback authenticated with a replaced configuration is denied and must restart sign-in. Sign-in persists Identity Link changes without replacing configuration or reverting administrator settings. An administrator must explicitly clear an old Identity Link before Email Match can attach a recreated Identity Provider identity with a new `sub`.
+Provisioning, explicit linking, and administrator configuration saves are serialized. A callback authenticated with a replaced configuration is denied and must restart. Sign-in and linking persist Identity Link changes without replacing configuration or reverting administrator settings. An administrator must explicitly clear an old Identity Link before attaching a recreated Identity Provider identity with a new `sub`.
+
+## Self-Service Identity Provider Linking
+
+The signed-in Jellyfin User's own profile page shows an `SSO` card above the password fields when those fields are available. It displays `Linked as <email>` when a verified email is retained, falling back to `Linked as <Identity Provider username>` when only the configured username claim is retained, or `Linked` when neither is recorded. Linked status has a green tick; unlinked users see a red cross with `Not linked` and a right-aligned `Link account` button with a leading link icon. The card itself has no hover behavior. Both modern UI and legacy UI use Jellyfin's shared profile components and classes. Self-service unlinking is unsupported.
+
+Explicit linking requires a valid Jellyfin session, a validated Identity Provider issuer and non-empty `sub`, membership in an Allowed Group, and a supplied verified email when the requirement is enabled. Email Match does not choose the target Jellyfin User. The Identity Link binds directly to the initiating Jellyfin User. Existing links cannot be overwritten or transferred.
+
+When supplied, a non-empty verified email and a non-empty configured username claim are retained on the Identity Link as display metadata during successful linking or sign-in. Subsequent supplied values refresh them; absent username or absent/unverified email does not erase the retained values. The profile displays these last-supplied values, not a live Identity Provider lookup, with email taking precedence. They never rename an existing Jellyfin User. Issuer and `sub` remain the authoritative Identity Link key.
+
+Header-authenticated initiation creates a single-use navigation ticket. Linking requests fresh Identity Provider authentication using `prompt=login`. Protected OIDC state and correlation bind the callback to a short-lived server-side transaction. After returning to the profile, an authenticated completion request must use the same Jellyfin User and session token as initiation; the server retains only a token fingerprint. Every stage is single-use and the entire transaction expires after five minutes. Revoked sessions and replaced configuration are denied. Linking never creates a new Jellyfin session or a new Jellyfin User.
+
+Linking preserves the username, administrator status, permissions, profile image, media activity, and current session. It immediately applies the configured local-password policy, including disabling password sign-in under `DisableForLinkedUsersOnly`. Subsequent Identity Provider sign-ins synchronize administrator status and optional profile images as usual, while preserving the username.
 
 ## Browser Integration And Logout
 
@@ -78,9 +94,9 @@ With RP-initiated logout, a protected ID token redirects to the discovered Ident
 
 - Only local relative return URLs are accepted. Absolute URLs, protocol-relative URLs, and backslash paths are rejected.
 - OIDC start and callback requests require an effective HTTPS public URL.
-- Verified email is the only email matching key. `preferred_username` is never an identity key.
+- Verified email is the only automatic matching key. The configured username claim, including `preferred_username`, is never an identity matching key.
 - Client secrets, access tokens, authorization codes, and complete ID tokens must not be logged or sent to browser configuration endpoints.
-- The browser receives only non-secret login label, password-mode, and logout settings.
+- Anonymous browser configuration receives only non-secret login label, password-mode, and logout settings. Private, non-cacheable link status exposes the retained email and username only to the linked Jellyfin User, never issuer or subject. Retained emails and usernames must not be logged.
 - Provisioned local passwords are random and undisclosed.
 - When profile image synchronization is enabled, the optional `picture` claim must be an HTTPS URL resolving to a public address or the configured Identity Provider host. Its image is downloaded with redirects disabled and synchronized at sign-in.
 
