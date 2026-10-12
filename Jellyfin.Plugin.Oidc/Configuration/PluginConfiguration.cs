@@ -2,6 +2,26 @@ using MediaBrowser.Model.Plugins;
 
 namespace Jellyfin.Plugin.Oidc.Configuration;
 
+/// <summary>Automatic attachment of an eligible identity to an existing Jellyfin User.</summary>
+public enum AutomaticLinkingMode
+{
+    /// <summary>Match current verified email to a Jellyfin username.</summary>
+    EmailToUsername,
+    /// <summary>Require explicit linking for existing Jellyfin Users.</summary>
+    None,
+    /// <summary>Match the configured Identity Provider username claim to a Jellyfin username.</summary>
+    UsernameToUsername,
+}
+
+/// <summary>Names assigned only when provisioning a new Jellyfin User.</summary>
+public enum ProvisioningUsernameMode
+{
+    /// <summary>Use the configured username claim, falling back to verified email.</summary>
+    UsernameClaim,
+    /// <summary>Use only a currently verified email.</summary>
+    VerifiedEmail,
+}
+
 /// <summary>Local credential availability after OIDC is configured.</summary>
 public enum PasswordLoginMode
 {
@@ -74,6 +94,12 @@ public sealed class PluginConfiguration : BasePluginConfiguration
     /// <summary>Gets or sets the top-level claim used for provisioning names and linked username display.</summary>
     public string UsernameClaim { get; set; } = "preferred_username";
 
+    /// <summary>Gets or sets the automatic matching rule, preserving email matching by default.</summary>
+    public AutomaticLinkingMode AutomaticLinkingMode { get; set; }
+
+    /// <summary>Gets or sets the source of new Jellyfin usernames.</summary>
+    public ProvisioningUsernameMode ProvisioningUsernameMode { get; set; }
+
     /// <summary>Gets or sets optional space-separated OIDC scopes requested in addition to the standard scopes.</summary>
     public string AdditionalScopes { get; set; } = string.Empty;
 
@@ -103,4 +129,13 @@ public sealed class PluginConfiguration : BasePluginConfiguration
 
     /// <summary>Gets or sets Identity Links owned by this plugin.</summary>
     public List<IdentityLink> IdentityLinks { get; set; } = [];
+
+    /// <summary>Gets or sets versioned approvals, suppression, and recovery state.</summary>
+    public List<OidcUserAdministration> UserAdministration { get; set; } = [];
+
+    /// <summary>Gets or sets positively identified OIDC authentication records.</summary>
+    public List<OidcSessionProvenance> OidcSessions { get; set; } = [];
+
+    /// <summary>Gets or sets the revision invalidating callbacks predating administrator mutations.</summary>
+    public long IdentityRevision { get; set; }
 }

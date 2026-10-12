@@ -3,10 +3,10 @@ using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.DependencyInjection;
 using MediaBrowser.Controller.Authentication;
-using MediaBrowser.Controller.Session;
 using System.Text;
 using System.Text.Json;
 using Jellyfin.Plugin.Oidc.Identity;
+using Jellyfin.Plugin.Oidc.Configuration;
 
 namespace Jellyfin.Plugin.Oidc;
 
@@ -23,13 +23,14 @@ public sealed class WebInjectionStartupFilter : IStartupFilter
                 var configuration = OidcPlugin.Instance?.Configuration;
                 if (!HttpMethods.IsGet(context.Request.Method)
                     || !IsIndexRequest(context.Request.Path.Value)
-                    || configuration is not { Enabled: true })
+                    || configuration is null)
                 {
                     await nextMiddleware().ConfigureAwait(false);
                     return;
                 }
 
-                var allPasswordsDisabled = configuration.PasswordLoginMode == Configuration.PasswordLoginMode.DisableForAllUsers;
+                var enabled = configuration.Enabled && OidcConfigurationValidator.Validate(configuration) is null;
+                var allPasswordsDisabled = enabled && configuration.PasswordLoginMode == PasswordLoginMode.DisableForAllUsers;
                 var redirectsToProvider = allPasswordsDisabled && configuration.RedirectSignInPageToProvider;
                 context.Request.Headers.Remove("Accept-Encoding");
                 context.Request.Headers.Remove("Range");
@@ -51,21 +52,30 @@ public sealed class WebInjectionStartupFilter : IStartupFilter
                 bufferedBody.Position = 0;
                 using var reader = new StreamReader(bufferedBody, Encoding.UTF8, leaveOpen: true);
                 var html = await reader.ReadToEndAsync(context.RequestAborted).ConfigureAwait(false);
-                if (context.Request.Query.TryGetValue("oidcTicket", out var ticket)
-                    && context.RequestServices.GetRequiredService<OidcLoginStore>().TryTake(ticket.ToString(), out var userId, out _))
+                if (enabled && context.Request.Query.TryGetValue("oidcTicket", out var ticket))
                 {
                     context.Response.Headers["Referrer-Policy"] = "no-referrer";
-                    var session = await context.RequestServices.GetRequiredService<ISessionManager>().AuthenticateDirect(new AuthenticationRequest
+                    var plugin = OidcPlugin.Instance!;
+                    var created = false;
+                    await plugin.ConfigurationGate.WaitAsync().ConfigureAwait(false);
+                    try
                     {
-                        UserId = userId,
-                        App = "Jellyfin Web",
-                        AppVersion = "12",
-                        DeviceId = Guid.NewGuid().ToString("N"),
-                        DeviceName = "Web Browser",
-                    }).ConfigureAwait(false);
-                    html = html.Replace("</head>", SessionTag(session, PublicUrls.Get(context.Request, configuration)) + "</head>", StringComparison.OrdinalIgnoreCase);
+                        if (ReferenceEquals(configuration, plugin.Configuration) && context.RequestServices.GetRequiredService<OidcLoginStore>().TryTake(ticket.ToString(), out var userId, out _))
+                        {
+                            var session = await context.RequestServices.GetRequiredService<OidcSessionTracker>().CreateAsync(userId).ConfigureAwait(false);
+                            html = html.Replace("</head>", SessionTag(session, PublicUrls.Get(context.Request, configuration)) + "</head>", StringComparison.OrdinalIgnoreCase);
+                            created = true;
+                        }
+                    }
+                    finally { plugin.ConfigurationGate.Release(); }
+                    if (!created)
+                    {
+                        context.Response.ContentLength = null;
+                        context.Response.Redirect(PublicUrls.Get(context.Request, configuration) + OidcConstants.WebIndexPath + "#!/login?oidcError=1");
+                        return;
+                    }
                 }
-                else if (context.Request.Query.ContainsKey("oidcSignedOut"))
+                else if (redirectsToProvider && context.Request.Query.ContainsKey("oidcSignedOut"))
                 {
                     html = html.Replace("</head>", "<style id=\"oidc-signed-out-style\">#loginPage{visibility:hidden}</style></head>", StringComparison.OrdinalIgnoreCase);
                 }
@@ -73,7 +83,7 @@ public sealed class WebInjectionStartupFilter : IStartupFilter
                 {
                     html = html.Replace("</head>", "<style id=\"oidc-login-redirect-style\">#loginPage{visibility:hidden}</style></head>", StringComparison.OrdinalIgnoreCase);
                 }
-                var scriptTag = $"<script>window.oidcPasswordLoginMode='{configuration.PasswordLoginMode}';window.oidcRedirectSignInPageToProvider={redirectsToProvider.ToString().ToLowerInvariant()};</script><script src=\"{PublicUrls.Get(context.Request, configuration)}/oidc/web.js?v={typeof(WebInjectionStartupFilter).Assembly.ManifestModule.ModuleVersionId}\"></script>";
+                var scriptTag = $"<script>window.oidcEnabled={enabled.ToString().ToLowerInvariant()};window.oidcPasswordLoginMode='{(enabled ? configuration.PasswordLoginMode : PasswordLoginMode.AllowForAllUsers)}';window.oidcRedirectSignInPageToProvider={redirectsToProvider.ToString().ToLowerInvariant()};</script><script src=\"{System.Text.Encodings.Web.HtmlEncoder.Default.Encode(context.Request.PathBase.Value ?? string.Empty)}/oidc/web.js?v={typeof(WebInjectionStartupFilter).Assembly.ManifestModule.ModuleVersionId}\"></script>";
                 if (!html.Contains(scriptTag, StringComparison.Ordinal))
                 {
                     html = html.Replace("</head>", scriptTag + "</head>", StringComparison.OrdinalIgnoreCase);

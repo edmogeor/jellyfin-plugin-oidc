@@ -1,7 +1,12 @@
 using System.Security.Claims;
 using System.Text.Json;
+using System.Text.RegularExpressions;
 using Jellyfin.Plugin.Oidc.Configuration;
 using Jellyfin.Plugin.Oidc.Identity;
+using Jellyfin.Plugin.Oidc.Api;
+using Microsoft.AspNetCore.DataProtection;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.AspNetCore.Http;
 using Xunit;
 
@@ -10,7 +15,7 @@ namespace Jellyfin.Plugin.Oidc.Tests;
 public sealed class OidcRulesTests
 {
     [Fact]
-    public void Configuration_strings_are_embedded_json_with_matching_keys()
+    public void Configuration_strings_have_matching_keys_and_preserve_translated_values_and_placeholders()
     {
         var assembly = typeof(PluginConfiguration).Assembly;
         using var englishStream = assembly
@@ -18,11 +23,28 @@ public sealed class OidcRulesTests
 
         Assert.NotNull(englishStream);
         var expectedKeys = GetJsonKeys(englishStream);
+        englishStream.Position = 0;
+        var english = JsonSerializer.Deserialize<Dictionary<string, string>>(englishStream)!;
         foreach (var resourceName in assembly.GetManifestResourceNames().Where(name => name.StartsWith("Jellyfin.Plugin.Oidc.Configuration.Strings.", StringComparison.Ordinal)))
         {
             using var stream = assembly.GetManifestResourceStream(resourceName);
             Assert.NotNull(stream);
-            Assert.Equal(expectedKeys, GetJsonKeys(stream));
+            var keys = GetJsonKeys(stream);
+            Assert.Equal(expectedKeys, keys);
+            stream.Position = 0;
+            var translated = JsonSerializer.Deserialize<Dictionary<string, string>>(stream)!;
+            var locale = resourceName["Jellyfin.Plugin.Oidc.Configuration.Strings.".Length..^5];
+            var controller = new OidcController(null!, new EphemeralDataProtectionProvider(), NullLogger<OidcController>.Instance);
+            var response = Assert.IsType<JsonResult>(controller.Strings(locale));
+            var dictionary = Assert.IsType<Dictionary<string, string>>(response.Value);
+            Assert.Equal(expectedKeys, dictionary.Keys.Order().ToArray());
+            foreach (var entry in translated)
+            {
+                Assert.False(string.IsNullOrWhiteSpace(entry.Value));
+                Assert.Equal(entry.Value, dictionary[entry.Key]);
+                Assert.Equal(Regex.Matches(english[entry.Key], @"\{\d+\}").Select(match => match.Value).Order(),
+                    Regex.Matches(entry.Value, @"\{\d+\}").Select(match => match.Value).Order());
+            }
         }
     }
 
@@ -38,6 +60,26 @@ public sealed class OidcRulesTests
         Assert.Contains("<title data-i18n=\"pageTitle\">OIDC Authentication</title>", html);
         Assert.Contains("Add &lt;Public Jellyfin URL&gt;/web/index.html", html);
         Assert.DoesNotContain("{{", html);
+    }
+
+    [Fact]
+    public void Browser_script_embeds_the_english_dictionary_at_build_time()
+    {
+        var assembly = typeof(PluginConfiguration).Assembly;
+        using var stream = assembly.GetManifestResourceStream("Jellyfin.Plugin.Oidc.Web.oidc.js");
+        Assert.NotNull(stream);
+        using var reader = new StreamReader(stream);
+        var script = reader.ReadToEnd();
+        Assert.DoesNotContain("@english-strings", script);
+        var match = Regex.Match(script, @"const profileStrings = (\{[^\r\n]+\});");
+        Assert.True(match.Success);
+        using var dictionary = JsonDocument.Parse(match.Groups[1].Value);
+        using var englishStream = assembly.GetManifestResourceStream("Jellyfin.Plugin.Oidc.Configuration.Strings.en-us.json")!;
+        using var english = JsonDocument.Parse(englishStream);
+        foreach (var entry in english.RootElement.EnumerateObject())
+        {
+            Assert.Equal(entry.Value.GetString(), dictionary.RootElement.GetProperty(entry.Name).GetString());
+        }
     }
 
     private static string[] GetJsonKeys(Stream stream)
@@ -96,6 +138,40 @@ public sealed class OidcRulesTests
     }
 
     [Fact]
+    public void Unknown_automatic_linking_mode_is_rejected()
+    {
+        Assert.NotNull(OidcConfigurationValidator.Validate(new PluginConfiguration { AutomaticLinkingMode = (AutomaticLinkingMode)99 }));
+        Assert.NotNull(OidcConfigurationValidator.Validate(new PluginConfiguration { ProvisioningUsernameMode = (ProvisioningUsernameMode)99 }));
+    }
+
+    [Fact]
+    public void Approvals_suppression_and_outstanding_revocation_round_trip_through_xml()
+    {
+        var state = new OidcUserAdministration
+        {
+            UserId = Guid.NewGuid(), Version = Guid.NewGuid(), AutomaticReattachmentBlocked = true,
+            UnlinkOperation = Guid.NewGuid(), Request = new PendingLinkRequest { Issuer = "https://identity.example.test", Username = "Provider-Name", UsernameClaim = "preferred_username", CreatedAt = DateTime.UtcNow.AddYears(-10) },
+            PendingRevocations = [new OidcSessionProvenance { AuthenticationId = 42, UserId = Guid.NewGuid(), TokenFingerprint = "fingerprint" }],
+        };
+        var original = new PluginConfiguration { IdentityRevision = 12, UserAdministration = [state], OidcSessions = state.PendingRevocations.ToList() };
+        var serializer = new System.Xml.Serialization.XmlSerializer(typeof(PluginConfiguration));
+        using var writer = new StringWriter();
+        serializer.Serialize(writer, original);
+        using var reader = new StringReader(writer.ToString());
+        var restored = (PluginConfiguration)serializer.Deserialize(reader)!;
+        var restoredState = Assert.Single(restored.UserAdministration);
+        Assert.Equal(state.Version, restoredState.Version);
+        Assert.Equal(state.Request.CreatedAt, restoredState.Request!.CreatedAt);
+        Assert.Equal("Provider-Name", restoredState.Request.Username);
+        Assert.Equal("preferred_username", restoredState.Request.UsernameClaim);
+        Assert.True(restoredState.AutomaticReattachmentBlocked);
+        Assert.Equal(state.UnlinkOperation, restoredState.UnlinkOperation);
+        Assert.Equal("fingerprint", Assert.Single(restoredState.PendingRevocations).TokenFingerprint);
+        Assert.Equal(42, Assert.Single(restored.OidcSessions).AuthenticationId);
+        Assert.Equal(12, restored.IdentityRevision);
+    }
+
+    [Fact]
     public void Login_button_text_is_empty_by_default()
     {
         Assert.Empty(new PluginConfiguration().LoginButtonText);
@@ -107,6 +183,8 @@ public sealed class OidcRulesTests
         var configuration = new PluginConfiguration();
         Assert.True(configuration.RequireVerifiedEmail);
         Assert.Equal("preferred_username", configuration.UsernameClaim);
+        Assert.Equal(AutomaticLinkingMode.EmailToUsername, configuration.AutomaticLinkingMode);
+        Assert.Equal(ProvisioningUsernameMode.UsernameClaim, configuration.ProvisioningUsernameMode);
     }
 
     [Fact]

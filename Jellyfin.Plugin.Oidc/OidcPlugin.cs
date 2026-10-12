@@ -60,6 +60,11 @@ public sealed class OidcPlugin : BasePlugin<PluginConfiguration>, IHasWebPages
         ConfigurationGate.Wait();
         try
         {
+            // Browser configuration saves must not replace server-owned recovery or session state.
+            oidcConfiguration.IdentityLinks = Configuration.IdentityLinks;
+            oidcConfiguration.UserAdministration = Configuration.UserAdministration;
+            oidcConfiguration.OidcSessions = Configuration.OidcSessions;
+            oidcConfiguration.IdentityRevision = Configuration.IdentityRevision + 1;
             base.UpdateConfiguration(configuration);
             _optionsCache.TryRemove(OidcOptions.Scheme);
             foreach (var user in _userManager.GetUsers())

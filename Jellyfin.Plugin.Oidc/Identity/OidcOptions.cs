@@ -107,10 +107,11 @@ public sealed class OidcOptions : IConfigureNamedOptions<OpenIdConnectOptions>
                 return;
             }
             var provisioner = context.HttpContext.RequestServices.GetRequiredService<OidcUserProvisioner>();
-            var result = await provisioner.ProvisionAsync(context.Principal!, configuration).ConfigureAwait(false);
+            var revision = context.Properties?.Items.TryGetValue("oidc_revision", out var value) == true && long.TryParse(value, out var parsed) ? parsed : -1;
+            var result = await provisioner.ProvisionAsync(context.Principal!, configuration, revision).ConfigureAwait(false);
             var returnUrl = context.Properties?.RedirectUri;
             var ticket = result is null ? null : context.HttpContext.RequestServices.GetRequiredService<OidcLoginStore>()
-                .Create(result.Value, ReturnUrls.Local(returnUrl) ? returnUrl! : "/");
+                .Create(result.Value, ReturnUrls.Local(returnUrl) ? returnUrl! : "/", revision);
             if (string.IsNullOrEmpty(ticket))
             {
                 context.Response.Redirect(PublicUrls.Get(context.Request, configuration) + OidcConstants.WebIndexPath + "#!/login?oidcError=1");

@@ -25,7 +25,7 @@ public sealed class OidcLinkStore(TimeProvider clock)
                 return null;
             }
             var id = Convert.ToHexString(RandomNumberGenerator.GetBytes(32));
-            _transactions.Add(id, new Transaction(userId, Fingerprint(token), returnUrl, configuration, clock.GetUtcNow().AddMinutes(5)));
+            _transactions.Add(id, new Transaction(userId, Fingerprint(token), returnUrl, configuration, clock.GetUtcNow().AddMinutes(5), configuration.IdentityRevision));
             return id;
         }
     }
@@ -37,7 +37,7 @@ public sealed class OidcLinkStore(TimeProvider clock)
         lock (_gate)
         {
             if (!_transactions.Remove(id, out var transaction) || transaction.ExpiresAt <= clock.GetUtcNow()
-                || transaction.Started || !ReferenceEquals(configuration, transaction.Configuration))
+                || transaction.Started || !ReferenceEquals(configuration, transaction.Configuration) || transaction.Revision != configuration.IdentityRevision)
             {
                 return null;
             }
@@ -56,6 +56,7 @@ public sealed class OidcLinkStore(TimeProvider clock)
             if (!_transactions.Remove(id, out var transaction) || transaction.ExpiresAt <= clock.GetUtcNow()
                 || !transaction.Started || transaction.Principal is not null
                 || !ReferenceEquals(configuration, transaction.Configuration)
+                || transaction.Revision != configuration.IdentityRevision
                 || !IdentityClaims.TryCreate(principal, configuration, out _))
             {
                 return null;
@@ -68,23 +69,30 @@ public sealed class OidcLinkStore(TimeProvider clock)
 
     /// <summary>Consumes a completion ticket only for the original authenticated session.</summary>
     public bool TryComplete(string id, Guid userId, string token, out ClaimsPrincipal? principal, out PluginConfiguration? configuration)
+        => TryComplete(id, userId, token, out principal, out configuration, out _);
+
+    /// <summary>Returns the initiation revision for a serialized commit-time check.</summary>
+    public bool TryComplete(string id, Guid userId, string token, out ClaimsPrincipal? principal, out PluginConfiguration? configuration, out long revision)
     {
+        revision = 0;
         principal = null;
         configuration = null;
         lock (_gate)
         {
             if (!_transactions.Remove(id, out var transaction) || transaction.ExpiresAt <= clock.GetUtcNow()
-                || transaction.Principal is null || transaction.UserId != userId || transaction.TokenFingerprint != Fingerprint(token))
+                || transaction.Principal is null || transaction.UserId != userId || transaction.TokenFingerprint != Fingerprint(token)
+                || transaction.Revision != transaction.Configuration.IdentityRevision)
             {
                 return false;
             }
             principal = transaction.Principal;
             configuration = transaction.Configuration;
+            revision = transaction.Revision;
             return true;
         }
     }
 
     private static string Fingerprint(string token) => Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(token)));
 
-    private sealed record Transaction(Guid UserId, string TokenFingerprint, string ReturnUrl, PluginConfiguration Configuration, DateTimeOffset ExpiresAt, bool Started = false, ClaimsPrincipal? Principal = null);
+    private sealed record Transaction(Guid UserId, string TokenFingerprint, string ReturnUrl, PluginConfiguration Configuration, DateTimeOffset ExpiresAt, long Revision, bool Started = false, ClaimsPrincipal? Principal = null);
 }

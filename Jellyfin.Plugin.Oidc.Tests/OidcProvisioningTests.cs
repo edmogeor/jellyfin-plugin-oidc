@@ -7,6 +7,17 @@ using Jellyfin.Database.Implementations.Enums;
 using Jellyfin.Database.Implementations.Locking;
 using Jellyfin.Plugin.Oidc.Configuration;
 using Jellyfin.Plugin.Oidc.Identity;
+using Jellyfin.Plugin.Oidc.Api;
+using Jellyfin.Database.Implementations.Entities.Security;
+using MediaBrowser.Controller.Devices;
+using MediaBrowser.Controller.Net;
+using MediaBrowser.Controller.Session;
+using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Builder;
+using Microsoft.Extensions.DependencyInjection;
+using System.Text;
+using System.Text.Json;
 using MediaBrowser.Common.Configuration;
 using MediaBrowser.Controller.Events;
 using MediaBrowser.Controller.Library;
@@ -321,6 +332,39 @@ public sealed class OidcProvisioningTests
         Assert.Equal("user@example.test", Assert.Single(fixture.Users()).Username);
     }
 
+    [Theory]
+    [InlineData(ProvisioningUsernameMode.UsernameClaim, "provider-name")]
+    [InlineData(ProvisioningUsernameMode.VerifiedEmail, "user@example.test")]
+    public async Task Provisioning_name_source_is_independent_of_matching_and_existing_usernames(ProvisioningUsernameMode mode, string expectedName)
+    {
+        using var fixture = new ProvisioningFixture();
+        fixture.Configuration.AutomaticLinkingMode = AutomaticLinkingMode.None;
+        fixture.Configuration.ProvisioningUsernameMode = mode;
+        var id = await fixture.SignInAsync("subject", username: "provider-name");
+        Assert.NotNull(id);
+        Assert.Equal(expectedName, Assert.Single(fixture.Users()).Username);
+        Assert.Equal("provider-name", Assert.Single(fixture.Configuration.IdentityLinks).Username);
+        fixture.Configuration.ProvisioningUsernameMode = mode == ProvisioningUsernameMode.UsernameClaim ? ProvisioningUsernameMode.VerifiedEmail : ProvisioningUsernameMode.UsernameClaim;
+        Assert.Equal(id, await fixture.SignInAsync("subject", username: "changed-name", email: "changed@example.test"));
+        Assert.Equal(expectedName, Assert.Single(fixture.Users()).Username);
+    }
+
+    [Theory]
+    [InlineData(null, true)]
+    [InlineData("user@example.test", false)]
+    public async Task Email_naming_requires_current_verified_email_without_weakening_existing_user_resolution(string? email, bool verified)
+    {
+        using var fixture = new ProvisioningFixture();
+        fixture.Configuration.RequireVerifiedEmail = false;
+        fixture.Configuration.ProvisioningUsernameMode = ProvisioningUsernameMode.VerifiedEmail;
+        Assert.Null(await fixture.SignInAsync("subject", email: email, verified: verified, username: "provider-name"));
+        Assert.Empty(fixture.Users());
+        var user = await fixture.SeedUserAsync("provider-name");
+        fixture.Configuration.AutomaticLinkingMode = AutomaticLinkingMode.UsernameToUsername;
+        Assert.Equal(user.Id, await fixture.SignInAsync("subject", email: email, verified: verified, username: "provider-name"));
+        Assert.Equal("provider-name", Assert.Single(fixture.Users()).Username);
+    }
+
     [Fact]
     public async Task Failed_link_save_removes_the_link_and_restores_password_login()
     {
@@ -335,12 +379,386 @@ public sealed class OidcProvisioningTests
         Assert.Equal(ProvisioningFixture.DefaultProvider, Assert.Single(fixture.Users()).AuthenticationProviderId);
     }
 
+    [Theory]
+    [InlineData("", "subject")]
+    [InlineData("USER@example.test", "")]
+    public async Task Administrator_approvals_resolve_existing_user_without_expiry(string email, string subject)
+    {
+        using var fixture = new ProvisioningFixture();
+        var user = await fixture.SeedUserAsync("local-name");
+        var state = AdministrationRules.State(fixture.Configuration, user.Id);
+        state.AutomaticReattachmentBlocked = true;
+        var controller = await fixture.AdminAsync();
+        Assert.IsType<OkObjectResult>(await controller.Approve(user.Id, new(Guid.Empty, email, subject)));
+        state.Request!.CreatedAt = DateTime.UtcNow.AddYears(-10);
+        Assert.Equal(user.Id, await fixture.SignInAsync("subject", administrator: true));
+        Assert.Null(state.Request);
+        Assert.False(state.AutomaticReattachmentBlocked);
+        Assert.Equal("local-name", Assert.Single(fixture.Users(), item => item.Id == user.Id).Username);
+        Assert.True(fixture.Users().Single(item => item.Id == user.Id).HasPermission(PermissionKind.IsAdministrator));
+    }
+
+    [Theory]
+    [InlineData(false, "subject")]
+    [InlineData(true, "other-subject")]
+    public async Task Pending_approval_cannot_be_bypassed_by_email_match_or_provisioning(bool verified, string subject)
+    {
+        using var fixture = new ProvisioningFixture();
+        fixture.Configuration.RequireVerifiedEmail = false;
+        var user = await fixture.SeedUserAsync("USER@example.test");
+        var controller = await fixture.AdminAsync();
+        Assert.IsType<OkObjectResult>(await controller.Approve(user.Id, verified ? new(Guid.Empty, Subject: "subject") : new(Guid.Empty, Email: "user@example.test")));
+        Assert.Null(await fixture.SignInAsync(subject, verified: verified, username: "new-user"));
+        Assert.Empty(fixture.Configuration.IdentityLinks);
+        Assert.False(await fixture.LinkAsync(user.Id, subject, verified: verified));
+    }
+
+    [Fact]
+    public async Task Subject_approval_accepts_email_free_identity_but_email_approval_requires_current_verification()
+    {
+        using var fixture = new ProvisioningFixture();
+        fixture.Configuration.RequireVerifiedEmail = false;
+        var user = await fixture.SeedUserAsync("local-name");
+        var controller = await fixture.AdminAsync();
+        Assert.IsType<OkObjectResult>(await controller.Approve(user.Id, new(Guid.Empty, "user@example.test", "")));
+        Assert.Null(await fixture.SignInAsync("subject", verified: false, username: "new-name"));
+        Assert.IsType<OkObjectResult>(await controller.Approve(user.Id, new(AdministrationRules.Version(fixture.Configuration, user.Id), "", "Subject")));
+        Assert.Equal(user.Id, await fixture.SignInAsync("Subject", email: null));
+    }
+
+    [Fact]
+    public async Task Approval_save_failure_during_sign_in_preserves_approval_block_and_password_policy()
+    {
+        using var fixture = new ProvisioningFixture();
+        fixture.Configuration.PasswordLoginMode = PasswordLoginMode.DisableForLinkedUsersOnly;
+        var user = await fixture.SeedUserAsync("local-name");
+        var controller = await fixture.AdminAsync();
+        Assert.IsType<OkObjectResult>(await controller.Approve(user.Id, new(Guid.Empty, "", "subject")));
+        var state = AdministrationRules.State(fixture.Configuration, user.Id);
+        state.AutomaticReattachmentBlocked = true;
+        fixture.FailConfigurationSave = true;
+        await Assert.ThrowsAsync<InvalidOperationException>(() => fixture.SignInAsync("subject"));
+        Assert.Empty(fixture.Configuration.IdentityLinks);
+        Assert.NotNull(state.Request);
+        Assert.True(state.AutomaticReattachmentBlocked);
+        Assert.Equal(ProvisioningFixture.DefaultProvider, fixture.Users().Single(item => item.Id == user.Id).AuthenticationProviderId);
+    }
+
+    [Fact]
+    public async Task Reservations_reject_overlaps_stale_edits_and_conflicting_explicit_links()
+    {
+        using var fixture = new ProvisioningFixture();
+        var first = await fixture.SeedUserAsync("first");
+        var second = await fixture.SeedUserAsync("second");
+        var controller = await fixture.AdminAsync();
+        Assert.IsType<BadRequestResult>(await controller.Approve(first.Id, new(Guid.Empty, "not-an-email", "")));
+        Assert.IsType<BadRequestResult>(await controller.Approve(first.Id, new(Guid.Empty, "", "")));
+        Assert.IsType<BadRequestResult>(await controller.Approve(first.Id, new(Guid.Empty, "user@example.test", "Subject")));
+        Assert.IsType<OkObjectResult>(await controller.Approve(first.Id, new(Guid.Empty, Email: "user@example.test")));
+        Assert.IsType<ConflictResult>(await controller.Approve(second.Id, new(Guid.Empty, Email: "USER@example.test")));
+        Assert.IsType<OkObjectResult>(await controller.Approve(first.Id, new(AdministrationRules.Version(fixture.Configuration, first.Id), Subject: "Subject")));
+        Assert.IsType<ConflictResult>(await controller.Approve(second.Id, new(Guid.Empty, Subject: "Subject")));
+        Assert.IsType<ConflictResult>(await controller.Cancel(first.Id, Guid.Empty));
+        Assert.False(await fixture.LinkAsync(second.Id, "Subject"));
+        Assert.False(await fixture.LinkAsync(first.Id, "subject"));
+        Assert.IsType<OkObjectResult>(await controller.Cancel(first.Id, AdministrationRules.Version(fixture.Configuration, first.Id)));
+        Assert.True(await fixture.LinkAsync(second.Id, "Subject"));
+        Assert.IsType<ConflictResult>(await controller.Approve(first.Id, new(AdministrationRules.Version(fixture.Configuration, first.Id), "", "Subject")));
+    }
+
+    [Fact]
+    public async Task Durable_links_are_authoritative_over_pending_approvals()
+    {
+        using var fixture = new ProvisioningFixture();
+        var first = await fixture.SeedUserAsync("first");
+        var second = await fixture.SeedUserAsync("second");
+        Assert.True(await fixture.LinkAsync(first.Id, "subject"));
+        var controller = await fixture.AdminAsync();
+        Assert.IsType<OkObjectResult>(await controller.Approve(second.Id, new(Guid.Empty, "user@example.test", "")));
+        Assert.Equal(first.Id, await fixture.SignInAsync("subject"));
+        Assert.NotNull(AdministrationRules.State(fixture.Configuration, second.Id).Request);
+    }
+
+    [Theory]
+    [InlineData(AutomaticLinkingMode.None)]
+    [InlineData(AutomaticLinkingMode.EmailToUsername)]
+    [InlineData(AutomaticLinkingMode.UsernameToUsername)]
+    public async Task Automatic_matching_uses_only_the_selected_key_and_never_replaces_existing_links(AutomaticLinkingMode mode)
+    {
+        using var fixture = new ProvisioningFixture();
+        fixture.Configuration.AutomaticLinkingMode = mode;
+        var emailUser = await fixture.SeedUserAsync("USER@example.test");
+        var usernameUser = await fixture.SeedUserAsync("PROVIDER-NAME");
+        var result = await fixture.SignInAsync("subject", username: "provider-name");
+        Assert.Equal(mode == AutomaticLinkingMode.EmailToUsername ? emailUser.Id : mode == AutomaticLinkingMode.UsernameToUsername ? usernameUser.Id : (Guid?)null, result);
+        if (result is not null)
+        {
+            Assert.Equal(result, await fixture.SignInAsync("subject", email: "changed@example.test", username: "changed-name"));
+            Assert.Null(await fixture.SignInAsync("other-subject", username: "provider-name"));
+        }
+    }
+
+    [Fact]
+    public async Task No_automatic_linking_still_allows_provisioning_and_explicit_username_approval()
+    {
+        using var fixture = new ProvisioningFixture();
+        fixture.Configuration.AutomaticLinkingMode = AutomaticLinkingMode.None;
+        var emailUser = await fixture.SeedUserAsync("user@example.test");
+        var created = await fixture.SignInAsync("new-subject", username: "new-name");
+        Assert.NotNull(created);
+        Assert.NotEqual(emailUser.Id, created);
+        var user = await fixture.SeedUserAsync("local-name");
+        var controller = await fixture.AdminAsync();
+        Assert.IsType<OkObjectResult>(await controller.Approve(user.Id, new(Guid.Empty, Username: " Provider-Name ")));
+        var state = AdministrationRules.State(fixture.Configuration, user.Id);
+        Assert.Equal("Provider-Name", state.Request!.Username);
+        Assert.Equal("preferred_username", state.Request.UsernameClaim);
+        Assert.False(await fixture.LinkAsync(user.Id, "subject", username: "wrong-name"));
+        Assert.Equal(user.Id, await fixture.SignInAsync("subject", username: "provider-name"));
+        Assert.Null(state.Request);
+        Assert.Equal("subject", fixture.Configuration.IdentityLinks.Single(item => item.UserId == user.Id).Subject);
+        Assert.Equal("local-name", fixture.Users().Single(item => item.Id == user.Id).Username);
+    }
+
+    [Fact]
+    public async Task Different_approval_types_matching_the_same_identity_deny_ambiguous_resolution()
+    {
+        using var fixture = new ProvisioningFixture();
+        var first = await fixture.SeedUserAsync("first");
+        var second = await fixture.SeedUserAsync("second");
+        var controller = await fixture.AdminAsync();
+        Assert.IsType<OkObjectResult>(await controller.Approve(first.Id, new(Guid.Empty, Email: "user@example.test")));
+        Assert.IsType<OkObjectResult>(await controller.Approve(second.Id, new(Guid.Empty, Username: "provider-name")));
+        Assert.Null(await fixture.SignInAsync("subject", username: "provider-name"));
+        Assert.Empty(fixture.Configuration.IdentityLinks);
+        Assert.False(await fixture.LinkAsync(first.Id, "subject", username: "provider-name"));
+    }
+
+    [Fact]
+    public async Task Deleted_or_disabled_approval_targets_deny_fallback()
+    {
+        using var fixture = new ProvisioningFixture();
+        var user = await fixture.SeedUserAsync("local-name");
+        var controller = await fixture.AdminAsync();
+        Assert.IsType<OkObjectResult>(await controller.Approve(user.Id, new(Guid.Empty, "", "subject")));
+        await using (var context = fixture.CreateDbContext())
+        {
+            var target = await context.Users.Include(item => item.Permissions).SingleAsync(item => item.Id == user.Id);
+            target.SetPermission(PermissionKind.IsDisabled, true);
+            await context.SaveChangesAsync();
+        }
+        Assert.Null(await fixture.SignInAsync("subject", username: "new-name"));
+        await using (var context = fixture.CreateDbContext())
+        {
+            context.Users.Remove(await context.Users.SingleAsync(item => item.Id == user.Id));
+            await context.SaveChangesAsync();
+        }
+        Assert.Null(await fixture.SignInAsync("subject", username: "new-name"));
+    }
+
+    [Theory]
+    [InlineData(PasswordLoginMode.AllowForAllUsers)]
+    [InlineData(PasswordLoginMode.DisableForLinkedUsersOnly)]
+    [InlineData(PasswordLoginMode.DisableForAllUsers)]
+    public async Task Unlink_preserves_local_tokens_and_policy_and_blocks_old_callbacks(PasswordLoginMode mode)
+    {
+        using var fixture = new ProvisioningFixture();
+        fixture.Configuration.PasswordLoginMode = mode;
+        var user = await fixture.SeedUserAsync("USER@example.test");
+        Assert.True(await fixture.LinkAsync(user.Id, "subject"));
+        var oidc = await fixture.SeedSessionAsync(user.Id, tracked: true);
+        var local = await fixture.SeedSessionAsync(user.Id, tracked: false);
+        var controller = await fixture.AdminAsync();
+        var revision = fixture.Configuration.IdentityRevision;
+        var version = AdministrationRules.Version(fixture.Configuration, user.Id);
+        Assert.IsType<OkObjectResult>(await controller.Unlink(user.Id, version));
+        Assert.IsType<OkObjectResult>(await controller.Unlink(user.Id, version));
+        Assert.False(fixture.TokenExists(oidc.Id));
+        Assert.True(fixture.TokenExists(local.Id));
+        Assert.Null(await fixture.SignInAsync("subject", revision: revision));
+        Assert.False(await fixture.LinkAsync(user.Id, "subject", revision: revision));
+        Assert.Null(await fixture.SignInAsync("subject"));
+        var state = AdministrationRules.State(fixture.Configuration, user.Id);
+        Assert.True(state.AutomaticReattachmentBlocked);
+        var savedUser = fixture.Users().Single(item => item.Id == user.Id);
+        Assert.Equal("existing-password", savedUser.Password);
+        Assert.Equal(mode == PasswordLoginMode.DisableForAllUsers ? typeof(OidcPasswordDisabledProvider).FullName : ProvisioningFixture.DefaultProvider, savedUser.AuthenticationProviderId);
+        Assert.True(await fixture.LinkAsync(user.Id, "subject"));
+        Assert.False(state.AutomaticReattachmentBlocked);
+        Assert.IsType<ConflictResult>(await controller.Unlink(user.Id, version));
+        Assert.Single(fixture.Configuration.IdentityLinks);
+    }
+
+    [Fact]
+    public async Task Failed_unlink_save_rolls_back_and_partial_revocation_retries_only_old_tokens()
+    {
+        using var fixture = new ProvisioningFixture();
+        fixture.Configuration.PasswordLoginMode = PasswordLoginMode.DisableForLinkedUsersOnly;
+        var user = await fixture.SeedUserAsync("local-name");
+        Assert.True(await fixture.LinkAsync(user.Id, "subject"));
+        var old = await fixture.SeedSessionAsync(user.Id, tracked: true);
+        var controller = await fixture.AdminAsync();
+        var version = AdministrationRules.Version(fixture.Configuration, user.Id);
+        fixture.FailConfigurationSave = true;
+        Assert.Equal(503, Assert.IsType<StatusCodeResult>(await controller.Unlink(user.Id, version)).StatusCode);
+        Assert.Single(fixture.Configuration.IdentityLinks);
+        Assert.True(fixture.TokenExists(old.Id));
+        Assert.Equal(typeof(OidcPasswordDisabledProvider).FullName, fixture.Users().Single(item => item.Id == user.Id).AuthenticationProviderId);
+        fixture.FailConfigurationSave = false;
+        fixture.FailRevocation = true;
+        Assert.IsType<OkObjectResult>(await controller.Unlink(user.Id, version));
+        var state = AdministrationRules.State(fixture.Configuration, user.Id);
+        Assert.Single(state.PendingRevocations);
+        var operation = state.UnlinkOperation;
+        Assert.True(await fixture.LinkAsync(user.Id, "subject"));
+        var newer = await fixture.SeedSessionAsync(user.Id, tracked: true);
+        fixture.FailRevocation = false;
+        Assert.IsType<OkObjectResult>(await controller.Retry(user.Id, new(operation)));
+        Assert.False(fixture.TokenExists(old.Id));
+        Assert.True(fixture.TokenExists(newer.Id));
+        Assert.Empty(state.PendingRevocations);
+        Assert.IsType<OkObjectResult>(await controller.Retry(user.Id, new(operation)));
+    }
+
+    [Fact]
+    public async Task Cancel_replace_and_failed_approval_persistence_invalidate_only_successful_mutations()
+    {
+        using var fixture = new ProvisioningFixture();
+        var user = await fixture.SeedUserAsync("local-name");
+        var controller = await fixture.AdminAsync();
+        Assert.IsType<OkObjectResult>(await controller.Approve(user.Id, new(Guid.Empty, "", "subject")));
+        var state = AdministrationRules.State(fixture.Configuration, user.Id);
+        var revision = fixture.Configuration.IdentityRevision;
+        fixture.FailConfigurationSave = true;
+        Assert.Equal(503, Assert.IsType<StatusCodeResult>(await controller.Approve(user.Id, new(state.Version, "", "replacement"))).StatusCode);
+        Assert.Equal("subject", state.Request!.Subject);
+        Assert.Equal(revision, fixture.Configuration.IdentityRevision);
+        fixture.FailConfigurationSave = false;
+        Assert.IsType<OkObjectResult>(await controller.Approve(user.Id, new(state.Version, "", "replacement")));
+        Assert.Null(await fixture.SignInAsync("subject", revision: revision));
+        revision = fixture.Configuration.IdentityRevision;
+        Assert.IsType<OkObjectResult>(await controller.Cancel(user.Id, state.Version));
+        Assert.Null(await fixture.SignInAsync("replacement", revision: revision));
+        Assert.Null(state.Request);
+    }
+
+    [Fact]
+    public async Task Competing_administrator_approvals_are_serialized_and_recovery_works_when_disabled()
+    {
+        using var fixture = new ProvisioningFixture();
+        var user = await fixture.SeedUserAsync("local-name");
+        var controller = await fixture.AdminAsync();
+        var results = await Task.WhenAll(controller.Approve(user.Id, new(Guid.Empty, "", "first")), controller.Approve(user.Id, new(Guid.Empty, "", "second")));
+        Assert.Single(results.OfType<OkObjectResult>());
+        Assert.Single(results.OfType<ConflictResult>());
+        var state = AdministrationRules.State(fixture.Configuration, user.Id);
+        Assert.True(await fixture.LinkAsync(user.Id, state.Request!.Subject));
+        fixture.Configuration.Enabled = false;
+        fixture.Configuration.IssuerUrl = "invalid";
+        Assert.IsType<OkObjectResult>(await controller.Status(user.Id));
+        Assert.IsType<OkObjectResult>(await controller.Unlink(user.Id, state.Version));
+        Assert.Empty(fixture.Configuration.IdentityLinks);
+        Assert.True(state.AutomaticReattachmentBlocked);
+        Assert.IsType<ConflictResult>(await controller.Approve(user.Id, new(state.Version, "", "subject")));
+    }
+
+    [Fact]
+    public async Task Disabled_invalid_configuration_keeps_administration_injection_local_to_the_path_base()
+    {
+        using var fixture = new ProvisioningFixture();
+        fixture.Configuration.Enabled = false;
+        fixture.Configuration.PublicUrl = "invalid-public-url";
+        using var services = new ServiceCollection().BuildServiceProvider();
+        var builder = new ApplicationBuilder(services);
+        new WebInjectionStartupFilter().Configure(app => app.Run(async context =>
+        {
+            context.Response.ContentType = "text/html";
+            await context.Response.WriteAsync("<html><head></head><body>Jellyfin</body></html>");
+        }))(builder);
+        await using var body = new MemoryStream();
+        var context = new DefaultHttpContext();
+        context.Request.Method = "GET";
+        context.Request.PathBase = "/jellyfin";
+        context.Request.Path = "/web/index.html";
+        context.Response.Body = body;
+        await builder.Build()(context);
+        var html = Encoding.UTF8.GetString(body.ToArray());
+        Assert.Contains("src=\"/jellyfin/oidc/web.js?v=", html);
+        Assert.Contains("window.oidcEnabled=false", html);
+        Assert.Contains("window.oidcPasswordLoginMode='AllowForAllUsers'", html);
+        Assert.DoesNotContain("invalid-public-url", html);
+        Assert.DoesNotContain("oidc-login-redirect-style", html);
+        Assert.DoesNotContain(fixture.Configuration.ClientSecret, html);
+    }
+
+    [Fact]
+    public async Task Ordinary_users_unlink_only_their_own_profile_and_preserve_unrelated_tokens()
+    {
+        using var fixture = new ProvisioningFixture();
+        fixture.Configuration.PasswordLoginMode = PasswordLoginMode.DisableForLinkedUsersOnly;
+        var owner = await fixture.SeedUserAsync("owner");
+        var other = await fixture.SeedUserAsync("other");
+        Assert.True(await fixture.LinkAsync(owner.Id, "owner-subject"));
+        Assert.True(await fixture.LinkAsync(other.Id, "other-subject", email: "other@example.test"));
+        var oidc = await fixture.SeedSessionAsync(owner.Id, true);
+        var local = await fixture.SeedSessionAsync(owner.Id, false);
+        var unrelated = await fixture.SeedSessionAsync(other.Id, true);
+        var controller = fixture.Profile(owner.Id);
+        var response = Assert.IsType<OkObjectResult>(await controller.Status());
+        var json = JsonSerializer.Serialize(response.Value);
+        Assert.DoesNotContain("owner-subject", json);
+        Assert.DoesNotContain("other@example.test", json);
+        Assert.DoesNotContain("Request", json);
+        controller.Request.QueryString = new QueryString("?userId=" + other.Id);
+        var version = AdministrationRules.Version(fixture.Configuration, owner.Id);
+        Assert.IsType<OkObjectResult>(await controller.Unlink(version));
+        Assert.IsType<OkObjectResult>(await controller.Unlink(version));
+        Assert.False(fixture.TokenExists(oidc.Id));
+        Assert.True(fixture.TokenExists(local.Id));
+        Assert.True(fixture.TokenExists(unrelated.Id));
+        Assert.Equal(other.Id, Assert.Single(fixture.Configuration.IdentityLinks).UserId);
+        Assert.Equal(ProvisioningFixture.DefaultProvider, fixture.Users().Single(item => item.Id == owner.Id).AuthenticationProviderId);
+        Assert.True(await fixture.LinkAsync(owner.Id, "owner-subject"));
+        Assert.IsType<ConflictResult>(await controller.Unlink(version));
+        controller.Request.Headers.Authorization = string.Empty;
+        Assert.IsType<UnauthorizedResult>(await controller.Unlink(AdministrationRules.Version(fixture.Configuration, owner.Id)));
+    }
+
+    [Fact]
+    public async Task Profile_unlink_rolls_back_failed_saves_and_supports_disabled_plugin_recovery()
+    {
+        using var fixture = new ProvisioningFixture();
+        var owner = await fixture.SeedUserAsync("owner");
+        Assert.True(await fixture.LinkAsync(owner.Id, "subject"));
+        var oidc = await fixture.SeedSessionAsync(owner.Id, true);
+        var controller = fixture.Profile(owner.Id);
+        var version = AdministrationRules.Version(fixture.Configuration, owner.Id);
+        fixture.FailConfigurationSave = true;
+        Assert.Equal(503, Assert.IsType<StatusCodeResult>(await controller.Unlink(version)).StatusCode);
+        Assert.Single(fixture.Configuration.IdentityLinks);
+        Assert.True(fixture.TokenExists(oidc.Id));
+        fixture.FailConfigurationSave = false;
+        fixture.Configuration.Enabled = false;
+        fixture.Configuration.IssuerUrl = "invalid";
+        Assert.IsType<OkObjectResult>(await controller.Status());
+        fixture.FailRevocation = true;
+        Assert.IsType<OkObjectResult>(await controller.Unlink(version));
+        var state = AdministrationRules.State(fixture.Configuration, owner.Id);
+        Assert.Single(state.PendingRevocations);
+        Assert.IsType<OkObjectResult>(await controller.Status());
+        fixture.FailRevocation = false;
+        Assert.IsType<OkObjectResult>(await controller.Retry(new(state.UnlinkOperation)));
+        Assert.Empty(state.PendingRevocations);
+        Assert.False(fixture.TokenExists(oidc.Id));
+    }
+
     private sealed class ProvisioningFixture : IDisposable, IDbContextFactory<JellyfinDbContext>
     {
         public const string DefaultProvider = "Jellyfin.Server.Implementations.Users.DefaultAuthenticationProvider";
         private readonly SqliteConnection _connection = new("Data Source=:memory:");
         private readonly string _directory = Path.Combine(Path.GetTempPath(), "oidc-provisioning-tests-" + Guid.NewGuid().ToString("N"));
         private readonly OidcUserProvisioner _provisioner;
+        private readonly IUserManager _manager;
 
         public ProvisioningFixture()
         {
@@ -353,10 +771,11 @@ public sealed class OidcProvisioningTests
             {
                 "GetUsers" => Users(),
                 "GetUserById" => Users().SingleOrDefault(user => user.Id == (Guid)args![0]!),
-                "GetUserDto" => new UserDto { Policy = new UserPolicy { IsAdministrator = ((User)args![0]!).HasPermission(PermissionKind.IsAdministrator) } },
+                "GetUserDto" => new UserDto { Policy = new UserPolicy { IsAdministrator = ((User)args![0]!).HasPermission(PermissionKind.IsAdministrator), IsDisabled = ((User)args[0]!).HasPermission(PermissionKind.IsDisabled) } },
                 "UpdatePolicyAsync" => UpdatePolicyAsync((Guid)args![0]!, (UserPolicy)args[1]!),
                 _ => throw new InvalidOperationException("Unexpected user-manager call: " + method.Name),
             });
+            _manager = manager;
             var paths = Stub<IApplicationPaths>((_, _) => _directory);
             var serializer = Stub<IXmlSerializer>((method, args) =>
             {
@@ -396,12 +815,65 @@ public sealed class OidcProvisioningTests
         public Action<User>? BeforeSave { get; set; }
         public Func<Task>? BeforePolicyUpdate { get; set; }
         public bool FailConfigurationSave { get; set; }
+        public bool FailRevocation { get; set; }
 
-        public Task<Guid?> SignInAsync(string subject, bool administrator = false, string? email = "user@example.test", bool verified = true, string? username = null)
-            => _provisioner.ProvisionAsync(Principal(subject, administrator, email, verified, null, username), Configuration);
+        public async Task<OidcAdminController> AdminAsync()
+        {
+            var actor = await SeedUserAsync("administrator-" + Guid.NewGuid().ToString("N"));
+            await using (var context = CreateDbContext())
+            {
+                var user = await context.Users.Include(item => item.Permissions).SingleAsync(item => item.Id == actor.Id);
+                user.SetPermission(PermissionKind.IsAdministrator, true);
+                await context.SaveChangesAsync();
+            }
+            var auth = Stub<IAuthorizationContext>((_, _) => Task.FromResult(new AuthorizationInfo { IsAuthenticated = true, User = actor, Token = "local-admin-token" }));
+            var controller = new OidcAdminController(_manager, auth, LinkManager(), NullLogger<OidcAdminController>.Instance) { ControllerContext = new ControllerContext { HttpContext = new DefaultHttpContext() } };
+            controller.Request.Headers.Authorization = "MediaBrowser Token=\"local-admin-token\"";
+            return controller;
+        }
 
-        public Task<bool> LinkAsync(Guid userId, string subject, bool administrator = false, string? email = "user@example.test", string? group = null, bool verified = true, string? username = null)
-            => _provisioner.LinkAsync(userId, Principal(subject, administrator, email, verified, group, username), Configuration);
+        public OidcLinkController Profile(Guid userId)
+        {
+            var auth = Stub<IAuthorizationContext>((_, _) => Task.FromResult(new AuthorizationInfo { IsAuthenticated = true, User = _manager.GetUserById(userId), Token = "profile-token" }));
+            var controller = new OidcLinkController(auth, new OidcLinkStore(TimeProvider.System), _provisioner, _manager, LinkManager(), NullLogger<OidcLinkController>.Instance)
+            { ControllerContext = new ControllerContext { HttpContext = new DefaultHttpContext() } };
+            controller.Request.Headers.Authorization = "MediaBrowser Token=\"profile-token\"";
+            return controller;
+        }
+
+        private OidcLinkManager LinkManager()
+        {
+            var devices = Stub<IDeviceManager>((method, args) => method.Name == "DeleteDevice" ? DeleteDeviceAsync((Device)args![0]!) : throw new InvalidOperationException(method.Name));
+            var sessions = Stub<ISessionManager>((method, _) => method.Name == "get_Sessions" ? Array.Empty<SessionInfo>() : throw new InvalidOperationException(method.Name));
+            var tracker = new OidcSessionTracker(this, devices, sessions, NullLogger<OidcSessionTracker>.Instance);
+            return new OidcLinkManager(_manager, tracker, NullLogger<OidcLinkManager>.Instance);
+        }
+
+        public async Task<Device> SeedSessionAsync(Guid userId, bool tracked)
+        {
+            await using var context = CreateDbContext();
+            var device = new Device(userId, "test", "1", "test", Guid.NewGuid().ToString("N"));
+            context.Devices.Add(device);
+            await context.SaveChangesAsync();
+            if (tracked) Configuration.OidcSessions.Add(new OidcSessionProvenance { AuthenticationId = device.Id, UserId = userId, TokenFingerprint = OidcSessionTracker.Fingerprint(device.AccessToken) });
+            return device;
+        }
+
+        public bool TokenExists(int id) { using var context = CreateDbContext(); return context.Devices.Any(item => item.Id == id); }
+
+        private async Task DeleteDeviceAsync(Device device)
+        {
+            if (FailRevocation) throw new InvalidOperationException("Injected revocation failure.");
+            await using var context = CreateDbContext();
+            context.Devices.Remove(device);
+            await context.SaveChangesAsync();
+        }
+
+        public Task<Guid?> SignInAsync(string subject, bool administrator = false, string? email = "user@example.test", bool verified = true, string? username = null, long? revision = null)
+            => _provisioner.ProvisionAsync(Principal(subject, administrator, email, verified, null, username), Configuration, revision);
+
+        public Task<bool> LinkAsync(Guid userId, string subject, bool administrator = false, string? email = "user@example.test", string? group = null, bool verified = true, string? username = null, long? revision = null)
+            => _provisioner.LinkAsync(userId, Principal(subject, administrator, email, verified, group, username), Configuration, revision);
 
         private static ClaimsPrincipal Principal(string subject, bool administrator, string? email, bool verified, string? group, string? username)
         {
@@ -467,7 +939,7 @@ public sealed class OidcProvisioningTests
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
-            foreach (var entity in modelBuilder.Model.GetEntityTypes().Where(entity => entity.ClrType != typeof(User) && entity.ClrType != typeof(Permission) && entity.ClrType != typeof(Preference)).ToArray())
+            foreach (var entity in modelBuilder.Model.GetEntityTypes().Where(entity => entity.ClrType != typeof(User) && entity.ClrType != typeof(Permission) && entity.ClrType != typeof(Preference) && entity.ClrType != typeof(Device)).ToArray())
             {
                 modelBuilder.Ignore(entity.ClrType);
             }

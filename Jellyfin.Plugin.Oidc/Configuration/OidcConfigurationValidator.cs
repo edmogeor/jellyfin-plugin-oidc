@@ -6,6 +6,14 @@ public static class OidcConfigurationValidator
     /// <summary>Returns a configuration error, or <see langword="null"/> when valid.</summary>
     public static string? Validate(PluginConfiguration configuration)
     {
+        if (!Enum.IsDefined(configuration.AutomaticLinkingMode))
+        {
+            return "Select a supported automatic linking mode.";
+        }
+        if (!Enum.IsDefined(configuration.ProvisioningUsernameMode))
+        {
+            return "Select a supported new-user username type.";
+        }
         if (!configuration.Enabled)
         {
             return null;

@@ -22,6 +22,8 @@ public sealed class ServiceRegistrator : IPluginServiceRegistrator
         services.AddSingleton<OidcLinkStore>();
         services.AddSingleton<OidcProfileImageSynchronizer>();
         services.AddSingleton<OidcUserProvisioner>();
+        services.AddSingleton<OidcSessionTracker>();
+        services.AddSingleton<OidcLinkManager>();
         services.AddSingleton<IAuthenticationProvider, OidcPasswordDisabledProvider>();
         services.AddSingleton<IStartupFilter, WebInjectionStartupFilter>();
         services.AddSingleton<IConfigureOptions<OpenIdConnectOptions>, OidcOptions>();

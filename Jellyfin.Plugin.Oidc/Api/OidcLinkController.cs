@@ -1,16 +1,18 @@
 using Jellyfin.Plugin.Oidc.Configuration;
 using Jellyfin.Plugin.Oidc.Identity;
 using MediaBrowser.Controller.Net;
+using MediaBrowser.Controller.Library;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Logging;
 
 namespace Jellyfin.Plugin.Oidc.Api;
 
 /// <summary>Self-service Identity Links for the authenticated Jellyfin User only.</summary>
 [ApiController]
 [Route("oidc/link")]
-public sealed class OidcLinkController(IAuthorizationContext authorization, OidcLinkStore store, OidcUserProvisioner provisioner) : ControllerBase
+public sealed class OidcLinkController(IAuthorizationContext authorization, OidcLinkStore store, OidcUserProvisioner provisioner, IUserManager users, OidcLinkManager links, ILogger<OidcLinkController> logger) : ControllerBase
 {
     /// <summary>Returns only the current Jellyfin User's link status.</summary>
     [Authorize]
@@ -31,22 +33,76 @@ public sealed class OidcLinkController(IAuthorizationContext authorization, Oidc
         await plugin.ConfigurationGate.WaitAsync().ConfigureAwait(false);
         try
         {
-            var configuration = EnabledConfiguration();
-            if (configuration is null)
+            var state = AdministrationRules.State(plugin.Configuration, auth.UserId);
+            if (EnabledConfiguration() is null && plugin.Configuration.IdentityLinks.All(link => link.UserId != auth.UserId)
+                && state.PendingRevocations.Count == 0 && plugin.Configuration.PasswordLoginMode != PasswordLoginMode.DisableForAllUsers)
             {
                 return NotFound();
             }
-            var issuer = configuration.IssuerUrl.TrimEnd('/');
-            var links = configuration.IdentityLinks.Where(link => link.UserId == auth.UserId).ToList();
-            var link = links.SingleOrDefault(item => item.Issuer == issuer || string.IsNullOrEmpty(item.Issuer));
-            var passwordLoginDisabled = configuration.PasswordLoginMode == PasswordLoginMode.DisableForAllUsers
-                || (configuration.PasswordLoginMode == PasswordLoginMode.DisableForLinkedUsersOnly && links.Count > 0);
-            return Ok(new { Linked = link is not null, link?.Email, link?.Username, CanLink = links.Count == 0, PasswordLoginDisabled = passwordLoginDisabled, PasswordLoginMode = configuration.PasswordLoginMode.ToString() });
+            return Ok(StatusValue(auth.UserId, state));
         }
         finally
         {
             plugin.ConfigurationGate.Release();
         }
+    }
+
+    /// <summary>Unlinks only the authenticated Jellyfin User, preserving unrelated authentication records.</summary>
+    [Authorize]
+    [HttpDelete]
+    public Task<IActionResult> Unlink([FromQuery] Guid version) => MutateAsync(version, null);
+
+    /// <summary>Retries the authenticated user's outstanding unlink operation.</summary>
+    [Authorize]
+    [HttpPost("retry-sign-out")]
+    public Task<IActionResult> Retry([FromBody] OidcAdminController.RevocationRetry request) => MutateAsync(null, request.Operation);
+
+    private async Task<IActionResult> MutateAsync(Guid? version, Guid? operation)
+    {
+        Response.Headers.CacheControl = "no-store";
+        var auth = await SessionAsync().ConfigureAwait(false);
+        if (auth is null) return Unauthorized();
+        var plugin = OidcPlugin.Instance;
+        if (plugin is null) return NotFound();
+        await plugin.ConfigurationGate.WaitAsync().ConfigureAwait(false);
+        try
+        {
+            var state = AdministrationRules.State(plugin.Configuration, auth.UserId);
+            if (version.HasValue)
+            {
+                if (!AdministrationRules.CanUnlink(plugin.Configuration, state, version.Value)) return Conflict();
+                await links.UnlinkAsync(state).ConfigureAwait(false);
+            }
+            else if (!await links.RetryAsync(state, operation.GetValueOrDefault()).ConfigureAwait(false)) return Conflict();
+            logger.LogInformation("OIDC profile operation for Jellyfin User {UserId} completed.", auth.UserId);
+            return Ok(StatusValue(auth.UserId, state));
+        }
+        catch
+        {
+            logger.LogWarning("OIDC profile operation failed for Jellyfin User {UserId}.", auth.UserId);
+            return StatusCode(503);
+        }
+        finally { plugin.ConfigurationGate.Release(); }
+    }
+
+    private object StatusValue(Guid userId, OidcUserAdministration state)
+    {
+        var configuration = OidcPlugin.Instance!.Configuration;
+        var identityLinks = configuration.IdentityLinks.Where(link => link.UserId == userId).ToList();
+        var link = identityLinks.FirstOrDefault();
+        var user = users.GetUserById(userId);
+        return new
+        {
+            Name = user?.Username, Linked = link is not null, link?.Email, link?.Username,
+            CanLink = EnabledConfiguration() is not null && identityLinks.Count == 0,
+            CanUnlink = identityLinks.Count > 0,
+            PasswordLoginDisabled = configuration.PasswordLoginMode == PasswordLoginMode.DisableForAllUsers
+                || (configuration.PasswordLoginMode == PasswordLoginMode.DisableForLinkedUsersOnly && identityLinks.Count > 0),
+            PasswordLoginMode = configuration.PasswordLoginMode.ToString(),
+            state.Version, state.AutomaticReattachmentBlocked, state.UnlinkOperation,
+            PartialRevocation = state.PendingRevocations.Count > 0,
+            SoleAdministrator = user is not null && users.GetUserDto(user).Policy.IsAdministrator && users.GetUsers().Count(item => users.GetUserDto(item).Policy.IsAdministrator) == 1,
+        };
     }
 
     /// <summary>Issues a navigation ticket bound to a header-authenticated Jellyfin session.</summary>
@@ -105,8 +161,8 @@ public sealed class OidcLinkController(IAuthorizationContext authorization, Oidc
         {
             return Unauthorized();
         }
-        if (!store.TryComplete(request.Ticket, auth.UserId, auth.Token!, out var principal, out var configuration)
-            || !await provisioner.LinkAsync(auth.UserId, principal!, configuration!).ConfigureAwait(false))
+        if (!store.TryComplete(request.Ticket, auth.UserId, auth.Token!, out var principal, out var configuration, out var revision)
+            || !await provisioner.LinkAsync(auth.UserId, principal!, configuration!, revision).ConfigureAwait(false))
         {
             return Conflict();
         }

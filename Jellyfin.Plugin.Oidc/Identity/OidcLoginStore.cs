@@ -10,7 +10,7 @@ public sealed class OidcLoginStore
     private readonly Dictionary<string, Login> _logins = [];
 
     /// <summary>Creates an expiring login ticket for a Jellyfin User.</summary>
-    public string? Create(Guid userId, string returnUrl)
+    public string? Create(Guid userId, string returnUrl, long? revision = null)
     {
         lock (_gate)
         {
@@ -25,7 +25,7 @@ public sealed class OidcLoginStore
             }
 
             var ticket = Convert.ToHexString(RandomNumberGenerator.GetBytes(32));
-            _logins[ticket] = new Login(userId, returnUrl, now.AddMinutes(5));
+            _logins[ticket] = new Login(userId, returnUrl, now.AddMinutes(5), revision);
             return ticket;
         }
     }
@@ -37,7 +37,8 @@ public sealed class OidcLoginStore
         returnUrl = "/";
         lock (_gate)
         {
-            if (!_logins.Remove(ticket, out var login) || login.ExpiresAt < DateTimeOffset.UtcNow)
+            if (!_logins.Remove(ticket, out var login) || login.ExpiresAt < DateTimeOffset.UtcNow
+                || (login.Revision.HasValue && login.Revision != OidcPlugin.Instance?.Configuration.IdentityRevision))
             {
                 return false;
             }
@@ -48,5 +49,5 @@ public sealed class OidcLoginStore
         }
     }
 
-    private sealed record Login(Guid UserId, string ReturnUrl, DateTimeOffset ExpiresAt);
+    private sealed record Login(Guid UserId, string ReturnUrl, DateTimeOffset ExpiresAt, long? Revision);
 }

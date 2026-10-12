@@ -95,6 +95,28 @@ public sealed class OidcLinkStoreTests
         Assert.Null(store.Create(Guid.NewGuid(), "session", "/userprofile", _configuration));
     }
 
+    [Theory]
+    [InlineData(0)]
+    [InlineData(1)]
+    [InlineData(2)]
+    public void Administrator_mutations_invalidate_every_stage_and_allow_a_fresh_flow(int stage)
+    {
+        var store = new OidcLinkStore(TimeProvider.System);
+        var userId = Guid.NewGuid();
+        var id = store.Create(userId, "preserved-local-session", "/userprofile", _configuration)!;
+        if (stage > 0) id = store.Start(id, _configuration, out _)!;
+        if (stage > 1) id = store.Validate(id, _principal, _configuration)!;
+        _configuration.IdentityRevision++;
+        if (stage == 0) Assert.Null(store.Start(id, _configuration, out _));
+        else if (stage == 1) Assert.Null(store.Validate(id, _principal, _configuration));
+        else Assert.False(store.TryComplete(id, userId, "preserved-local-session", out _, out _));
+        id = store.Create(userId, "preserved-local-session", "/userprofile", _configuration)!;
+        id = store.Start(id, _configuration, out _)!;
+        id = store.Validate(id, _principal, _configuration)!;
+        Assert.True(store.TryComplete(id, userId, "preserved-local-session", out _, out _, out var revision));
+        Assert.Equal(_configuration.IdentityRevision, revision);
+    }
+
     private sealed class TestClock : TimeProvider
     {
         public DateTimeOffset Now { get; set; } = DateTimeOffset.UtcNow;

@@ -24,13 +24,31 @@
         }
         return {};
     };
-    const profileStrings = {
-        linkHeading: 'SSO', linkChecking: 'Checking link status...', linkNotLinked: 'Not linked',
-        linkLinked: 'Linked', linkLinkedAs: 'Linked as {0}', linkButton: 'Link account',
-        linkRedirecting: 'Redirecting...', linkStatusError: 'Unable to check link status.', linkRetry: 'Retry',
-        linkError: 'We couldn\'t link your Identity Provider. Please try again.', linkSuccess: 'Identity Provider linked.',
-        linkPasswordHelp: 'Linking will disable password sign-in for this Jellyfin User.',
-        linkConflict: 'This identity cannot be linked. Ask an administrator to check existing Identity Links.',
+    const profileStrings = /* @english-strings */ {};
+    const confirmUnlink = async (state, self) => {
+        const warnings = [profileStrings.adminUnlinkWarning.replace('{0}', state.Name || ''), profileStrings[state.PasswordLoginMode === 'DisableForAllUsers' ? 'adminPasswordDisabled' : state.PasswordLoginMode === 'DisableForLinkedUsersOnly' ? 'adminPasswordRestored' : 'adminPasswordAllowed']];
+        if (self) warnings.push(profileStrings.adminSelfWarning);
+        if (state.SoleAdministrator) warnings.push(profileStrings.adminSoleWarning);
+        const escape = value => { const node = document.createElement('span'); node.textContent = value; return node.innerHTML; };
+        const annotateDialog = new MutationObserver(() => {
+            const dialog = document.getElementById('oidc-unlink-confirm');
+            if (!dialog) return;
+            dialog.setAttribute('role', 'dialog'); dialog.setAttribute('aria-modal', 'true'); dialog.setAttribute('aria-label', profileStrings.adminUnlink);
+            const description = dialog.querySelector('.text');
+            if (description) { description.id = 'oidc-unlink-confirm-description'; dialog.setAttribute('aria-describedby', description.id); }
+            annotateDialog.disconnect();
+        });
+        annotateDialog.observe(document.body, { childList: true, subtree: true });
+        try {
+            // Use the same Jellyfin confirmation API as the configuration page.
+            return await new Promise(resolve => window.Dashboard.confirm({ title: profileStrings.adminUnlink, text: warnings.map(value => '<p>' + escape(value) + '</p>').join(''), primary: 'delete', confirmText: profileStrings.adminUnlink, dialogOptions: { id: 'oidc-unlink-confirm' } }, profileStrings.adminUnlink, resolve));
+        } finally { annotateDialog.disconnect(); }
+    };
+    const returnToSignIn = session => {
+        const credentials = JSON.parse(localStorage.getItem('jellyfin_credentials') || '{}');
+        for (const server of credentials.Servers || []) if (server.AccessToken === session.token) { server.AccessToken = null; server.UserId = null; server.ExchangeToken = null; }
+        localStorage.setItem('jellyfin_credentials', JSON.stringify(credentials));
+        location.assign(serverUrl + 'web/index.html?oidcSignedOut=1#!/login');
     };
     const activeSession = () => {
         const client = window.ApiClient;
@@ -140,12 +158,39 @@
                 setPasswordVisibility(state.PasswordLoginDisabled);
                 const linkedIdentity = state.Email || state.Username;
                 setStatus(state.Linked ? (linkedIdentity ? profileStrings.linkLinkedAs.replace('{0}', linkedIdentity) : profileStrings.linkLinked) : profileStrings.linkNotLinked, state.Linked);
-                help.textContent = state.CanLink ? (state.PasswordLoginMode === 'DisableForLinkedUsersOnly' ? profileStrings.linkPasswordHelp : '') : profileStrings.linkConflict;
-                help.classList.toggle('hide', state.Linked || !help.textContent);
-                showButton(state.CanLink && !state.Linked);
+                const messages = [];
+                if (state.PartialRevocation) messages.push(profileStrings.adminPartial);
+                if (state.AutomaticReattachmentBlocked) messages.push(profileStrings.adminBlocked);
+                if (state.CanLink && state.PasswordLoginMode === 'DisableForLinkedUsersOnly') messages.push(profileStrings.linkPasswordHelp);
+                help.textContent = messages.join(' ');
+                help.classList.toggle('hide', !help.textContent);
+                if (state.PartialRevocation) help.setAttribute('role', 'alert'); else help.removeAttribute('role');
+                showButton(state.CanLink || state.CanUnlink || state.PartialRevocation);
                 buttonIcon.classList.remove('hide');
-                button.disabled = false; label.textContent = profileStrings.linkButton;
+                button.disabled = false;
+                button.classList.toggle('button-delete', state.CanUnlink && !state.PartialRevocation);
+                buttonIcon.textContent = state.PartialRevocation ? 'refresh' : state.CanUnlink ? 'link_off' : 'link';
+                label.textContent = state.PartialRevocation ? profileStrings.adminRetrySignOut : state.CanUnlink ? profileStrings.adminUnlink : profileStrings.linkButton;
                 button.onclick = async () => {
+                    if (state.CanUnlink || state.PartialRevocation) {
+                        try {
+                            if (!state.PartialRevocation && !await confirmUnlink(state, true)) return;
+                            if (!current()) return;
+                            button.disabled = true;
+                            const response = await linkRequest(session, state.PartialRevocation ? 'link/retry-sign-out' : 'link?version=' + state.Version, { method: state.PartialRevocation ? 'POST' : 'DELETE', ...(state.PartialRevocation ? { body: JSON.stringify({ Operation: state.UnlinkOperation }) } : {}) });
+                            const me = await fetch(serverUrl + 'Users/Me', { headers: { Authorization: `MediaBrowser Token="${session.token}"` } });
+                            if (me.status === 401) { if (current()) returnToSignIn(session); return; }
+                            if (!current()) return;
+                            if (!response.ok) throw new Error('Unlink failed');
+                            const result = await response.json();
+                            linkNotification(result.PartialRevocation ? profileStrings.adminPartial : state.PartialRevocation ? profileStrings.adminSignedOut : profileStrings.adminUnlinked, result.PartialRevocation);
+                            await loadStatus();
+                            if (current()) button.focus();
+                        } catch {
+                            if (current()) { button.disabled = false; linkNotification(profileStrings.adminError, true); }
+                        }
+                        return;
+                    }
                     button.disabled = true; label.textContent = profileStrings.linkRedirecting;
                     try {
                         const response = await linkRequest(session, 'link?returnUrl=' + encodeURIComponent(route.pathname + route.search), { method: 'POST' });
@@ -198,7 +243,7 @@
         }
     };
     const addLogin = stack => {
-        if (!isLoginPage()) {
+        if (!isLoginPage() || window.oidcEnabled === false) {
             document.querySelectorAll('form.manualLoginForm[data-oidc-login-container]').forEach(form => form.removeAttribute('data-oidc-login-container'));
             document.querySelectorAll('[data-oidc-login]').forEach(button => button.remove());
             return;
@@ -298,7 +343,11 @@
     const configure = async () => {
         const response = await fetch(oidcUrl + 'config', { cache: 'no-store' });
         const config = response.ok ? await response.json() : null;
-        if (!config) return;
+        window.oidcEnabled = !!config;
+        if (!config) {
+            window.oidcRedirectSignInPageToProvider = false; window.oidcRpInitiatedLogout = false;
+            window.oidcPasswordLoginMode = 'AllowForAllUsers'; revealLogin(); addLogin(); return;
+        }
         window.oidcButtonText = config.LoginButtonText;
         window.oidcRpInitiatedLogout = config.RpInitiatedLogout;
         window.oidcPasswordLoginMode = config.PasswordLoginMode;
@@ -337,4 +386,181 @@
     document.querySelectorAll('[data-oidc-login]').forEach(updateLoginContainer);
     void redirectToProvider();
     void configure();
+
+    // Jellyfin 12 has no dashboard tab-extension hook. Wrap its existing editor at chunk registration,
+    // keeping the native React tree, theme, router, Tabs/Tab, inputs, buttons, dialog, and Toast.
+    // These module IDs are verified against the pinned Jellyfin 12 test image.
+    const installAdminEditor = (module, exports, require, originalFactory) => {
+        originalFactory(module, exports, require);
+        const Original = module.exports.Component;
+        const React = require(63696);
+        const h = React.createElement;
+        const Tabs = require(26445).A;
+        const Tab = require(4994).A;
+        const Stack = require(70140).A;
+        const Alert = require(47891).A;
+        const Input = require(42301).A;
+        const Button = require(50723).A;
+        const Loading = require(84849).A;
+        const Toast = require(45228).A;
+        const globalize = require(5898).Ay;
+        const adminStrings = profileStrings;
+        const text = key => adminStrings[key];
+        const cancelText = () => globalize.translate('ButtonCancel');
+        const Panel = ({ userId, session }) => {
+            const [state, setState] = React.useState(null);
+            const [error, setError] = React.useState('');
+            const [busy, setBusy] = React.useState(false);
+            const [editing, setEditing] = React.useState(false);
+            const [matchBy, setMatchBy] = React.useState('Email');
+            const [value, setValue] = React.useState('');
+            const [toast, setToast] = React.useState('');
+            const selectContainer = React.useRef(null);
+            const alive = React.useRef(true);
+            React.useEffect(() => {
+                const container = selectContainer.current;
+                if (!container) return;
+                let select = container.querySelector('select');
+                if (!select) {
+                    // Jellyfin's customized built-in uses the legacy registration API, as its native SelectElement does.
+                    select = document.createElement('select', 'emby-select');
+                    select.id = 'oidc-admin-match-by'; select.setAttribute('label', text('adminMatchBy'));
+                    for (const kind of ['Subject', 'Email', 'Username']) {
+                        const option = document.createElement('option'); option.value = kind; option.textContent = text('admin' + kind); select.append(option);
+                    }
+                    container.append(select);
+                }
+                select.value = matchBy; select.disabled = busy;
+                const change = () => setMatchBy(select.value);
+                select.addEventListener('change', change);
+                return () => select.removeEventListener('change', change);
+            }, [editing, matchBy, busy]);
+            const current = () => alive.current && activeSession()?.token === session.token;
+            const path = 'admin/users/' + encodeURIComponent(userId);
+            const load = async () => {
+                setBusy(true); setError(''); setState(null); setEditing(false);
+                try {
+                    Object.assign(adminStrings, await loadStrings());
+                    const response = await linkRequest(session, path);
+                    if (!response.ok) throw new Error();
+                    const value = await response.json();
+                    if (current()) setState(value);
+                } catch { if (current()) setError(text('linkStatusError')); }
+                finally { if (current()) setBusy(false); }
+            };
+            React.useEffect(() => { alive.current = true; void load(); return () => { alive.current = false; }; }, []);
+            const mutate = async (suffix, method, data) => {
+                if (!current() || busy) return;
+                setBusy(true); setError('');
+                try {
+                    const response = await linkRequest(session, path + suffix, { method, ...(data ? { body: JSON.stringify(data) } : {}) });
+                    if (suffix.startsWith('/link?') || suffix === '/retry-sign-out') {
+                        const me = await fetch(serverUrl + 'Users/Me', { headers: { Authorization: `MediaBrowser Token="${session.token}"` } });
+                        if (me.status === 401) {
+                            returnToSignIn(session); return;
+                        }
+                    }
+                    if (!response.ok) { if (current()) setError(text(response.status === 409 ? 'adminConflict' : 'adminError')); return; }
+                    const value = await response.json();
+                    if (current()) {
+                        setState(value); setEditing(false);
+                        const outcome = suffix === '/link-request' ? 'adminApproved' : suffix.startsWith('/link-request?') ? 'adminCancelled' : suffix.startsWith('/link?') ? 'adminUnlinked' : 'adminSignedOut';
+                        setToast(text(value.PartialRevocation && outcome === 'adminSignedOut' ? 'adminPartial' : outcome));
+                    }
+                } catch { if (current()) setError(text('adminError')); }
+                finally { if (current()) setBusy(false); }
+            };
+            const button = (key, onClick, props = {}) => h(Button, { key, type: 'button', className: 'raised', title: text(key), disabled: busy, onClick, ...props });
+            const approval = () => {
+                setMatchBy(state.Request ? (state.Request.Subject ? 'Subject' : state.Request.Username ? 'Username' : 'Email') : state.AutomaticLinkingMode === 'UsernameToUsername' ? 'Username' : 'Email');
+                setValue(state.Request?.Subject || state.Request?.Email || state.Request?.Username || '');
+                setEditing(true);
+            };
+            const unlink = async () => {
+                try { if (!await confirmUnlink(state, userId.replaceAll('-', '').toLowerCase() === session.userId.replaceAll('-', '').toLowerCase())) return; }
+                catch { return; }
+                if (current()) {
+                    await mutate('/link?version=' + state.Version, 'DELETE');
+                    requestAnimationFrame(() => {
+                        if (current()) (document.querySelector('#oidc-admin-panel > button:not(:disabled)') || document.getElementById('oidc-admin-tab'))?.focus();
+                    });
+                }
+            };
+            const children = [];
+            if (error) children.push(h(Alert, { key: 'error', severity: 'error' }, error), button('linkRetry', load));
+            if (!state && busy) children.push(h(Loading, { key: 'loading' }));
+            if (state) {
+                const identity = state.Email || state.Username;
+                const status = state.Linked ? (identity ? text('linkLinkedAs').replace('{0}', identity) : text('linkLinked')) : state.Request ? text('adminPending') : text('linkNotLinked');
+                children.push(h(Alert, { key: 'status', severity: state.Linked ? 'success' : 'info', role: 'status' }, status));
+                if (!state.OidcAvailable) children.push(h(Alert, { key: 'disabled', severity: 'warning' }, text('adminDisabled')));
+                if (state.AutomaticReattachmentBlocked) children.push(h('p', { key: 'block', className: 'fieldDescription' }, text('adminBlocked')));
+                if (state.PartialRevocation) children.push(h(Alert, { key: 'partial', severity: 'warning' }, text('adminPartial')), button('adminRetrySignOut', () => mutate('/retry-sign-out', 'POST', { Operation: state.UnlinkOperation })));
+                if (state.Request && !editing) children.push(h('p', { key: 'criteria' }, text(state.Request.Subject ? 'adminSubject' : state.Request.Username ? 'adminUsername' : 'adminEmail') + ': ' + (state.Request.Subject || state.Request.Username || state.Request.Email)), h('p', { key: 'approval-help', className: 'fieldDescription' }, text('adminApprovalHelp')));
+                if (editing) children.push(h('form', { key: 'form', onSubmit: event => { event.preventDefault(); void mutate('/link-request', 'PUT', { Version: state.Version, [matchBy]: value }); } },
+                    h('div', { className: 'selectContainer', ref: selectContainer }),
+                    h('div', { className: 'inputContainer' }, h(Input, { id: 'oidc-admin-value', label: text('adminValue'), type: matchBy === 'Email' ? 'email' : 'text', value, required: true, maxLength: matchBy === 'Email' ? 320 : 1024, disabled: busy, 'aria-describedby': 'oidc-admin-match-help', onChange: event => setValue(event.target.value) })),
+                    h('p', { id: 'oidc-admin-match-help', className: 'fieldDescription' }, text('admin' + matchBy + 'Help')),
+                    h('p', { className: 'fieldDescription' }, text('adminApprovalHelp')),
+                    h(Button, { type: 'submit', className: 'raised button-submit', title: text('adminSave'), disabled: busy || !value.trim() }),
+                    h(Button, { type: 'button', className: 'raised', title: cancelText(), disabled: busy, onClick: () => setEditing(false) })));
+                else if (state.Linked) children.push(button('adminUnlink', () => { void unlink(); }, { className: 'raised button-delete' }));
+                else {
+                    children.push(button(state.Request ? 'adminEdit' : 'adminApprove', approval, { disabled: busy || !state.CanCreateRequest }));
+                    if (state.Request) children.push(button('adminCancelRequest', () => mutate('/link-request?version=' + state.Version, 'DELETE')));
+                }
+            }
+            children.push(h(Toast, { key: 'toast', open: !!toast, message: toast, autoHideDuration: 5000, onClose: () => setToast('') }));
+            return h(Stack, { spacing: 2, sx: { overflowWrap: 'anywhere', minWidth: 0 }, role: 'tabpanel', id: 'oidc-admin-panel', 'aria-labelledby': 'oidc-admin-tab', 'aria-busy': busy, 'data-oidc-admin': userId }, ...children);
+        };
+        const Editor = () => {
+            const session = activeSession();
+            const [admin, setAdmin] = React.useState(false);
+            const [, refresh] = React.useState(0);
+            React.useEffect(() => { const update = () => refresh(value => value + 1); addEventListener('hashchange', update); return () => removeEventListener('hashchange', update); }, []);
+            React.useEffect(() => {
+                let active = true; setAdmin(false);
+                if (session) void fetch(serverUrl + 'Users/Me', { headers: { Authorization: `MediaBrowser Token="${session.token}"` } }).then(response => response.ok ? response.json() : null).then(user => { if (active) setAdmin(user?.Policy?.IsAdministrator === true); }).catch(() => {});
+                return () => { active = false; };
+            }, [session?.token]);
+            const tree = Original();
+            const route = new URL(location.hash.replace(/^#!?/, ''), location.origin);
+            const match = route.pathname.match(/^\/dashboard\/users\/([a-f\d-]+)\/[^/]+$/i);
+            if (!admin || !session || !match) return tree;
+            const userId = match[1];
+            const selected = route.searchParams.get('oidc') === '1';
+            const extend = element => {
+                if (!React.isValidElement(element)) return element;
+                const children = React.Children.toArray(element.props.children);
+                const tabsIndex = children.findIndex(child => child.type === Tabs);
+                if (tabsIndex < 0) return React.cloneElement(element, {}, ...children.map(extend));
+                const tabs = children[tabsIndex];
+                const choose = (event, value) => {
+                    if (value === 'oidc') location.hash = '/dashboard/users/' + userId + '/profile?oidc=1';
+                    else tabs.props.onChange(event, value);
+                };
+                const nativeTabs = React.Children.toArray(tabs.props.children);
+                const extendedTabs = React.cloneElement(tabs, { value: selected ? 'oidc' : tabs.props.value, onChange: choose, variant: 'scrollable', scrollButtons: 'auto', allowScrollButtonsMobile: true },
+                    ...nativeTabs, h(Tab, { key: 'oidc', label: 'OIDC', value: 'oidc', id: 'oidc-admin-tab', 'aria-controls': 'oidc-admin-panel' }));
+                return React.cloneElement(element, {}, ...children.slice(0, tabsIndex), extendedTabs,
+                    ...(selected ? [h(Panel, { key: userId + session.token, userId, session })] : children.slice(tabsIndex + 1)));
+            };
+            return extend(tree);
+        };
+        module.exports = { ...module.exports, Component: Editor };
+        require.r(module.exports);
+    };
+    const chunks = self.webpackChunk = self.webpackChunk || [];
+    const wrapPush = push => function (...items) {
+        for (const item of items) {
+            const original = item[1]?.[63871];
+            if (original && !original.oidcAdmin) {
+                const wrapped = (module, exports, require) => installAdminEditor(module, exports, require, original);
+                wrapped.oidcAdmin = true; item[1][63871] = wrapped;
+            }
+        }
+        return push.apply(this, items);
+    };
+    let push = wrapPush(chunks.push);
+    Object.defineProperty(chunks, 'push', { configurable: true, get: () => push, set: value => { push = wrapPush(value); } });
 })();

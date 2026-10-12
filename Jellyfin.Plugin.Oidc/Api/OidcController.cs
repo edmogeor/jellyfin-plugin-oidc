@@ -9,6 +9,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.WebUtilities;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
+using System.Text.Json;
 
 namespace Jellyfin.Plugin.Oidc.Api;
 
@@ -68,8 +69,12 @@ public sealed class OidcController : ControllerBase
     public IActionResult Strings(string locale)
     {
         var resourceName = $"Jellyfin.Plugin.Oidc.Configuration.Strings.{locale}.json";
-        var stream = typeof(OidcController).Assembly.GetManifestResourceStream(resourceName);
-        return stream is null ? NotFound() : File(stream, "application/json");
+        using var stream = typeof(OidcController).Assembly.GetManifestResourceStream(resourceName);
+        if (stream is null) return NotFound();
+        using var english = typeof(OidcController).Assembly.GetManifestResourceStream("Jellyfin.Plugin.Oidc.Configuration.Strings.en-us.json")!;
+        var dictionary = JsonSerializer.Deserialize<Dictionary<string, string>>(english)!;
+        foreach (var entry in JsonSerializer.Deserialize<Dictionary<string, string>>(stream)!) dictionary[entry.Key] = entry.Value;
+        return new JsonResult(dictionary);
     }
 
     /// <summary>Starts the authorization-code flow.</summary>
@@ -88,7 +93,7 @@ public sealed class OidcController : ControllerBase
             return BadRequest("OIDC sign-in requires an HTTPS public URL.");
         }
 
-        return Challenge(new AuthenticationProperties { RedirectUri = ReturnUrls.Local(returnUrl) ? returnUrl : "/" }, OidcOptions.Scheme);
+        return Challenge(new AuthenticationProperties { RedirectUri = ReturnUrls.Local(returnUrl) ? returnUrl : "/", Items = { ["oidc_revision"] = configuration.IdentityRevision.ToString(System.Globalization.CultureInfo.InvariantCulture) } }, OidcOptions.Scheme);
     }
 
     /// <summary>Ends the Identity Provider session after Jellyfin Web has ended its own session.</summary>
