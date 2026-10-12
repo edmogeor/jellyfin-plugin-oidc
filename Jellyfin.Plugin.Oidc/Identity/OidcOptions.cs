@@ -91,7 +91,7 @@ public sealed class OidcOptions : IConfigureNamedOptions<OpenIdConnectOptions>
         options.Events.OnTicketReceived = async context =>
         {
             var provisioner = context.HttpContext.RequestServices.GetRequiredService<OidcUserProvisioner>();
-            var result = await provisioner.ProvisionAsync(context.Principal!).ConfigureAwait(false);
+            var result = await provisioner.ProvisionAsync(context.Principal!, configuration).ConfigureAwait(false);
             var returnUrl = context.Properties?.RedirectUri;
             var ticket = result is null ? null : context.HttpContext.RequestServices.GetRequiredService<OidcLoginStore>()
                 .Create(result.Value, ReturnUrls.Local(returnUrl) ? returnUrl! : "/");

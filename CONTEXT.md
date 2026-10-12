@@ -57,14 +57,16 @@ Saving configuration reapplies the selected local-password policy to all Jellyfi
 
 1. The plugin validates the OpenID Connect response and requires a non-empty `sub`, a non-empty verified email, and membership in an Allowed Group.
 2. It resolves an Identity Link by `sub` first.
-3. Without a link, it resolves an Email Match by verified email and Jellyfin username.
-4. Without either, it provisions a Jellyfin User with the verified email as username and an undisclosed random local password.
+3. Without a link, it resolves an Email Match by verified email and Jellyfin username. Automatic matching is permitted only for a Jellyfin User without an existing Identity Link; a match already linked to another identity is denied.
+4. Without either, it provisions a Jellyfin User with the verified email as username. The undisclosed random local password and configured local-password policy are present in the initial database insert, so a partial failure cannot leave a passwordless user.
 5. It creates an Identity Link when needed and synchronizes administrator status from Administrator Group membership.
 6. It creates a single-use, five-minute Jellyfin session handoff ticket and returns only to a local relative route.
 
 An Identity Link is authoritative for returning identities. If its verified email changes, the linked Jellyfin User is renamed unless another Jellyfin User already owns that username. The plugin never merges users or reassigns media activity. A stale link to a deleted Jellyfin User is removed, then the identity is matched or provisioned again.
 
 Group membership is evaluated at OIDC sign-in. Removing all Allowed Groups denies the next sign-in; removing Administrator Group membership removes administrator status at the next sign-in. Existing Jellyfin sessions are not terminated in the background.
+
+Provisioning and administrator configuration saves are serialized. A callback authenticated with a replaced configuration is denied and must restart sign-in. Sign-in persists Identity Link changes without replacing configuration or reverting administrator settings. An administrator must explicitly clear an old Identity Link before Email Match can attach a recreated Identity Provider identity with a new `sub`.
 
 ## Browser Integration And Logout
 

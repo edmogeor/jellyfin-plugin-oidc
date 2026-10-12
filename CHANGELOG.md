@@ -1,3 +1,16 @@
+## [0.2.5.0]
+
+### Security
+
+- Persist provisioned Jellyfin Users with their random password and local-password policy in the initial database insert, preventing passwordless access during provisioning or after a partial failure.
+- Reject automatic Email Match for Jellyfin Users already owned by another Identity Link, while preserving automatic matching for unlinked users.
+- Serialize provisioning and administrator configuration saves, reject stale callbacks, and prevent sign-in from reverting administrator access restrictions.
+
+### Fixed
+
+- Prevent delayed configuration responses from replacing saved settings or unsaved edits in the configuration page.
+- Track submitted settings during saves and show save failures while retaining the draft for retry.
+
 ## [0.2.4.0]
 
 ### Fixed

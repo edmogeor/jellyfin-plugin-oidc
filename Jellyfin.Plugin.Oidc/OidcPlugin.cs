@@ -34,6 +34,9 @@ public sealed class OidcPlugin : BasePlugin<PluginConfiguration>, IHasWebPages
     /// <summary>Gets the loaded plugin instance.</summary>
     public static OidcPlugin? Instance { get; private set; }
 
+    // ponytail: serialize provisioning and configuration saves; move profile downloads outside the gate if saves become slow.
+    internal SemaphoreSlim ConfigurationGate { get; } = new(1, 1);
+
     /// <inheritdoc />
     public override string Name => "OIDC Authentication";
 
@@ -54,11 +57,19 @@ public sealed class OidcPlugin : BasePlugin<PluginConfiguration>, IHasWebPages
             throw new ArgumentException(error, nameof(configuration));
         }
 
-        base.UpdateConfiguration(configuration);
-        _optionsCache.TryRemove(OidcOptions.Scheme);
-        foreach (var user in _userManager.GetUsers())
+        ConfigurationGate.Wait();
+        try
         {
-            PasswordLoginEnforcer.EnforceAsync(_userManager, user, oidcConfiguration, _logger).GetAwaiter().GetResult();
+            base.UpdateConfiguration(configuration);
+            _optionsCache.TryRemove(OidcOptions.Scheme);
+            foreach (var user in _userManager.GetUsers())
+            {
+                PasswordLoginEnforcer.EnforceAsync(_userManager, user, oidcConfiguration, _logger).GetAwaiter().GetResult();
+            }
+        }
+        finally
+        {
+            ConfigurationGate.Release();
         }
     }
 

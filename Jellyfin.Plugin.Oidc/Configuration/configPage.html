@@ -114,13 +114,21 @@
             const fields = ['Enabled', 'PublicUrl', 'IssuerUrl', 'ClientId', 'ClientSecret', 'UserGroup', 'AdministratorGroup', 'GroupClaim', 'AdditionalScopes', 'LoginButtonText', 'PasswordLoginMode', 'RedirectSignInPageToProvider', 'SynchronizeProfileImages', 'RpInitiatedLogout'];
             const checkboxes = ['Enabled', 'RedirectSignInPageToProvider', 'SynchronizeProfileImages', 'RpInitiatedLogout'];
             let savedConfiguration;
+            let configurationLoad = 0;
+            let saving = false;
             const value = name => document.querySelector('#' + name)[checkboxes.includes(name) ? 'checked' : 'value'];
-            const updateSaveButton = () => { document.querySelector('#SaveButton').disabled = !savedConfiguration || fields.every(name => value(name) === savedConfiguration[name]); };
+            const currentConfiguration = () => Object.fromEntries(fields.map(name => [name, value(name)]));
+            const hasChanges = () => savedConfiguration && fields.some(name => value(name) !== savedConfiguration[name]);
+            const updateSaveButton = () => { document.querySelector('#SaveButton').disabled = saving || !hasChanges(); };
             const updateRedirectSignInPageToProvider = () => { document.querySelector('#RedirectSignInPageToProviderContainer').style.display = value('PasswordLoginMode') === 'DisableForAllUsers' ? '' : 'none'; };
-            const loadConfiguration = () => ApiClient.getPluginConfiguration(pluginId).then(config => {
-                savedConfiguration = Object.fromEntries(fields.map(name => [name, name === 'LoginButtonText' && config[name] === 'Sign In with SSO' ? '' : config[name]]));
-                fields.forEach(name => { document.querySelector('#' + name)[checkboxes.includes(name) ? 'checked' : 'value'] = name === 'LoginButtonText' && config[name] === 'Sign In with SSO' ? '' : config[name]; }); updateRedirectSignInPageToProvider(); updateSaveButton();
-            });
+            const loadConfiguration = () => {
+                const load = ++configurationLoad;
+                return ApiClient.getPluginConfiguration(pluginId).then(config => {
+                    if (load !== configurationLoad || saving || hasChanges()) return;
+                    savedConfiguration = Object.fromEntries(fields.map(name => [name, name === 'LoginButtonText' && config[name] === 'Sign In with SSO' ? '' : config[name]]));
+                    fields.forEach(name => { document.querySelector('#' + name)[checkboxes.includes(name) ? 'checked' : 'value'] = savedConfiguration[name]; }); updateRedirectSignInPageToProvider(); updateSaveButton();
+                }).catch(error => { if (load === configurationLoad) Dashboard.processErrorResponse(error); });
+            };
             page.addEventListener('pageshow', () => {
                 if (dictionary) localize();
                 else initializeTranslations();
@@ -153,15 +161,22 @@
                 updateClientSecretToggle();
             });
             const save = () => {
+                if (saving) return;
+                const submittedConfiguration = currentConfiguration();
+                const reload = ['Enabled', 'PasswordLoginMode', 'RedirectSignInPageToProvider'].some(name => submittedConfiguration[name] !== savedConfiguration[name]);
+                ++configurationLoad;
+                saving = true;
+                updateSaveButton();
                 Dashboard.showLoadingMsg();
                 ApiClient.getPluginConfiguration(pluginId).then(config => {
-                    fields.forEach(name => { config[name] = value(name); });
+                    fields.forEach(name => { config[name] = submittedConfiguration[name]; });
                     return ApiClient.updatePluginConfiguration(pluginId, config);
                 }).then(result => {
-                    const reload = ['Enabled', 'PasswordLoginMode', 'RedirectSignInPageToProvider'].some(name => value(name) !== savedConfiguration[name]);
-                    savedConfiguration = Object.fromEntries(fields.map(name => [name, value(name)]));
-                    updateSaveButton();
+                    savedConfiguration = submittedConfiguration;
                     return Promise.resolve(Dashboard.processPluginConfigurationUpdateResult(result)).then(() => reload ? location.reload() : dispatchEvent(new Event('oidcconfigurationchange')));
+                }).catch(error => Dashboard.processErrorResponse(error)).finally(() => {
+                    saving = false;
+                    updateSaveButton();
                 });
             };
             form.addEventListener('submit', event => {
@@ -191,12 +206,12 @@
                     dictionary = strings;
                     localize();
                     updateClientSecretToggle();
-                    loadConfiguration();
                 }).catch(() => {
                     translationLoad = null;
                     if (page.isConnected) setTimeout(initializeTranslations, 1000);
                 });
             };
+            loadConfiguration();
             initializeTranslations();
         </script>
     </div>

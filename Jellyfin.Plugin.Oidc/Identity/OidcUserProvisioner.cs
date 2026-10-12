@@ -1,9 +1,16 @@
 using System.Security.Claims;
 using System.Security.Cryptography;
+using System.Text.RegularExpressions;
+using Jellyfin.Data;
+using Jellyfin.Data.Events.Users;
+using Jellyfin.Database.Implementations;
+using Jellyfin.Database.Implementations.Entities;
 using Jellyfin.Plugin.Oidc.Configuration;
 using MediaBrowser.Controller.Library;
+using MediaBrowser.Controller.Events;
 using MediaBrowser.Model.Cryptography;
 using Microsoft.Extensions.Logging;
+using Microsoft.EntityFrameworkCore;
 
 namespace Jellyfin.Plugin.Oidc.Identity;
 
@@ -12,32 +19,43 @@ public sealed class OidcUserProvisioner
 {
     private readonly ICryptoProvider _cryptoProvider;
     private readonly ILogger<OidcUserProvisioner> _logger;
-    private readonly SemaphoreSlim _gate = new(1, 1);
+    private readonly IDbContextFactory<JellyfinDbContext> _dbContextFactory;
+    private readonly IEventManager _eventManager;
     private readonly OidcProfileImageSynchronizer _profileImageSynchronizer;
     private readonly IUserManager _userManager;
 
     /// <summary>Initializes a new instance of the <see cref="OidcUserProvisioner"/> class.</summary>
-    public OidcUserProvisioner(IUserManager userManager, ICryptoProvider cryptoProvider, OidcProfileImageSynchronizer profileImageSynchronizer, ILogger<OidcUserProvisioner> logger)
+    public OidcUserProvisioner(IUserManager userManager, ICryptoProvider cryptoProvider, OidcProfileImageSynchronizer profileImageSynchronizer, ILogger<OidcUserProvisioner> logger, IDbContextFactory<JellyfinDbContext> dbContextFactory, IEventManager eventManager)
     {
         _userManager = userManager;
         _cryptoProvider = cryptoProvider;
         _profileImageSynchronizer = profileImageSynchronizer;
         _logger = logger;
+        _dbContextFactory = dbContextFactory;
+        _eventManager = eventManager;
     }
 
     /// <summary>Returns the eligible Jellyfin User ID, or <see langword="null"/> when denied.</summary>
-    public async Task<Guid?> ProvisionAsync(ClaimsPrincipal principal)
+    public async Task<Guid?> ProvisionAsync(ClaimsPrincipal principal, PluginConfiguration authenticatedConfiguration)
     {
-        var configuration = OidcPlugin.Instance?.Configuration;
-        if (configuration is null || !configuration.Enabled || !IdentityClaims.TryCreate(principal, configuration, out var identity))
+        var plugin = OidcPlugin.Instance;
+        if (plugin is null)
         {
-            _logger.LogWarning("OIDC sign-in denied because required identity claims or allowed groups were absent.");
             return null;
         }
 
-        await _gate.WaitAsync().ConfigureAwait(false);
+        await plugin.ConfigurationGate.WaitAsync().ConfigureAwait(false);
         try
         {
+            var configuration = plugin.Configuration;
+            if (!ReferenceEquals(configuration, authenticatedConfiguration)
+                || !configuration.Enabled
+                || !IdentityClaims.TryCreate(principal, configuration, out var identity))
+            {
+                _logger.LogWarning("OIDC sign-in denied because configuration changed or required identity claims or allowed groups were absent.");
+                return null;
+            }
+
             var issuer = configuration.IssuerUrl.TrimEnd('/');
             var link = configuration.IdentityLinks.SingleOrDefault(item => item.Subject == identity.Subject && (item.Issuer == issuer || string.IsNullOrEmpty(item.Issuer)));
             var user = link is null ? null : _userManager.GetUserById(link.UserId);
@@ -61,11 +79,15 @@ public sealed class OidcUserProvisioner
             }
 
             user ??= matches.SingleOrDefault();
+            if (link is null && user is not null && configuration.IdentityLinks.Any(item => item.UserId == user.Id))
+            {
+                _logger.LogWarning("OIDC sign-in denied because the Email Match already has an Identity Link.");
+                return null;
+            }
+
             if (user is null)
             {
-                user = await _userManager.CreateUserAsync(identity.Email).ConfigureAwait(false);
-                user.Password = _cryptoProvider.CreatePasswordHash(Convert.ToBase64String(RandomNumberGenerator.GetBytes(64))).ToString();
-                await _userManager.UpdateUserAsync(user).ConfigureAwait(false);
+                user = await CreateUserAsync(identity.Email, configuration).ConfigureAwait(false);
                 _logger.LogInformation("Provisioned Jellyfin User for an eligible OIDC identity.");
             }
             else if (!string.Equals(user.Username, identity.Email, StringComparison.OrdinalIgnoreCase))
@@ -112,12 +134,38 @@ public sealed class OidcUserProvisioner
                 await _profileImageSynchronizer.SynchronizeAsync(user, link, principal.FindFirst("picture")?.Value, issuer).ConfigureAwait(false);
             }
 
-            OidcPlugin.Instance!.UpdateConfiguration(configuration);
+            plugin.SaveConfiguration();
             return user.Id;
         }
         finally
         {
-            _gate.Release();
+            plugin.ConfigurationGate.Release();
         }
+    }
+
+    private async Task<User> CreateUserAsync(string email, PluginConfiguration configuration)
+    {
+        if (!Regex.IsMatch(email, @"^(?!\s)[\w\ \-'._@+]+(?<!\s)$", RegexOptions.CultureInvariant) || email is "." or "..")
+        {
+            throw new ArgumentException("The verified email is not a valid Jellyfin username.", nameof(email));
+        }
+
+        var password = _cryptoProvider.CreatePasswordHash(Convert.ToBase64String(RandomNumberGenerator.GetBytes(64))).ToString();
+        await using var dbContext = await _dbContextFactory.CreateDbContextAsync().ConfigureAwait(false);
+        var user = new User(email,
+            configuration.PasswordLoginMode == PasswordLoginMode.AllowForAllUsers
+                ? "Jellyfin.Server.Implementations.Users.DefaultAuthenticationProvider"
+                : typeof(OidcPasswordDisabledProvider).FullName!,
+            "Jellyfin.Server.Implementations.Users.DefaultPasswordResetProvider")
+        {
+            Password = password,
+            InternalId = (await dbContext.Users.Select(candidate => (long?)candidate.InternalId).MaxAsync().ConfigureAwait(false) ?? 0) + 1,
+        };
+        user.AddDefaultPermissions();
+        user.AddDefaultPreferences();
+        dbContext.Users.Add(user);
+        await dbContext.SaveChangesAsync().ConfigureAwait(false);
+        await _eventManager.PublishAsync(new UserCreatedEventArgs(user)).ConfigureAwait(false);
+        return user;
     }
 }

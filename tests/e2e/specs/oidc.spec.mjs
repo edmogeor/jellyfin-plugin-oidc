@@ -169,6 +169,9 @@ test("provisions the allowed OIDC test user and starts a Jellyfin session", asyn
 
   expect(user.Name).toBe("oidc-test@example.test");
   expect(user.Policy.IsAdministrator).toBe(true);
+  expect((await authenticatePassword(page.request, user.Name, "")).ok()).toBe(
+    false,
+  );
 });
 
 test("synchronizes a profile image from the OIDC picture claim", async ({
@@ -320,6 +323,123 @@ test("loads the seeded OIDC settings and validates changes for an administrator"
     ),
   ).toBeVisible();
   await page.getByRole("button", { name: "Cancel" }).click();
+});
+
+test("keeps saved configuration visible when an older load finishes late", async ({
+  page,
+}) => {
+  await signIn(page);
+  await page.goto(
+    "/web/index.html#/configurationpage?name=OIDC%20Authentication",
+  );
+  await expect(page.locator("#ClientId")).toHaveValue("jellyfin");
+  await expect(page.locator("#SaveButton")).toBeDisabled();
+  let releaseLoad;
+  let signalLoad;
+  const heldLoad = new Promise((resolve) => {
+    releaseLoad = resolve;
+  });
+  const loadStarted = new Promise((resolve) => {
+    signalLoad = resolve;
+  });
+  let holdNextLoad = true;
+  const configurationUrl =
+    "**/Plugins/4c5b9b96-80cd-4c3d-9e3d-23fa4ebf6ce4/Configuration";
+  await page.route(configurationUrl, async (route) => {
+    if (route.request().method() !== "GET" || !holdNextLoad) {
+      return route.continue();
+    }
+    holdNextLoad = false;
+    const response = await route.fetch();
+    signalLoad();
+    await heldLoad;
+    return route.fulfill({ response });
+  });
+
+  try {
+    await page.evaluate(() =>
+      document
+        .querySelector("#OidcConfigPage")
+        .dispatchEvent(new Event("pageshow")),
+    );
+    await loadStarted;
+    await page.locator("#LoginButtonText").fill("Saved UI label");
+    const saved = page.waitForResponse(
+      (response) =>
+        response.request().method() === "POST" &&
+        response.url().endsWith("/Configuration"),
+    );
+    await page.locator("#SaveButton").click();
+    expect((await saved).ok()).toBe(true);
+    await expect(page.locator("#SaveButton")).toBeDisabled();
+    const oldLoadFinished = page.waitForResponse(
+      (response) =>
+        response.request().method() === "GET" &&
+        response.url().endsWith("/Configuration"),
+    );
+    releaseLoad();
+    await (await oldLoadFinished).finished();
+    await expect(page.locator("#LoginButtonText")).toHaveValue(
+      "Saved UI label",
+    );
+    await expect(page.locator("#SaveButton")).toBeDisabled();
+    await page.reload();
+    await expect(page.locator("#LoginButtonText")).toHaveValue(
+      "Saved UI label",
+    );
+  } finally {
+    releaseLoad();
+    await page.unroute(configurationUrl);
+    await setConfigurationValue(page, "LoginButtonText", "Sign In with SSO");
+  }
+});
+
+test("shows configuration save failures and allows retrying the draft", async ({
+  page,
+}) => {
+  await signIn(page);
+  await page.goto(
+    "/web/index.html#/configurationpage?name=OIDC%20Authentication",
+  );
+  await expect(page.locator("#ClientId")).toHaveValue("jellyfin");
+  const configurationUrl =
+    "**/Plugins/4c5b9b96-80cd-4c3d-9e3d-23fa4ebf6ce4/Configuration";
+  await page.route(configurationUrl, (route) =>
+    route.request().method() === "POST"
+      ? route.fulfill({
+          status: 500,
+          headers: { "X-Application-Error-Code": "Injected save failure" },
+        })
+      : route.continue(),
+  );
+  try {
+    await page.locator("#LoginButtonText").fill("Retry UI label");
+    await page.locator("#SaveButton").click();
+    await expect(
+      page.getByText("Injected save failure", { exact: true }),
+    ).toBeVisible();
+    await page.getByRole("button", { name: "Got It", exact: true }).click();
+    await expect(page.locator("#LoginButtonText")).toHaveValue(
+      "Retry UI label",
+    );
+    await expect(page.locator("#SaveButton")).toBeEnabled();
+    await page.unroute(configurationUrl);
+    const saved = page.waitForResponse(
+      (response) =>
+        response.request().method() === "POST" &&
+        response.url().endsWith("/Configuration"),
+    );
+    await page.locator("#SaveButton").click();
+    expect((await saved).ok()).toBe(true);
+    await expect(page.locator("#SaveButton")).toBeDisabled();
+    await page.reload();
+    await expect(page.locator("#LoginButtonText")).toHaveValue(
+      "Retry UI label",
+    );
+  } finally {
+    await page.unroute(configurationUrl);
+    await setConfigurationValue(page, "LoginButtonText", "Sign In with SSO");
+  }
 });
 
 test("uses OIDC settings saved without restarting Jellyfin", async ({
@@ -770,6 +890,47 @@ test("denies OIDC sign-in when the Identity Provider removes all allowed groups"
       );
       expect(restore.ok()).toBe(true);
     }
+  }
+});
+
+test("denies Email Match when the Jellyfin User is linked to another subject", async ({
+  browser,
+  page,
+}) => {
+  await signIn(page);
+  const user = await currentUser(page);
+  const originalLinks = await page.evaluate(async () => {
+    const config = await ApiClient.getPluginConfiguration(
+      "4c5b9b96-80cd-4c3d-9e3d-23fa4ebf6ce4",
+    );
+    return config.IdentityLinks;
+  });
+  const otherLinks = originalLinks.map((link) =>
+    link.UserId === user.Id
+      ? { ...link, Subject: "another-identity-subject" }
+      : link,
+  );
+  expect(
+    otherLinks.some((link) => link.Subject === "another-identity-subject"),
+  ).toBe(true);
+
+  try {
+    await setConfigurationValue(page, "IdentityLinks", otherLinks);
+    const deniedContext = await browser.newContext({ ignoreHTTPSErrors: true });
+    try {
+      await signInDenied(await deniedContext.newPage());
+    } finally {
+      await deniedContext.close();
+    }
+    const links = await page.evaluate(async () => {
+      const config = await ApiClient.getPluginConfiguration(
+        "4c5b9b96-80cd-4c3d-9e3d-23fa4ebf6ce4",
+      );
+      return config.IdentityLinks;
+    });
+    expect(links).toEqual(otherLinks);
+  } finally {
+    await setConfigurationValue(page, "IdentityLinks", originalLinks);
   }
 });
 
