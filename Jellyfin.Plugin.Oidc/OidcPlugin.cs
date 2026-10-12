@@ -1,4 +1,3 @@
-using System.Globalization;
 using Jellyfin.Plugin.Oidc.Configuration;
 using Jellyfin.Plugin.Oidc.Identity;
 using MediaBrowser.Common.Configuration;
@@ -22,7 +21,13 @@ public sealed class OidcPlugin : BasePlugin<PluginConfiguration>, IHasWebPages
     private readonly IOptionsMonitorCache<OpenIdConnectOptions> _optionsCache;
 
     /// <summary>Initializes a new instance of the <see cref="OidcPlugin"/> class.</summary>
-    public OidcPlugin(IApplicationPaths applicationPaths, IXmlSerializer xmlSerializer, IUserManager userManager, IOptionsMonitorCache<OpenIdConnectOptions> optionsCache, ILogger<OidcPlugin> logger)
+    public OidcPlugin(
+        IApplicationPaths applicationPaths,
+        IXmlSerializer xmlSerializer,
+        IUserManager userManager,
+        IOptionsMonitorCache<OpenIdConnectOptions> optionsCache,
+        ILogger<OidcPlugin> logger
+    )
         : base(applicationPaths, xmlSerializer)
     {
         _userManager = userManager;
@@ -48,7 +53,10 @@ public sealed class OidcPlugin : BasePlugin<PluginConfiguration>, IHasWebPages
     {
         if (configuration is not PluginConfiguration oidcConfiguration)
         {
-            throw new ArgumentException("Expected OIDC plugin configuration.", nameof(configuration));
+            throw new ArgumentException(
+                "Expected OIDC plugin configuration.",
+                nameof(configuration)
+            );
         }
 
         var error = OidcConfigurationValidator.Validate(oidcConfiguration);
@@ -69,7 +77,10 @@ public sealed class OidcPlugin : BasePlugin<PluginConfiguration>, IHasWebPages
             _optionsCache.TryRemove(OidcOptions.Scheme);
             foreach (var user in _userManager.GetUsers())
             {
-                PasswordLoginEnforcer.EnforceAsync(_userManager, user, oidcConfiguration, _logger).GetAwaiter().GetResult();
+                PasswordLoginEnforcer
+                    .EnforceAsync(_userManager, user, oidcConfiguration, _logger)
+                    .GetAwaiter()
+                    .GetResult();
             }
         }
         finally
@@ -80,15 +91,15 @@ public sealed class OidcPlugin : BasePlugin<PluginConfiguration>, IHasWebPages
 
     /// <inheritdoc />
     public IEnumerable<PluginPageInfo> GetPages() =>
-    [
-        new()
-        {
-            Name = Name,
-            DisplayName = Name,
-            EmbeddedResourcePath = string.Format(CultureInfo.InvariantCulture, "{0}.Configuration.configPage.html", GetType().Namespace),
-            EnableInMainMenu = true,
-            MenuSection = "server",
-            MenuIcon = "vpn_key",
-        },
-    ];
+        [
+            new()
+            {
+                Name = Name,
+                DisplayName = Name,
+                EmbeddedResourcePath = $"{GetType().Namespace}.Configuration.configPage.html",
+                EnableInMainMenu = true,
+                MenuSection = "server",
+                MenuIcon = "vpn_key",
+            },
+        ];
 }

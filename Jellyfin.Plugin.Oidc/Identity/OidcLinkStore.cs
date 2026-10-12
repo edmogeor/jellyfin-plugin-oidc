@@ -1,6 +1,5 @@
 using System.Security.Claims;
 using System.Security.Cryptography;
-using System.Text;
 using Jellyfin.Plugin.Oidc.Configuration;
 
 namespace Jellyfin.Plugin.Oidc.Identity;
@@ -12,11 +11,21 @@ public sealed class OidcLinkStore(TimeProvider clock)
     private readonly Dictionary<string, Transaction> _transactions = [];
 
     /// <summary>Creates a linking request without retaining the session token.</summary>
-    public string? Create(Guid userId, string token, string returnUrl, PluginConfiguration configuration)
+    public string? Create(
+        Guid userId,
+        string token,
+        string returnUrl,
+        PluginConfiguration configuration
+    )
     {
         lock (_gate)
         {
-            foreach (var key in _transactions.Where(pair => pair.Value.ExpiresAt <= clock.GetUtcNow()).Select(pair => pair.Key).ToArray())
+            foreach (
+                var key in _transactions
+                    .Where(pair => pair.Value.ExpiresAt <= clock.GetUtcNow())
+                    .Select(pair => pair.Key)
+                    .ToArray()
+            )
             {
                 _transactions.Remove(key);
             }
@@ -25,7 +34,17 @@ public sealed class OidcLinkStore(TimeProvider clock)
                 return null;
             }
             var id = Convert.ToHexString(RandomNumberGenerator.GetBytes(32));
-            _transactions.Add(id, new Transaction(userId, Fingerprint(token), returnUrl, configuration, clock.GetUtcNow().AddMinutes(5), configuration.IdentityRevision));
+            _transactions.Add(
+                id,
+                new Transaction(
+                    userId,
+                    OidcSessionTracker.Fingerprint(token),
+                    returnUrl,
+                    configuration,
+                    clock.GetUtcNow().AddMinutes(5),
+                    configuration.IdentityRevision
+                )
+            );
             return id;
         }
     }
@@ -36,8 +55,13 @@ public sealed class OidcLinkStore(TimeProvider clock)
         returnUrl = "/userprofile";
         lock (_gate)
         {
-            if (!_transactions.Remove(id, out var transaction) || transaction.ExpiresAt <= clock.GetUtcNow()
-                || transaction.Started || !ReferenceEquals(configuration, transaction.Configuration) || transaction.Revision != configuration.IdentityRevision)
+            if (
+                !_transactions.Remove(id, out var transaction)
+                || transaction.ExpiresAt <= clock.GetUtcNow()
+                || transaction.Started
+                || !ReferenceEquals(configuration, transaction.Configuration)
+                || transaction.Revision != configuration.IdentityRevision
+            )
             {
                 return null;
             }
@@ -53,11 +77,15 @@ public sealed class OidcLinkStore(TimeProvider clock)
     {
         lock (_gate)
         {
-            if (!_transactions.Remove(id, out var transaction) || transaction.ExpiresAt <= clock.GetUtcNow()
-                || !transaction.Started || transaction.Principal is not null
+            if (
+                !_transactions.Remove(id, out var transaction)
+                || transaction.ExpiresAt <= clock.GetUtcNow()
+                || !transaction.Started
+                || transaction.Principal is not null
                 || !ReferenceEquals(configuration, transaction.Configuration)
                 || transaction.Revision != configuration.IdentityRevision
-                || !IdentityClaims.TryCreate(principal, configuration, out _))
+                || !IdentityClaims.TryCreate(principal, configuration, out _)
+            )
             {
                 return null;
             }
@@ -68,20 +96,37 @@ public sealed class OidcLinkStore(TimeProvider clock)
     }
 
     /// <summary>Consumes a completion ticket only for the original authenticated session.</summary>
-    public bool TryComplete(string id, Guid userId, string token, out ClaimsPrincipal? principal, out PluginConfiguration? configuration)
-        => TryComplete(id, userId, token, out principal, out configuration, out _);
+    public bool TryComplete(
+        string id,
+        Guid userId,
+        string token,
+        out ClaimsPrincipal? principal,
+        out PluginConfiguration? configuration
+    ) => TryComplete(id, userId, token, out principal, out configuration, out _);
 
     /// <summary>Returns the initiation revision for a serialized commit-time check.</summary>
-    public bool TryComplete(string id, Guid userId, string token, out ClaimsPrincipal? principal, out PluginConfiguration? configuration, out long revision)
+    public bool TryComplete(
+        string id,
+        Guid userId,
+        string token,
+        out ClaimsPrincipal? principal,
+        out PluginConfiguration? configuration,
+        out long revision
+    )
     {
         revision = 0;
         principal = null;
         configuration = null;
         lock (_gate)
         {
-            if (!_transactions.Remove(id, out var transaction) || transaction.ExpiresAt <= clock.GetUtcNow()
-                || transaction.Principal is null || transaction.UserId != userId || transaction.TokenFingerprint != Fingerprint(token)
-                || transaction.Revision != transaction.Configuration.IdentityRevision)
+            if (
+                !_transactions.Remove(id, out var transaction)
+                || transaction.ExpiresAt <= clock.GetUtcNow()
+                || transaction.Principal is null
+                || transaction.UserId != userId
+                || transaction.TokenFingerprint != OidcSessionTracker.Fingerprint(token)
+                || transaction.Revision != transaction.Configuration.IdentityRevision
+            )
             {
                 return false;
             }
@@ -92,7 +137,14 @@ public sealed class OidcLinkStore(TimeProvider clock)
         }
     }
 
-    private static string Fingerprint(string token) => Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(token)));
-
-    private sealed record Transaction(Guid UserId, string TokenFingerprint, string ReturnUrl, PluginConfiguration Configuration, DateTimeOffset ExpiresAt, long Revision, bool Started = false, ClaimsPrincipal? Principal = null);
+    private sealed record Transaction(
+        Guid UserId,
+        string TokenFingerprint,
+        string ReturnUrl,
+        PluginConfiguration Configuration,
+        DateTimeOffset ExpiresAt,
+        long Revision,
+        bool Started = false,
+        ClaimsPrincipal? Principal = null
+    );
 }

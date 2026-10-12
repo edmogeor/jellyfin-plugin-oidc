@@ -25,8 +25,20 @@
         return {};
     };
     const profileStrings = /* @english-strings */ {};
+    function linkedIdentityText(state) {
+        const identity = state.Email || state.Username;
+        return identity ? profileStrings.linkLinkedAs.replace('{0}', identity) : profileStrings.linkLinked;
+    }
+    function approvalCriterion(request) {
+        if (request.Subject) return 'Subject';
+        if (request.Username) return 'Username';
+        return 'Email';
+    }
     const confirmUnlink = async (state, self) => {
-        const warnings = [profileStrings.adminUnlinkWarning.replace('{0}', state.Name || ''), profileStrings[state.PasswordLoginMode === 'DisableForAllUsers' ? 'adminPasswordDisabled' : state.PasswordLoginMode === 'DisableForLinkedUsersOnly' ? 'adminPasswordRestored' : 'adminPasswordAllowed']];
+        let passwordWarning = 'adminPasswordAllowed';
+        if (state.PasswordLoginMode === 'DisableForAllUsers') passwordWarning = 'adminPasswordDisabled';
+        else if (state.PasswordLoginMode === 'DisableForLinkedUsersOnly') passwordWarning = 'adminPasswordRestored';
+        const warnings = [profileStrings.adminUnlinkWarning.replace('{0}', state.Name || ''), profileStrings[passwordWarning]];
         if (self) warnings.push(profileStrings.adminSelfWarning);
         if (state.SoleAdministrator) warnings.push(profileStrings.adminSoleWarning);
         const escape = value => { const node = document.createElement('span'); node.textContent = value; return node.innerHTML; };
@@ -65,14 +77,21 @@
     const linkRequest = (session, path, options = {}) => fetch(oidcUrl + path, {
         ...options, cache: 'no-store', headers: { Authorization: `MediaBrowser Token="${session.token}"`, 'Content-Type': 'application/json' },
     });
-    const linkNotification = (text, error = false) => {
+    function requestCurrentUser(token) {
+        return fetch(serverUrl + 'Users/Me', { headers: { Authorization: `MediaBrowser Token="${token}"` } });
+    }
+    function sameUser(first, second) {
+        return first.replaceAll('-', '').toLowerCase() === second.replaceAll('-', '').toLowerCase();
+    }
+    const linkNotification = (text, error = false, duration = 5000) => {
         const container = document.querySelector('.toastContainer') || document.body.appendChild(document.createElement('div'));
         container.classList.add('toastContainer');
         const message = document.createElement('div');
         message.className = 'toast'; message.textContent = text; message.setAttribute('role', error ? 'alert' : 'status');
         container.append(message);
         setTimeout(() => message.classList.add('toastVisible'), 300);
-        setTimeout(() => message.remove(), 5000);
+        setTimeout(() => message.remove(), duration);
+        return message;
     };
     let profileSection;
     let profileUnavailableKey;
@@ -80,31 +99,34 @@
     const restoreProfilePasswords = () => document.querySelectorAll('[data-oidc-password-hidden]').forEach(form => {
         form.removeAttribute('data-oidc-password-hidden'); display([form]);
     });
-    const updateProfile = () => {
+    function setProfilePasswordVisibility(content, disabled) {
+        if (disabled === undefined) return;
+        const form = content.querySelector('.updatePasswordForm');
+        if (!form) return;
+        if (disabled) { form.dataset.oidcPasswordHidden = 'true'; display([form], 'none'); }
+        else if (form.hasAttribute('data-oidc-password-hidden')) { form.removeAttribute('data-oidc-password-hidden'); display([form]); }
+    }
+    function updateProfile() {
         const session = activeSession();
         const route = profileRoute();
         const requestedUser = route?.searchParams.get('userId');
         const content = document.querySelector('#userProfilePage .padded-left.padded-right.padded-bottom-page');
-        if (!session || !route || !content || (requestedUser && requestedUser.replaceAll('-', '').toLowerCase() !== session.userId.replaceAll('-', '').toLowerCase())) {
+        if (!session || !route || !content || (requestedUser && !sameUser(requestedUser, session.userId))) {
             profileSection?.remove(); profileSection = null;
             restoreProfilePasswords();
             return;
         }
-        const setPasswordVisibility = disabled => {
-            if (disabled === undefined) return;
-            const form = content.querySelector('.updatePasswordForm');
-            if (!form) return;
-            if (disabled) { form.dataset.oidcPasswordHidden = 'true'; display([form], 'none'); }
-            else if (form.hasAttribute('data-oidc-password-hidden')) { form.removeAttribute('data-oidc-password-hidden'); display([form]); }
-        };
         const key = session.userId + ':' + session.token;
         if (profileUnavailableKey === key) return;
         if (profileSection?.isConnected && profileSection.sessionKey === key) {
-            setPasswordVisibility(profileSection.passwordLoginDisabled);
+            setProfilePasswordVisibility(content, profileSection.passwordLoginDisabled);
             return;
         }
         profileSection?.remove();
         restoreProfilePasswords();
+        mountProfile(content, session, route, key);
+    }
+    function createProfileCard(content, key) {
         const section = document.createElement('section');
         profileSection = section; section.sessionKey = key;
         section.dataset.oidcProfile = 'true'; section.className = 'readOnlyContent detailSection';
@@ -140,9 +162,56 @@
         let anchor = content.querySelector('.updatePasswordForm');
         while (anchor && anchor.parentElement !== content) anchor = anchor.parentElement;
         content.insertBefore(section, anchor);
-        if (isPrimaryLogin()) { section.passwordLoginDisabled = true; setPasswordVisibility(true); }
+        return { section, heading, help, button, buttonIcon, label, setStatus, showButton };
+    }
+    async function completeProfileLink(session, current) {
+        const params = new URLSearchParams(location.search);
+        const ticket = params.get('oidcLinkTicket');
+        const error = params.has('oidcLinkError');
+        if (!ticket && !error) return;
+        params.delete('oidcLinkTicket'); params.delete('oidcLinkError');
+        history.replaceState(null, '', location.pathname + (params.size ? '?' + params : '') + location.hash);
+        if (error) { linkNotification(profileStrings.linkError, true); return; }
+        const response = await linkRequest(session, 'link/complete', { method: 'POST', body: JSON.stringify({ Ticket: ticket }) });
+        if (current()) linkNotification(response.ok ? profileStrings.linkSuccess : profileStrings.linkError, !response.ok);
+    }
+    function mountProfile(content, session, route, key) {
+        const { section, heading, help, button, buttonIcon, label, setStatus, showButton } = createProfileCard(content, key);
+        if (isPrimaryLogin()) { section.passwordLoginDisabled = true; setProfilePasswordVisibility(content, true); }
         const current = () => section === profileSection && section.isConnected && activeSession()?.token === session.token;
-        const loadStatus = async () => {
+        async function unlink(state) {
+            try {
+                if (!state.PartialRevocation && !await confirmUnlink(state, true)) return;
+                if (!current()) return;
+                button.disabled = true;
+                const response = await linkRequest(session, state.PartialRevocation ? 'link/retry-sign-out' : 'link?version=' + state.Version, { method: state.PartialRevocation ? 'POST' : 'DELETE', ...(state.PartialRevocation ? { body: JSON.stringify({ Operation: state.UnlinkOperation }) } : {}) });
+                const me = await requestCurrentUser(session.token);
+                if (me.status === 401) { if (current()) returnToSignIn(session); return; }
+                if (!current()) return;
+                if (!response.ok) throw new Error('Unlink failed');
+                const result = await response.json();
+                let message = profileStrings.adminUnlinked;
+                if (result.PartialRevocation) message = profileStrings.adminPartial;
+                else if (state.PartialRevocation) message = profileStrings.adminSignedOut;
+                linkNotification(message, result.PartialRevocation);
+                await loadStatus();
+                if (current()) button.focus();
+            } catch {
+                if (current()) { button.disabled = false; linkNotification(profileStrings.adminError, true); }
+            }
+        }
+        async function initiateLink() {
+            button.disabled = true; label.textContent = profileStrings.linkRedirecting;
+            try {
+                const response = await linkRequest(session, 'link?returnUrl=' + encodeURIComponent(route.pathname + route.search), { method: 'POST' });
+                if (!response.ok) throw new Error('Link initiation failed');
+                const result = await response.json();
+                if (current()) location.assign(result.Url);
+            } catch {
+                if (current()) { button.disabled = false; label.textContent = profileStrings.linkButton; linkNotification(profileStrings.linkError, true); }
+            }
+        }
+        async function loadStatus() {
             showButton(false); buttonIcon.classList.add('hide'); help.classList.add('hide'); setStatus(profileStrings.linkChecking);
             try {
                 Object.assign(profileStrings, await loadStrings());
@@ -155,9 +224,8 @@
                 const state = await response.json();
                 if (!current()) return;
                 section.passwordLoginDisabled = state.PasswordLoginDisabled;
-                setPasswordVisibility(state.PasswordLoginDisabled);
-                const linkedIdentity = state.Email || state.Username;
-                setStatus(state.Linked ? (linkedIdentity ? profileStrings.linkLinkedAs.replace('{0}', linkedIdentity) : profileStrings.linkLinked) : profileStrings.linkNotLinked, state.Linked);
+                setProfilePasswordVisibility(content, state.PasswordLoginDisabled);
+                setStatus(state.Linked ? linkedIdentityText(state) : profileStrings.linkNotLinked, state.Linked);
                 const messages = [];
                 if (state.PartialRevocation) messages.push(profileStrings.adminPartial);
                 if (state.AutomaticReattachmentBlocked) messages.push(profileStrings.adminBlocked);
@@ -169,37 +237,19 @@
                 buttonIcon.classList.remove('hide');
                 button.disabled = false;
                 button.classList.toggle('button-delete', state.CanUnlink && !state.PartialRevocation);
-                buttonIcon.textContent = state.PartialRevocation ? 'refresh' : state.CanUnlink ? 'link_off' : 'link';
-                label.textContent = state.PartialRevocation ? profileStrings.adminRetrySignOut : state.CanUnlink ? profileStrings.adminUnlink : profileStrings.linkButton;
-                button.onclick = async () => {
-                    if (state.CanUnlink || state.PartialRevocation) {
-                        try {
-                            if (!state.PartialRevocation && !await confirmUnlink(state, true)) return;
-                            if (!current()) return;
-                            button.disabled = true;
-                            const response = await linkRequest(session, state.PartialRevocation ? 'link/retry-sign-out' : 'link?version=' + state.Version, { method: state.PartialRevocation ? 'POST' : 'DELETE', ...(state.PartialRevocation ? { body: JSON.stringify({ Operation: state.UnlinkOperation }) } : {}) });
-                            const me = await fetch(serverUrl + 'Users/Me', { headers: { Authorization: `MediaBrowser Token="${session.token}"` } });
-                            if (me.status === 401) { if (current()) returnToSignIn(session); return; }
-                            if (!current()) return;
-                            if (!response.ok) throw new Error('Unlink failed');
-                            const result = await response.json();
-                            linkNotification(result.PartialRevocation ? profileStrings.adminPartial : state.PartialRevocation ? profileStrings.adminSignedOut : profileStrings.adminUnlinked, result.PartialRevocation);
-                            await loadStatus();
-                            if (current()) button.focus();
-                        } catch {
-                            if (current()) { button.disabled = false; linkNotification(profileStrings.adminError, true); }
-                        }
-                        return;
-                    }
-                    button.disabled = true; label.textContent = profileStrings.linkRedirecting;
-                    try {
-                        const response = await linkRequest(session, 'link?returnUrl=' + encodeURIComponent(route.pathname + route.search), { method: 'POST' });
-                        if (!response.ok) throw new Error('Link initiation failed');
-                        const result = await response.json();
-                        if (current()) location.assign(result.Url);
-                    } catch {
-                        if (current()) { button.disabled = false; label.textContent = profileStrings.linkButton; linkNotification(profileStrings.linkError, true); }
-                    }
+                if (state.PartialRevocation) {
+                    buttonIcon.textContent = 'refresh';
+                    label.textContent = profileStrings.adminRetrySignOut;
+                } else if (state.CanUnlink) {
+                    buttonIcon.textContent = 'link_off';
+                    label.textContent = profileStrings.adminUnlink;
+                } else {
+                    buttonIcon.textContent = 'link';
+                    label.textContent = profileStrings.linkButton;
+                }
+                button.onclick = () => {
+                    if (state.CanUnlink || state.PartialRevocation) return unlink(state);
+                    return initiateLink();
                 };
             } catch {
                 if (!current()) return;
@@ -208,21 +258,10 @@
                 showButton(true); button.disabled = false; label.textContent = profileStrings.linkRetry;
                 button.onclick = () => { void loadStatus(); };
             }
-        };
-        const complete = async () => {
-            const params = new URLSearchParams(location.search);
-            const ticket = params.get('oidcLinkTicket');
-            const error = params.has('oidcLinkError');
-            if (!ticket && !error) return;
-            params.delete('oidcLinkTicket'); params.delete('oidcLinkError');
-            history.replaceState(null, '', location.pathname + (params.size ? '?' + params : '') + location.hash);
-            if (error) { linkNotification(profileStrings.linkError, true); return; }
-            const response = await linkRequest(session, 'link/complete', { method: 'POST', body: JSON.stringify({ Ticket: ticket }) });
-            if (current()) linkNotification(response.ok ? profileStrings.linkSuccess : profileStrings.linkError, !response.ok);
-        };
-        if (!completingLink) completingLink = complete().catch(() => { if (current()) linkNotification(profileStrings.linkError, true); }).finally(() => { completingLink = null; });
+        }
+        if (!completingLink) completingLink = completeProfileLink(session, current).catch(() => { if (current()) linkNotification(profileStrings.linkError, true); }).finally(() => { completingLink = null; });
         void completingLink.then(loadStatus);
-    };
+    }
     const updateLoginContainer = button => {
         const login = button.closest('#loginPage');
         const form = login?.querySelector('form.manualLoginForm');
@@ -305,14 +344,8 @@
         }
         if (!isLoginPage() || document.querySelector('[data-oidc-error]') || shownError) return;
         shownError = true;
-        const container = document.querySelector('.toastContainer') || document.body.appendChild(document.createElement('div'));
-        container.classList.add('toastContainer');
-        const message = document.createElement('div');
-        message.dataset.oidcError = 'true'; message.setAttribute('role', 'alert');
-        message.className = 'toast'; message.textContent = 'We couldn\'t sign you in. Please try again.';
-        container.append(message);
-        setTimeout(() => message.classList.add('toastVisible'), 300);
-        setTimeout(() => message.remove(), 3600);
+        const message = linkNotification('We couldn\'t sign you in. Please try again.', true, 3600);
+        message.dataset.oidcError = 'true';
     };
     const enableLogout = () => addEventListener('click', async event => {
         const menuItem = event.target.closest('[role="menuitem"]');
@@ -335,7 +368,7 @@
             return;
         }
         const server = JSON.parse(localStorage.getItem('jellyfin_credentials') || '{}').Servers?.[0];
-        if (server?.AccessToken && await fetch(serverUrl + 'Users/Me', { headers: { Authorization: `MediaBrowser Token="${server.AccessToken}"` } }).then(response => response.ok).catch(() => false)) return;
+        if (server?.AccessToken && await requestCurrentUser(server.AccessToken).then(response => response.ok).catch(() => false)) return;
         if (redirectingToProvider) return;
         redirectingToProvider = true;
         location.assign(endpoint());
@@ -455,7 +488,7 @@
                 try {
                     const response = await linkRequest(session, path + suffix, { method, ...(data ? { body: JSON.stringify(data) } : {}) });
                     if (suffix.startsWith('/link?') || suffix === '/retry-sign-out') {
-                        const me = await fetch(serverUrl + 'Users/Me', { headers: { Authorization: `MediaBrowser Token="${session.token}"` } });
+                        const me = await requestCurrentUser(session.token);
                         if (me.status === 401) {
                             returnToSignIn(session); return;
                         }
@@ -464,7 +497,10 @@
                     const value = await response.json();
                     if (current()) {
                         setState(value); setEditing(false);
-                        const outcome = suffix === '/link-request' ? 'adminApproved' : suffix.startsWith('/link-request?') ? 'adminCancelled' : suffix.startsWith('/link?') ? 'adminUnlinked' : 'adminSignedOut';
+                        let outcome = 'adminSignedOut';
+                        if (suffix === '/link-request') outcome = 'adminApproved';
+                        else if (suffix.startsWith('/link-request?')) outcome = 'adminCancelled';
+                        else if (suffix.startsWith('/link?')) outcome = 'adminUnlinked';
                         setToast(text(value.PartialRevocation && outcome === 'adminSignedOut' ? 'adminPartial' : outcome));
                     }
                 } catch { if (current()) setError(text('adminError')); }
@@ -472,12 +508,13 @@
             };
             const button = (key, onClick, props = {}) => h(Button, { key, type: 'button', className: 'raised', title: text(key), disabled: busy, onClick, ...props });
             const approval = () => {
-                setMatchBy(state.Request ? (state.Request.Subject ? 'Subject' : state.Request.Username ? 'Username' : 'Email') : state.AutomaticLinkingMode === 'UsernameToUsername' ? 'Username' : 'Email');
+                if (state.Request) setMatchBy(approvalCriterion(state.Request));
+                else setMatchBy(state.AutomaticLinkingMode === 'UsernameToUsername' ? 'Username' : 'Email');
                 setValue(state.Request?.Subject || state.Request?.Email || state.Request?.Username || '');
                 setEditing(true);
             };
             const unlink = async () => {
-                try { if (!await confirmUnlink(state, userId.replaceAll('-', '').toLowerCase() === session.userId.replaceAll('-', '').toLowerCase())) return; }
+                try { if (!await confirmUnlink(state, sameUser(userId, session.userId))) return; }
                 catch { return; }
                 if (current()) {
                     await mutate('/link?version=' + state.Version, 'DELETE');
@@ -490,13 +527,14 @@
             if (error) children.push(h(Alert, { key: 'error', severity: 'error' }, error), button('linkRetry', load));
             if (!state && busy) children.push(h(Loading, { key: 'loading' }));
             if (state) {
-                const identity = state.Email || state.Username;
-                const status = state.Linked ? (identity ? text('linkLinkedAs').replace('{0}', identity) : text('linkLinked')) : state.Request ? text('adminPending') : text('linkNotLinked');
+                let status = text('linkNotLinked');
+                if (state.Linked) status = linkedIdentityText(state);
+                else if (state.Request) status = text('adminPending');
                 children.push(h(Alert, { key: 'status', severity: state.Linked ? 'success' : 'info', role: 'status' }, status));
                 if (!state.OidcAvailable) children.push(h(Alert, { key: 'disabled', severity: 'warning' }, text('adminDisabled')));
                 if (state.AutomaticReattachmentBlocked) children.push(h('p', { key: 'block', className: 'fieldDescription' }, text('adminBlocked')));
                 if (state.PartialRevocation) children.push(h(Alert, { key: 'partial', severity: 'warning' }, text('adminPartial')), button('adminRetrySignOut', () => mutate('/retry-sign-out', 'POST', { Operation: state.UnlinkOperation })));
-                if (state.Request && !editing) children.push(h('p', { key: 'criteria' }, text(state.Request.Subject ? 'adminSubject' : state.Request.Username ? 'adminUsername' : 'adminEmail') + ': ' + (state.Request.Subject || state.Request.Username || state.Request.Email)), h('p', { key: 'approval-help', className: 'fieldDescription' }, text('adminApprovalHelp')));
+                if (state.Request && !editing) children.push(h('p', { key: 'criteria' }, text('admin' + approvalCriterion(state.Request)) + ': ' + (state.Request.Subject || state.Request.Username || state.Request.Email)), h('p', { key: 'approval-help', className: 'fieldDescription' }, text('adminApprovalHelp')));
                 if (editing) children.push(h('form', { key: 'form', onSubmit: event => { event.preventDefault(); void mutate('/link-request', 'PUT', { Version: state.Version, [matchBy]: value }); } },
                     h('div', { className: 'selectContainer', ref: selectContainer }),
                     h('div', { className: 'inputContainer' }, h(Input, { id: 'oidc-admin-value', label: text('adminValue'), type: matchBy === 'Email' ? 'email' : 'text', value, required: true, maxLength: matchBy === 'Email' ? 320 : 1024, disabled: busy, 'aria-describedby': 'oidc-admin-match-help', onChange: event => setValue(event.target.value) })),
@@ -520,7 +558,7 @@
             React.useEffect(() => { const update = () => refresh(value => value + 1); addEventListener('hashchange', update); return () => removeEventListener('hashchange', update); }, []);
             React.useEffect(() => {
                 let active = true; setAdmin(false);
-                if (session) void fetch(serverUrl + 'Users/Me', { headers: { Authorization: `MediaBrowser Token="${session.token}"` } }).then(response => response.ok ? response.json() : null).then(user => { if (active) setAdmin(user?.Policy?.IsAdministrator === true); }).catch(() => {});
+                if (session) void requestCurrentUser(session.token).then(response => response.ok ? response.json() : null).then(user => { if (active) setAdmin(user?.Policy?.IsAdministrator === true); }).catch(() => {});
                 return () => { active = false; };
             }, [session?.token]);
             const tree = Original();
