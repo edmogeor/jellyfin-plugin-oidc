@@ -128,6 +128,8 @@ Suppression is user-specific, not an identity-wide ban. A fresh explicit link or
 
 When local passwords are disabled for all users, choose whether Jellyfin Web redirects its unauthenticated sign-in page to OIDC or keeps the sign-in heading with only the OIDC button. The browser integration also shows generic sign-in failures and can intercept logout. Saving a setting that changes the sign-in state reloads Jellyfin Web; other settings update the integration without a reload.
 
+While installing an OIDC session handoff, Jellyfin Web hides the sign-in page and shows its loading spinner until navigation completes or sign-in fails. The OIDC-only signed-out page hides Remember Me; ordinary sign-in retains the choice.
+
 With RP-initiated logout, a protected ID token redirects to the discovered Identity Provider end-session endpoint with `client_id` and `id_token_hint`. Jellyfin receives the post-logout redirect unless direct sign-in redirects are enabled, in which case the Identity Provider owns the page. Allow `<Public Jellyfin URL>/web/index.html` as a post-logout redirect URI when Jellyfin receives that redirect. Missing tokens, disabled RP logout, or missing end-session endpoints return to Jellyfin login; direct sign-in redirects instead show an OIDC-only signed-out state to prevent a sign-in loop.
 
 Protected logout tokens use chunked HttpOnly cookies to support large ID tokens. Browser logout uses only the active server's token and clears only its credentials, including on network failure. An unconfirmed server logout shows a localized warning on the signed-out page rather than claiming successful server revocation.

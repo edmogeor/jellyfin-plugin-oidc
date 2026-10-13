@@ -128,6 +128,7 @@ public sealed class WebInjectionStartupFilter : IStartupFilter
         var route = JsonSerializer.Serialize(ReturnUrls.Local(returnUrl) ? returnUrl : "/home");
         var remember = rememberMe.ToString().ToLowerInvariant();
         return $$"""
+            <style id="oidc-session-loading-style">#loginPage{visibility:hidden}</style>
             <script>
             const oidcSession={{result}};
             const oidcUser=oidcSession.user;

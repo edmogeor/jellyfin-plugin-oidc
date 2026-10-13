@@ -125,6 +125,7 @@
     let installingSession;
     document.addEventListener('viewshow', event => {
         if (event.target.id === 'loginPage') { nativeLoginReady = true; void installSession(); }
+        if (window.oidcHandoff) queueMicrotask(() => { if (window.oidcHandoff) window.Dashboard?.showLoadingMsg(); });
     }, true);
     async function installSession() {
         const handoff = window.oidcHandoff;
@@ -134,6 +135,7 @@
         const address = new URL(client.serverAddress(), location.href);
         if (address.origin !== serverUrl.origin || address.pathname.replace(/\/$/, '') !== serverUrl.pathname.replace(/\/$/, '')) return;
         installingSession = true;
+        window.Dashboard.showLoadingMsg();
         try {
             const response = await fetch(serverUrl + 'Users/Me', { signal: AbortSignal.timeout(10000), headers: { Authorization: `MediaBrowser Token="${handoff.session.accessToken}"` } });
             if (!response.ok) throw new Error('Session handoff failed');
@@ -147,6 +149,9 @@
             window.oidcHandoff = null;
             location.hash = '!/login?oidcError=1';
             revealLogin();
+        } finally {
+            document.querySelector('#oidc-session-loading-style')?.remove();
+            window.Dashboard.hideLoadingMsg();
         }
     }
     function sameUser(first, second) {
@@ -357,7 +362,7 @@
         }
     };
     const addLogin = stack => {
-        if (!isLoginPage() || window.oidcEnabled === false) {
+        if (!isLoginPage() || window.oidcEnabled === false || window.oidcHandoff) {
             document.querySelectorAll('form.manualLoginForm[data-oidc-login-container]').forEach(form => form.removeAttribute('data-oidc-login-container'));
             document.querySelectorAll('[data-oidc-login]').forEach(button => button.remove());
             return;
@@ -408,7 +413,7 @@
             form.style.setProperty('--loginPageText', JSON.stringify(signedOutLabel()));
             addLogin(stack);
             stack.querySelector('[data-oidc-login]')?.classList.add('button-submit');
-            display([...login.querySelectorAll('.btnQuick, .btnSelectServer, .loginDisclaimerContainer')], 'none');
+            display([...login.querySelectorAll('.btnQuick, .btnSelectServer, .loginDisclaimerContainer'), form.querySelector('.chkRememberLogin')?.closest('.checkboxContainer')], 'none');
             login.style.setProperty('visibility', 'visible', 'important');
             shown = true;
         }

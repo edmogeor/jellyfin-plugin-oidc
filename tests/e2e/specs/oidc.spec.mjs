@@ -274,10 +274,24 @@ test("binds handoffs to the browser and preserves the return route, remember cho
       ),
     ).toBe(false);
     await page.unroute("**/oidc/callback");
+    let resumeHandoff;
+    const pausedHandoff = new Promise((resolve) => {
+      resumeHandoff = resolve;
+    });
+    await page.route("**/Users/Me", async (route) => {
+      await pausedHandoff;
+      await route.continue();
+    });
     const response = await page.goto(handoff);
     expect(response.headers()["cache-control"]).toContain("no-store");
+    await expect(page.locator("#loginPage")).toBeHidden();
+    await expect(page.locator(".docspinner.mdlSpinnerActive")).toBeVisible();
+    await expect(page.locator("[data-oidc-login]")).toHaveCount(0);
+    resumeHandoff();
     await expect(page).toHaveURL(/#!?\/userprofile/);
     await expect(page.getByRole("button", { name: "User Menu" })).toBeVisible();
+    await expect(page.locator("#oidc-session-loading-style")).toHaveCount(0);
+    await page.unroute("**/Users/Me");
     const saved = await page.evaluate(() => ({
       credentials: JSON.parse(localStorage.getItem("jellyfin_credentials")),
       remember: localStorage.getItem("enableAutoLogin"),
@@ -862,7 +876,7 @@ test("navigates settings tabs by keyboard and reveals invalid fields without los
 
   await page.locator("#AdministratorGroup").fill("");
   await page.locator("#PasswordLoginMode").selectOption("DisableForAllUsers");
-  await expect(page.locator("#RedirectSettingsHint")).toBeVisible();
+  await expect(page.locator("#RedirectSettingsHint")).toHaveCount(0);
   await page.locator("#SaveButton").click();
   await expect(page.locator("#AdministratorGroup")).toBeFocused();
   expect(
@@ -871,10 +885,7 @@ test("navigates settings tabs by keyboard and reveals invalid fields without los
       .evaluate((input) => input.validationMessage),
   ).toContain("Administrator group");
   await page.locator("#AdministratorGroup").fill("jellyfin-admins");
-  await page
-    .locator("[data-advanced-target='RedirectSignInPageToProvider']")
-    .click();
-  await expect(page.locator("#RedirectSignInPageToProvider")).toBeFocused();
+  await advanced.click();
   await expect(
     page.locator("#RedirectSignInPageToProviderContainer"),
   ).toBeVisible();
@@ -1514,6 +1525,9 @@ test("shows OIDC-only controls and redirects root visits when local passwords ar
     ).toBeVisible();
     await expect(adminPage.locator("#divUsers")).toBeHidden();
     await expect(adminPage.locator(".btnQuick")).toBeHidden();
+    await expect(
+      adminPage.getByRole("checkbox", { name: "Remember Me" }),
+    ).toBeHidden();
     await expect(adminPage.locator(".btnSelectServer")).toBeHidden();
   } finally {
     await setConfigurationValue(

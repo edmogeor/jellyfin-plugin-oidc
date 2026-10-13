@@ -47,23 +47,12 @@
           color: var(--jf-palette-primary-main);
           border-bottom-color: var(--jf-palette-primary-main);
         }
-        #OidcConfigPage .oidc-tab:hover,
-        #OidcConfigPage .oidc-link:hover {
+        #OidcConfigPage .oidc-tab:hover {
           color: var(--jf-palette-text-primary);
         }
-        #OidcConfigPage .oidc-tab:focus-visible,
-        #OidcConfigPage .oidc-link:focus-visible {
+        #OidcConfigPage .oidc-tab:focus-visible {
           outline: 2px solid var(--jf-palette-primary-main);
           outline-offset: 3px;
-        }
-        #OidcConfigPage .oidc-link {
-          color: var(--jf-palette-primary-main);
-          text-underline-offset: 0.2em;
-        }
-        #OidcConfigPage .oidc-section-note {
-          margin: 1rem 0 0;
-          line-height: 1.6;
-          max-width: 75ch;
         }
         #OidcConfigPage .oidc-load-state {
           margin: 0 0 1.25rem;
@@ -340,16 +329,24 @@
                 >
               </div>
               <div class="selectContainer">
-                <label for="Provider" data-i18n="providerLabel">{{providerLabel}}</label>
+                <label for="Provider" data-i18n="providerLabel"
+                  >{{providerLabel}}</label
+                >
                 <select id="Provider" is="emby-select" class="emby-select">
                   <option value="Authentik">Authentik</option>
                   <option value="Authelia">Authelia</option>
                   <option value="Keycloak">Keycloak</option>
                   <option value="PocketId">Pocket ID</option>
                   <option value="Zitadel">ZITADEL</option>
-                  <option value="Other" selected data-i18n="providerOther">{{providerOther}}</option>
+                  <option value="Other" selected data-i18n="providerOther">
+                    {{providerOther}}
+                  </option>
                 </select>
-                <span class="material-icons oidc-select-arrow" aria-hidden="true">arrow_drop_down</span>
+                <span
+                  class="material-icons oidc-select-arrow"
+                  aria-hidden="true"
+                  >arrow_drop_down</span
+                >
               </div>
               <div id="ProviderNameContainer" class="inputContainer">
                 <input
@@ -502,19 +499,6 @@
                   {{passwordLoginModeHelp}}
                 </div>
               </div>
-              <p
-                id="RedirectSettingsHint"
-                class="fieldDescription oidc-section-note"
-                hidden
-              >
-                <a
-                  href="#AdvancedPanel"
-                  class="oidc-link"
-                  data-advanced-target="RedirectSignInPageToProvider"
-                  data-i18n="signInSettingsLink"
-                  >{{signInSettingsLink}}</a
-                >
-              </p>
             </div>
           </div>
           <div
@@ -839,13 +823,6 @@
             tabs[next].focus();
           });
         });
-        page.querySelectorAll("[data-advanced-target]").forEach((link) =>
-          link.addEventListener("click", (event) => {
-            event.preventDefault();
-            selectTab(tabs[1]);
-            page.querySelector("#" + link.dataset.advancedTarget).focus();
-          }),
-        );
 
         const pluginId = "4c5b9b96-80cd-4c3d-9e3d-23fa4ebf6ce4";
         const fields = [
@@ -895,12 +872,11 @@
             saving || !hasChanges();
         };
         const updatePolicies = () => {
-          page.querySelector("#ProviderNameContainer").hidden = value("Provider") !== "Other";
+          page.querySelector("#ProviderNameContainer").hidden =
+            value("Provider") !== "Other";
           const redirectsAvailable =
             value("PasswordLoginMode") === "DisableForAllUsers";
           page.querySelector("#RedirectSignInPageToProviderContainer").hidden =
-            !redirectsAvailable;
-          page.querySelector("#RedirectSettingsHint").hidden =
             !redirectsAvailable;
           page.querySelector("#ProvisioningUsernameModeHelp").textContent =
             translate(
@@ -958,7 +934,8 @@
         const validateGroups = () => {
           const userGroup = document.querySelector("#UserGroup");
           const administratorGroup = page.querySelector("#AdministratorGroup");
-          const hasGroups = (input) => input.value.split(",").some((group) => group.trim());
+          const hasGroups = (input) =>
+            input.value.split(",").some((group) => group.trim());
           userGroup.setCustomValidity(
             !value("Enabled") ||
               hasGroups(userGroup) ||
@@ -983,7 +960,12 @@
           try {
             const url = input.value ? new URL(input.value) : null;
             input.setCustomValidity(
-              !url || (url.protocol === "https:" && !url.username && !url.password && !url.search && !url.hash)
+              !url ||
+                (url.protocol === "https:" &&
+                  !url.username &&
+                  !url.password &&
+                  !url.search &&
+                  !url.hash)
                 ? ""
                 : translate("httpsUrlValidation"),
             );
@@ -992,11 +974,15 @@
           }
         };
         const updateValidation = () => {
-          ["IssuerUrl", "ClientId", "ClientSecret", "UsernameClaim", "GroupClaim"].forEach(
-            (name) => {
-              page.querySelector("#" + name).required = value("Enabled");
-            },
-          );
+          [
+            "IssuerUrl",
+            "ClientId",
+            "ClientSecret",
+            "UsernameClaim",
+            "GroupClaim",
+          ].forEach((name) => {
+            page.querySelector("#" + name).required = value("Enabled");
+          });
           ["PublicUrl", "IssuerUrl"].forEach(validateHttpsUrl);
           validateGroups();
         };

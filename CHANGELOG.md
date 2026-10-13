@@ -1,3 +1,15 @@
+## [0.3.1.0]
+
+### Changed
+
+- Remove the direct sign-in redirection shortcut from General settings; the setting remains in Advanced.
+- Clarify that automatic linking applies to Jellyfin Users who already exist in all supported translations.
+
+### Fixed
+
+- Hide Remember Me on the OIDC-only signed-out page.
+- Show Jellyfin's loading spinner while installing an OIDC session, without flashing provider sign-in controls before the signed-in page.
+
 ## [0.3.0.0]
 
 ### Added
