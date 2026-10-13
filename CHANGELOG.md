@@ -1,3 +1,43 @@
+## [0.3.0.0]
+
+### Added
+
+- Self-service Identity Provider linking and unlinking from the signed-in Jellyfin User's profile, with an administrator-controlled availability setting.
+- An OIDC tab in administrator user settings for inspecting Identity Links, approving the next sign-in by subject, verified email, or username, unlinking, and retrying incomplete OIDC session revocation.
+- Configurable top-level username claims, automatic username matching, new-user username selection, and support for email-free identities when the verified-email requirement is disabled.
+- A Provider selector for Authentik, Authelia, Keycloak, Pocket ID, ZITADEL, and Other, with locally bundled monochrome logos across the sign-in button, user profile, and administrator status row.
+- An optional display name for Other providers, with a key icon and SSO fallback.
+
+### Changed
+
+- Reorganize the localized configuration page into General and Advanced tabs, with keyboard navigation and validation that reveals the relevant field.
+- Disable automatic linking and self-service linking by default for new installations while preserving existing saved behavior.
+- Hide profile password controls when local-password sign-in is disabled for that Jellyfin User.
+- Respect Remember Me and the requested local return route during OIDC sign-in, and preserve other Jellyfin servers' saved credentials.
+- Show provider identity before administrator link status with a subtle separator, and visibly grey out approval controls for empty or invalid values.
+- Clarify that the embedded administrator integration is verified against Jellyfin Web 12.0.0; incompatible editor module APIs preserve Jellyfin's native editor.
+
+### Removed
+
+- Replace free-form login-button text with localized Sign In with Provider Name wording and the optional Other provider name. Previously saved custom button text is no longer used.
+
+### Fixed
+
+- Prevent automatic sign-in loops after logout fallbacks, including missing logout cookies and unsupported Identity Provider logout.
+- Complete local browser sign-out when server logout cannot be confirmed, display a warning, and target only the active server's credentials.
+- Support large protected ID tokens using chunked logout cookies.
+- Remove only the Jellyfin User created by a failed provisioning attempt when its Identity Link cannot be persisted, allowing a clean retry.
+- Reject unusable group lists, empty group claims, unsupported configuration values, and issuer or public URLs containing credentials, queries, or fragments.
+- Preserve configuration-page translations behind a Jellyfin path base and retain embedded English when browser translation requests fail.
+
+### Security
+
+- Bind single-use session handoff tickets to an HttpOnly, Secure browser nonce and make credential-bearing index responses private and non-cacheable.
+- Persist exact OIDC session provenance for targeted unlink revocation while preserving local-password, Quick Connect, and unclassified historical sessions.
+- Invalidate stale callbacks and handoff tickets after administrator identity-management operations, and reject stale approval or unlink edits using per-user versions.
+- Enforce globally disabled passwords for newly created Jellyfin Users, reconcile enabled configuration at startup, and restore previous authentication providers after failed configuration updates.
+- Apply the profile-image download deadline to connection, headers, and body reads so a stalled response cannot hold the shared configuration gate indefinitely.
+
 ## [0.2.5.0]
 
 ### Security
