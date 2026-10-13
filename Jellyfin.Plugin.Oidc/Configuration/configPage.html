@@ -1,224 +1,1138 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
-    <head><meta charset="utf-8"><title data-i18n="pageTitle">{{pageTitle}}</title></head>
-<body>
-    <div id="OidcConfigPage" data-role="page" class="page type-interior pluginConfigurationPage configPage" data-require="emby-input,emby-button,emby-select,emby-checkbox">
-        <style>
-            #OidcConfigPage .content-primary {
-                max-width: 80rem;
-                margin: 0 2rem;
-                padding-bottom: 3rem;
-            }
-            #OidcConfigPage #OidcConfigForm {
-                max-width: none;
-            }
-            #OidcConfigPage .verticalSection {
-                box-sizing: border-box;
-                width: 100%;
-                background: var(--jf-palette-background-paper);
-                border: 1px solid var(--jf-palette-divider);
-                border-radius: 0.75rem;
-                padding: 1.4rem;
-                margin-bottom: 1.25rem;
-            }
-            #OidcConfigPage .verticalSection > h2:first-child {
-                margin: 0 0 0.75rem;
-            }
-            #OidcConfigPage .checkboxContainer {
-                margin-bottom: 1.25rem;
-            }
-            #OidcConfigPage .inputContainer {
-                margin-bottom: 1rem;
-            }
-            #OidcConfigPage #SaveButton {
-                display: inline-flex;
-                align-items: center;
-                justify-content: center;
-                min-width: 11rem;
-                margin: 0;
-            }
-            #OidcConfigPage #SaveButton:disabled,
-            #OidcConfigPage #SaveButton:disabled:hover {
-                background: var(--jf-palette-action-disabledBackground);
-                color: var(--jf-palette-text-disabled);
-                opacity: 0.45;
-                cursor: not-allowed;
-                transform: none;
-            }
-            @media (max-width: 640px) {
-                #OidcConfigPage .content-primary {
-                    margin-left: 1rem;
-                    margin-right: 1rem;
-                }
-                #OidcConfigPage .verticalSection {
-                    padding: 1.25rem;
-                }
-                #OidcConfigPage #SaveButton {
-                    display: flex;
-                    width: 100%;
-                }
-            }
-        </style>
-        <div data-role="content" class="content-primary"><h1 class="sectionTitle" data-i18n="pageTitle">{{pageTitle}}</h1><form id="OidcConfigForm" class="configForm">
+  <head>
+    <meta charset="utf-8" />
+    <title data-i18n="pageTitle">{{pageTitle}}</title>
+  </head>
+  <body>
+    <div
+      id="OidcConfigPage"
+      data-role="page"
+      class="page type-interior pluginConfigurationPage configPage"
+      data-require="emby-input,emby-button,emby-select,emby-checkbox"
+    >
+      <style>
+        #OidcConfigPage .content-primary {
+          max-width: 80rem;
+          margin: 0 2rem;
+          padding-bottom: 3rem;
+        }
+        #OidcConfigPage #OidcConfigForm {
+          max-width: none;
+        }
+        #OidcConfigPage [hidden] {
+          display: none !important;
+        }
+        #OidcConfigPage .oidc-intro {
+          margin: 0 0 1.5rem;
+        }
+        #OidcConfigPage .oidc-tabs {
+          display: flex;
+          gap: 1.5rem;
+          border-bottom: 1px solid var(--jf-palette-divider);
+          margin-bottom: 1.5rem;
+        }
+        #OidcConfigPage .oidc-tab {
+          font: inherit;
+          font-weight: 600;
+          color: var(--jf-palette-text-secondary);
+          background: transparent;
+          border: 0;
+          border-bottom: 2px solid transparent;
+          padding: 0.75rem 0.25rem;
+          min-height: 44px;
+          cursor: pointer;
+        }
+        #OidcConfigPage .oidc-tab[aria-selected="true"] {
+          color: var(--jf-palette-primary-main);
+          border-bottom-color: var(--jf-palette-primary-main);
+        }
+        #OidcConfigPage .oidc-tab:hover,
+        #OidcConfigPage .oidc-link:hover {
+          color: var(--jf-palette-text-primary);
+        }
+        #OidcConfigPage .oidc-tab:focus-visible,
+        #OidcConfigPage .oidc-link:focus-visible {
+          outline: 2px solid var(--jf-palette-primary-main);
+          outline-offset: 3px;
+        }
+        #OidcConfigPage .oidc-link {
+          color: var(--jf-palette-primary-main);
+          text-underline-offset: 0.2em;
+        }
+        #OidcConfigPage .oidc-section-note {
+          margin: 1rem 0 0;
+          line-height: 1.6;
+          max-width: 75ch;
+        }
+        #OidcConfigPage .oidc-load-state {
+          margin: 0 0 1.25rem;
+        }
+        #OidcConfigPage .oidc-load-error {
+          padding: 1rem;
+          border: 1px solid var(--jf-palette-error-main);
+          border-radius: 0.5rem;
+        }
+        #OidcConfigPage .oidc-load-error p {
+          margin-top: 0;
+        }
+        #OidcConfigPage .verticalSection {
+          box-sizing: border-box;
+          width: 100%;
+          background: var(--jf-palette-background-paper);
+          border: 1px solid var(--jf-palette-divider);
+          border-radius: 0.75rem;
+          padding: 1.4rem;
+          margin-bottom: 1.25rem;
+        }
+        #OidcConfigPage .verticalSection > h2:first-child {
+          margin: 0 0 0.75rem;
+        }
+        #OidcConfigPage .checkboxContainer {
+          margin-bottom: 1.25rem;
+        }
+        #OidcConfigPage .inputContainer,
+        #OidcConfigPage .selectContainer {
+          position: relative;
+          margin: 1.5rem 0;
+        }
+        #OidcConfigPage .inputContainer > label,
+        #OidcConfigPage .selectContainer > label {
+          position: absolute;
+          z-index: 1;
+          top: -0.5rem;
+          inset-inline-start: 0.625rem;
+          padding: 0 0.25rem;
+          margin: 0;
+          background: var(--jf-palette-background-paper);
+          color: var(--jf-palette-text-secondary);
+          font-size: 0.75rem;
+          font-weight: 400;
+          line-height: 1rem;
+          max-width: calc(100% - 2rem);
+          white-space: nowrap;
+          overflow: hidden;
+          text-overflow: ellipsis;
+        }
+        #OidcConfigPage .emby-input,
+        #OidcConfigPage .emby-select,
+        #OidcConfigPage .oidc-client-secret {
+          box-sizing: border-box;
+          width: 100%;
+          height: 3.5rem;
+          border: 1px solid
+            color-mix(in srgb, var(--jf-palette-text-primary) 23%, transparent);
+          border-radius: 0.25rem;
+          background-color: transparent;
+          color: var(--jf-palette-text-primary);
+          box-shadow: none;
+        }
+        #OidcConfigPage .emby-input,
+        #OidcConfigPage .emby-select {
+          padding: 1rem 0.875rem;
+          font-family: inherit;
+          font-size: 1rem;
+          line-height: 1.4375;
+          outline: none;
+        }
+        #OidcConfigPage .emby-select {
+          appearance: none;
+          background-image: none;
+          padding-inline-end: 2.5rem;
+        }
+        #OidcConfigPage .oidc-select-arrow {
+          position: absolute;
+          top: 1rem;
+          inset-inline-end: 0.75rem;
+          color: var(--jf-palette-text-secondary);
+          font-size: 1.5rem;
+          line-height: 1;
+          pointer-events: none;
+        }
+        #OidcConfigPage .emby-select option {
+          background: var(--jf-palette-background-paper);
+          color: var(--jf-palette-text-primary);
+        }
+        #OidcConfigPage .emby-input:not(:disabled):hover,
+        #OidcConfigPage .emby-select:not(:disabled):hover,
+        #OidcConfigPage .oidc-client-secret:hover {
+          border-color: var(--jf-palette-text-primary);
+        }
+        #OidcConfigPage .emby-input:focus,
+        #OidcConfigPage .emby-select:focus,
+        #OidcConfigPage .oidc-client-secret:has(input:focus) {
+          border-color: var(--jf-palette-primary-main);
+          box-shadow: inset 0 0 0 1px var(--jf-palette-primary-main);
+        }
+        #OidcConfigPage .inputContainer:has(input:focus) > label,
+        #OidcConfigPage .selectContainer:has(select:focus) > label {
+          color: var(--jf-palette-primary-main);
+        }
+        #OidcConfigPage .emby-input:user-invalid,
+        #OidcConfigPage .emby-select:user-invalid,
+        #OidcConfigPage .oidc-client-secret:has(input:user-invalid) {
+          border-color: var(--jf-palette-error-main);
+          box-shadow: inset 0 0 0 1px var(--jf-palette-error-main);
+        }
+        #OidcConfigPage .inputContainer:has(input:user-invalid) > label,
+        #OidcConfigPage .selectContainer:has(select:user-invalid) > label {
+          color: var(--jf-palette-error-main);
+        }
+        #OidcConfigPage .emby-input:disabled,
+        #OidcConfigPage .emby-select:disabled {
+          border-color: var(--jf-palette-action-disabledBackground);
+          color: var(--jf-palette-text-disabled);
+        }
+        #OidcConfigPage .inputContainer .fieldDescription,
+        #OidcConfigPage .selectContainer .fieldDescription {
+          margin-top: 0.375rem;
+        }
+        #OidcConfigPage .oidc-client-secret {
+          display: flex;
+          align-items: center;
+        }
+        #OidcConfigPage #ClientSecret {
+          flex: 1;
+          min-width: 0;
+          height: calc(3.5rem - 2px);
+          border: 0;
+          box-shadow: none;
+        }
+        #OidcConfigPage #ClientSecretToggle {
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          align-self: center;
+          flex: 0 0 44px;
+          width: 44px;
+          height: 44px;
+          min-width: 44px;
+          margin: 0 0.25rem;
+          padding: 0;
+          border-radius: 50%;
+          background: transparent;
+          color: var(--jf-palette-text-secondary);
+          box-shadow: none;
+        }
+        #OidcConfigPage #ClientSecretToggle .material-icons {
+          font-size: 1.5rem;
+        }
+        #OidcConfigPage #ClientSecretToggle:hover {
+          background: var(--jf-palette-action-hover);
+        }
+        #OidcConfigPage #ClientSecretToggle:focus-visible {
+          outline: 2px solid var(--jf-palette-primary-main);
+          outline-offset: -3px;
+        }
+        #OidcConfigPage .verticalSection > .inputContainer:last-child,
+        #OidcConfigPage .verticalSection > .selectContainer:last-child,
+        #OidcConfigPage .verticalSection > .checkboxContainer:last-child {
+          margin-bottom: 0;
+        }
+        #OidcConfigPage .fieldDescription {
+          max-width: 75ch;
+        }
+        #OidcConfigPage #SaveButton {
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          min-width: 11rem;
+          margin: 0;
+        }
+        #OidcConfigPage #SaveButton:disabled,
+        #OidcConfigPage #SaveButton:disabled:hover {
+          background: var(--jf-palette-action-disabledBackground);
+          color: var(--jf-palette-text-disabled);
+          opacity: 0.45;
+          cursor: not-allowed;
+          transform: none;
+        }
+        @media (max-width: 640px) {
+          #OidcConfigPage .content-primary {
+            margin-left: 1rem;
+            margin-right: 1rem;
+          }
+          #OidcConfigPage .verticalSection {
+            padding: 1.25rem;
+          }
+          #OidcConfigPage #SaveButton {
+            display: flex;
+            width: 100%;
+          }
+        }
+      </style>
+      <div data-role="content" class="content-primary">
+        <h1 class="sectionTitle" data-i18n="pageTitle">{{pageTitle}}</h1>
+        <p class="fieldDescription oidc-intro" data-i18n="pageIntro">
+          {{pageIntro}}
+        </p>
+        <div
+          class="oidc-tabs"
+          role="tablist"
+          aria-label="{{pageTitle}}"
+          data-i18n-aria-label="pageTitle"
+        >
+          <button
+            id="GeneralTab"
+            class="oidc-tab"
+            type="button"
+            role="tab"
+            aria-selected="true"
+            aria-controls="GeneralPanel"
+            data-i18n="generalTab"
+          >
+            {{generalTab}}
+          </button>
+          <button
+            id="AdvancedTab"
+            class="oidc-tab"
+            type="button"
+            role="tab"
+            aria-selected="false"
+            aria-controls="AdvancedPanel"
+            tabindex="-1"
+            data-i18n="advancedTab"
+          >
+            {{advancedTab}}
+          </button>
+        </div>
+        <p
+          id="ConfigurationLoading"
+          class="fieldDescription oidc-load-state"
+          role="status"
+          data-i18n="configurationLoading"
+        >
+          {{configurationLoading}}
+        </p>
+        <div
+          id="ConfigurationLoadError"
+          class="oidc-load-state oidc-load-error"
+          role="alert"
+          hidden
+        >
+          <p data-i18n="configurationLoadError">{{configurationLoadError}}</p>
+          <button
+            id="ConfigurationRetry"
+            type="button"
+            is="emby-button"
+            class="raised"
+            data-i18n="linkRetry"
+          >
+            {{linkRetry}}
+          </button>
+        </div>
+        <form id="OidcConfigForm" class="configForm" novalidate>
+          <div id="GeneralPanel" role="tabpanel" aria-labelledby="GeneralTab">
             <div class="verticalSection">
-                <h2 class="sectionTitle" data-i18n="connectionHeading">{{connectionHeading}}</h2>
-                <div class="checkboxContainer checkboxContainer-withDescription"><label><input id="Enabled" type="checkbox" is="emby-checkbox" /><span>${EnablePlugin} <span data-i18n="protocolName">{{protocolName}}</span></span></label><div class="fieldDescription checkboxFieldDescription" data-i18n="enabledHelp">{{enabledHelp}}</div></div>
-                <div class="inputContainer inputContainer-withDescription"><input id="PublicUrl" type="url" is="emby-input" label="{{publicUrlLabel}}" placeholder="{{publicUrlPlaceholder}}" data-i18n-label="publicUrlLabel" data-i18n-placeholder="publicUrlPlaceholder" /><div class="fieldDescription" data-i18n="publicUrlHelp">{{publicUrlHelp}}</div></div>
-                <div class="inputContainer inputContainer-withDescription"><input id="IssuerUrl" type="url" required is="emby-input" label="{{issuerUrlLabel}}" placeholder="{{issuerUrlPlaceholder}}" data-i18n-label="issuerUrlLabel" data-i18n-placeholder="issuerUrlPlaceholder" /><div class="fieldDescription" data-i18n="issuerUrlHelp">{{issuerUrlHelp}}</div></div>
-                <div class="inputContainer inputContainer-withDescription"><input id="ClientId" type="text" required is="emby-input" label="{{clientIdLabel}}" data-i18n-label="clientIdLabel" /><div class="fieldDescription" data-i18n="clientIdHelp">{{clientIdHelp}}</div></div>
-                <div class="inputContainer inputContainer-withDescription"><label for="ClientSecret" data-i18n="clientSecretLabel">{{clientSecretLabel}}</label><div class="oidc-client-secret" style="align-items: center; display: flex;"><input id="ClientSecret" type="password" required is="emby-input" style="flex: 1; min-width: 0;" /><button id="ClientSecretToggle" type="button" is="emby-button" class="raised cancel" style="align-self: stretch; box-sizing: border-box; margin: 0 0 0 0.5em !important; padding: 0 1em;" data-oidc-client-secret-toggle aria-controls="ClientSecret" aria-label="Show client secret" aria-pressed="false">{{showClientSecret}}</button></div><div class="fieldDescription" data-i18n="clientSecretHelp">{{clientSecretHelp}}</div></div>
+              <h2 class="sectionTitle" data-i18n="connectionHeading">
+                {{connectionHeading}}
+              </h2>
+              <div class="checkboxContainer checkboxContainer-withDescription">
+                <label
+                  ><input
+                    id="Enabled"
+                    type="checkbox"
+                    is="emby-checkbox"
+                  /><span
+                    >${EnablePlugin}
+                    <span data-i18n="protocolName">{{protocolName}}</span></span
+                  ></label
+                >
+              </div>
+              <div class="inputContainer inputContainer-withDescription">
+                <input
+                  id="IssuerUrl"
+                  type="url"
+                  required
+                  is="emby-input"
+                  label="{{issuerUrlLabel}}"
+                  placeholder="{{issuerUrlPlaceholder}}"
+                  data-i18n-label="issuerUrlLabel"
+                  data-i18n-placeholder="issuerUrlPlaceholder"
+                />
+                <div class="fieldDescription" data-i18n="issuerUrlHelp">
+                  {{issuerUrlHelp}}
+                </div>
+              </div>
+              <div class="inputContainer inputContainer-withDescription">
+                <input
+                  id="ClientId"
+                  type="text"
+                  required
+                  is="emby-input"
+                  label="{{clientIdLabel}}"
+                  data-i18n-label="clientIdLabel"
+                />
+              </div>
+              <div class="inputContainer inputContainer-withDescription">
+                <label for="ClientSecret" data-i18n="clientSecretLabel"
+                  >{{clientSecretLabel}}</label
+                >
+                <div class="oidc-client-secret">
+                  <input
+                    id="ClientSecret"
+                    type="password"
+                    required
+                    is="emby-input"
+                  /><button
+                    id="ClientSecretToggle"
+                    type="button"
+                    is="emby-button"
+                    data-oidc-client-secret-toggle
+                    aria-controls="ClientSecret"
+                    aria-label="Show client secret"
+                    aria-pressed="false"
+                    title="{{showClientSecret}}"
+                  >
+                    <span class="material-icons" aria-hidden="true"
+                      >visibility</span
+                    >
+                  </button>
+                </div>
+              </div>
             </div>
             <div class="verticalSection">
-                <h2 class="sectionTitle" data-i18n="accessHeading">{{accessHeading}}</h2>
-                <div class="checkboxContainer checkboxContainer-withDescription"><label><input id="RequireVerifiedEmail" type="checkbox" is="emby-checkbox" /><span data-i18n="requireVerifiedEmailLabel">{{requireVerifiedEmailLabel}}</span></label><div class="fieldDescription checkboxFieldDescription" data-i18n="requireVerifiedEmailHelp">{{requireVerifiedEmailHelp}}</div></div>
-                <div class="inputContainer inputContainer-withDescription"><input id="UserGroup" type="text" is="emby-input" label="{{userGroupLabel}}" data-i18n-label="userGroupLabel" /><div class="fieldDescription" data-i18n="userGroupHelp">{{userGroupHelp}}</div></div>
-                <div class="inputContainer inputContainer-withDescription"><input id="AdministratorGroup" type="text" is="emby-input" label="{{administratorGroupLabel}}" data-i18n-label="administratorGroupLabel" /><div class="fieldDescription" data-i18n="administratorGroupHelp">{{administratorGroupHelp}}</div></div>
-                <div class="inputContainer inputContainer-withDescription"><input id="GroupClaim" type="text" is="emby-input" label="{{groupClaimLabel}}" data-i18n-label="groupClaimLabel" /><div class="fieldDescription" data-i18n="groupClaimHelp">{{groupClaimHelp}}</div></div>
-                <div class="inputContainer inputContainer-withDescription"><input id="UsernameClaim" type="text" required is="emby-input" label="{{usernameClaimLabel}}" placeholder="preferred_username" data-i18n-label="usernameClaimLabel" /><div class="fieldDescription" data-i18n="usernameClaimHelp">{{usernameClaimHelp}}</div></div>
-                <div class="selectContainer"><label for="ProvisioningUsernameMode" data-i18n="provisioningUsernameModeLabel">{{provisioningUsernameModeLabel}}</label><select id="ProvisioningUsernameMode" is="emby-select" class="emby-select"><option value="UsernameClaim" data-i18n="provisioningUsernameClaim">{{provisioningUsernameClaim}}</option><option value="VerifiedEmail" data-i18n="provisioningVerifiedEmail">{{provisioningVerifiedEmail}}</option></select><div class="fieldDescription" data-i18n="provisioningUsernameHelp">{{provisioningUsernameHelp}}</div></div>
-                <div class="selectContainer"><label for="AutomaticLinkingMode" data-i18n="automaticLinkingModeLabel">{{automaticLinkingModeLabel}}</label><select id="AutomaticLinkingMode" is="emby-select" class="emby-select"><option value="None" data-i18n="automaticLinkingNone">{{automaticLinkingNone}}</option><option value="EmailToUsername" data-i18n="automaticLinkingEmail">{{automaticLinkingEmail}}</option><option value="UsernameToUsername" data-i18n="automaticLinkingUsername">{{automaticLinkingUsername}}</option></select><div class="fieldDescription" data-i18n="automaticLinkingHelp">{{automaticLinkingHelp}}</div></div>
-                <div class="checkboxContainer checkboxContainer-withDescription"><label><input id="AllowSelfServiceLinking" type="checkbox" is="emby-checkbox" /><span data-i18n="allowSelfServiceLinkingLabel">{{allowSelfServiceLinkingLabel}}</span></label><div class="fieldDescription checkboxFieldDescription" data-i18n="allowSelfServiceLinkingHelp">{{allowSelfServiceLinkingHelp}}</div></div>
-                <div class="inputContainer inputContainer-withDescription"><input id="AdditionalScopes" type="text" is="emby-input" label="{{additionalScopesLabel}}" placeholder="{{additionalScopesPlaceholder}}" data-i18n-label="additionalScopesLabel" data-i18n-placeholder="additionalScopesPlaceholder" /><div class="fieldDescription" data-i18n="additionalScopesHelp">{{additionalScopesHelp}}</div></div>
+              <h2 class="sectionTitle" data-i18n="accessHeading">
+                {{accessHeading}}
+              </h2>
+              <div class="inputContainer inputContainer-withDescription">
+                <input
+                  id="UserGroup"
+                  type="text"
+                  is="emby-input"
+                  label="{{userGroupLabel}}"
+                  data-i18n-label="userGroupLabel"
+                />
+                <div class="fieldDescription" data-i18n="userGroupHelp">
+                  {{userGroupHelp}}
+                </div>
+              </div>
+              <div class="inputContainer inputContainer-withDescription">
+                <input
+                  id="AdministratorGroup"
+                  type="text"
+                  is="emby-input"
+                  label="{{administratorGroupLabel}}"
+                  data-i18n-label="administratorGroupLabel"
+                />
+                <div
+                  class="fieldDescription"
+                  data-i18n="administratorGroupHelp"
+                >
+                  {{administratorGroupHelp}}
+                </div>
+              </div>
+              <div class="checkboxContainer checkboxContainer-withDescription">
+                <label
+                  ><input
+                    id="RequireVerifiedEmail"
+                    type="checkbox"
+                    is="emby-checkbox"
+                  /><span data-i18n="requireVerifiedEmailLabel"
+                    >{{requireVerifiedEmailLabel}}</span
+                  ></label
+                >
+                <div
+                  class="fieldDescription checkboxFieldDescription"
+                  data-i18n="requireVerifiedEmailHelp"
+                >
+                  {{requireVerifiedEmailHelp}}
+                </div>
+              </div>
             </div>
             <div class="verticalSection">
-                <h2 class="sectionTitle">${ButtonSignIn}</h2>
-                <div class="inputContainer inputContainer-withDescription"><input id="LoginButtonText" type="text" is="emby-input" placeholder="Sign In with SSO" label="{{loginButtonTextLabel}}" data-i18n-label="loginButtonTextLabel" /><div class="fieldDescription" data-i18n="loginButtonTextHelp">{{loginButtonTextHelp}}</div></div>
-                <div class="selectContainer"><label for="PasswordLoginMode" data-i18n="passwordLoginModeLabel">{{passwordLoginModeLabel}}</label><select id="PasswordLoginMode" is="emby-select" class="emby-select"><option value="AllowForAllUsers" data-i18n="allowForAllUsers">{{allowForAllUsers}}</option><option value="DisableForLinkedUsersOnly" data-i18n="disableForLinkedUsersOnly">{{disableForLinkedUsersOnly}}</option><option value="DisableForAllUsers" data-i18n="disableForAllUsers">{{disableForAllUsers}}</option></select><div class="fieldDescription" data-i18n="passwordLoginModeHelp">{{passwordLoginModeHelp}}</div></div>
-                <div id="RedirectSignInPageToProviderContainer" class="checkboxContainer checkboxContainer-withDescription" style="display:none"><label><input id="RedirectSignInPageToProvider" type="checkbox" is="emby-checkbox" /><span data-i18n="redirectSignInPageToProviderLabel">{{redirectSignInPageToProviderLabel}}</span></label><div class="fieldDescription checkboxFieldDescription" data-i18n="redirectSignInPageToProviderHelp">{{redirectSignInPageToProviderHelp}}</div></div>
-                <div class="checkboxContainer checkboxContainer-withDescription"><label><input id="SynchronizeProfileImages" type="checkbox" is="emby-checkbox" /><span data-i18n="synchronizeProfileImagesLabel">{{synchronizeProfileImagesLabel}}</span></label><div class="fieldDescription checkboxFieldDescription" data-i18n="synchronizeProfileImagesHelp">{{synchronizeProfileImagesHelp}}</div></div>
-                <div class="checkboxContainer checkboxContainer-withDescription"><label><input id="RpInitiatedLogout" type="checkbox" is="emby-checkbox" /><span data-i18n="rpInitiatedLogoutLabel">{{rpInitiatedLogoutLabel}}</span></label><div class="fieldDescription checkboxFieldDescription" data-i18n="rpInitiatedLogoutHelp">{{rpInitiatedLogoutHelp}}</div></div>
+              <h2 class="sectionTitle" data-i18n="signInPolicyHeading">
+                {{signInPolicyHeading}}
+              </h2>
+              <div class="selectContainer">
+                <label
+                  for="PasswordLoginMode"
+                  data-i18n="passwordLoginModeLabel"
+                  >{{passwordLoginModeLabel}}</label
+                ><select
+                  id="PasswordLoginMode"
+                  is="emby-select"
+                  class="emby-select"
+                >
+                  <option value="AllowForAllUsers" data-i18n="allowForAllUsers">
+                    {{allowForAllUsers}}
+                  </option>
+                  <option
+                    value="DisableForLinkedUsersOnly"
+                    data-i18n="disableForLinkedUsersOnly"
+                  >
+                    {{disableForLinkedUsersOnly}}
+                  </option>
+                  <option
+                    value="DisableForAllUsers"
+                    data-i18n="disableForAllUsers"
+                  >
+                    {{disableForAllUsers}}
+                  </option>
+                </select>
+                <span
+                  class="material-icons oidc-select-arrow"
+                  aria-hidden="true"
+                  >arrow_drop_down</span
+                >
+                <div class="fieldDescription" data-i18n="passwordLoginModeHelp">
+                  {{passwordLoginModeHelp}}
+                </div>
+              </div>
+              <p
+                id="RedirectSettingsHint"
+                class="fieldDescription oidc-section-note"
+                hidden
+              >
+                <a
+                  href="#AdvancedPanel"
+                  class="oidc-link"
+                  data-advanced-target="RedirectSignInPageToProvider"
+                  data-i18n="signInSettingsLink"
+                  >{{signInSettingsLink}}</a
+                >
+              </p>
             </div>
-            <div><button id="SaveButton" is="emby-button" type="submit" class="raised button-submit" disabled><span>${Save}</span></button></div>
-        </form></div>
-        <script>
-            const locale = document.documentElement.lang.toLowerCase();
-            const locales = [locale, locale.split('-')[0], 'en-us'].filter((value, index, values) => values.indexOf(value) === index);
-            let dictionary;
-            const loadDictionary = async () => {
-                for (const locale of locales) {
-                    const response = await fetch('/oidc/strings/' + encodeURIComponent(locale));
-                    if (response.ok) return response.json();
-                }
+          </div>
+          <div
+            id="AdvancedPanel"
+            role="tabpanel"
+            aria-labelledby="AdvancedTab"
+            hidden
+          >
+            <div class="verticalSection">
+              <h2 class="sectionTitle" data-i18n="overridesHeading">
+                {{overridesHeading}}
+              </h2>
+              <div class="inputContainer inputContainer-withDescription">
+                <input
+                  id="PublicUrl"
+                  type="url"
+                  is="emby-input"
+                  label="{{publicUrlLabel}}"
+                  placeholder="{{publicUrlPlaceholder}}"
+                  data-i18n-label="publicUrlLabel"
+                  data-i18n-placeholder="publicUrlPlaceholder"
+                />
+                <div class="fieldDescription" data-i18n="publicUrlHelp">
+                  {{publicUrlHelp}}
+                </div>
+              </div>
+              <div class="inputContainer inputContainer-withDescription">
+                <input
+                  id="GroupClaim"
+                  type="text"
+                  is="emby-input"
+                  label="{{groupClaimLabel}}"
+                  data-i18n-label="groupClaimLabel"
+                />
+                <div class="fieldDescription" data-i18n="groupClaimHelp">
+                  {{groupClaimHelp}}
+                </div>
+              </div>
+              <div class="inputContainer inputContainer-withDescription">
+                <input
+                  id="UsernameClaim"
+                  type="text"
+                  required
+                  is="emby-input"
+                  label="{{usernameClaimLabel}}"
+                  placeholder="preferred_username"
+                  data-i18n-label="usernameClaimLabel"
+                />
+                <div class="fieldDescription" data-i18n="usernameClaimHelp">
+                  {{usernameClaimHelp}}
+                </div>
+              </div>
+              <div class="inputContainer inputContainer-withDescription">
+                <input
+                  id="AdditionalScopes"
+                  type="text"
+                  is="emby-input"
+                  label="{{additionalScopesLabel}}"
+                  placeholder="{{additionalScopesPlaceholder}}"
+                  data-i18n-label="additionalScopesLabel"
+                  data-i18n-placeholder="additionalScopesPlaceholder"
+                />
+                <div class="fieldDescription" data-i18n="additionalScopesHelp">
+                  {{additionalScopesHelp}}
+                </div>
+              </div>
+            </div>
+            <div class="verticalSection">
+              <h2 class="sectionTitle" data-i18n="identityHeading">
+                {{identityHeading}}
+              </h2>
+              <div class="selectContainer">
+                <label
+                  for="ProvisioningUsernameMode"
+                  data-i18n="provisioningUsernameModeLabel"
+                  >{{provisioningUsernameModeLabel}}</label
+                ><select
+                  id="ProvisioningUsernameMode"
+                  is="emby-select"
+                  class="emby-select"
+                >
+                  <option
+                    value="UsernameClaim"
+                    data-i18n="provisioningUsernameClaim"
+                  >
+                    {{provisioningUsernameClaim}}
+                  </option>
+                  <option
+                    value="VerifiedEmail"
+                    data-i18n="provisioningVerifiedEmail"
+                  >
+                    {{provisioningVerifiedEmail}}
+                  </option>
+                </select>
+                <span
+                  class="material-icons oidc-select-arrow"
+                  aria-hidden="true"
+                  >arrow_drop_down</span
+                >
+                <div
+                  class="fieldDescription"
+                  data-i18n="provisioningUsernameHelp"
+                >
+                  {{provisioningUsernameHelp}}
+                </div>
+              </div>
+              <div class="selectContainer">
+                <label
+                  for="AutomaticLinkingMode"
+                  data-i18n="automaticLinkingModeLabel"
+                  >{{automaticLinkingModeLabel}}</label
+                ><select
+                  id="AutomaticLinkingMode"
+                  is="emby-select"
+                  class="emby-select"
+                >
+                  <option value="None" data-i18n="automaticLinkingNone">
+                    {{automaticLinkingNone}}
+                  </option>
+                  <option
+                    value="EmailToUsername"
+                    data-i18n="automaticLinkingEmail"
+                  >
+                    {{automaticLinkingEmail}}
+                  </option>
+                  <option
+                    value="UsernameToUsername"
+                    data-i18n="automaticLinkingUsername"
+                  >
+                    {{automaticLinkingUsername}}
+                  </option>
+                </select>
+                <span
+                  class="material-icons oidc-select-arrow"
+                  aria-hidden="true"
+                  >arrow_drop_down</span
+                >
+                <div class="fieldDescription" data-i18n="automaticLinkingHelp">
+                  {{automaticLinkingHelp}}
+                </div>
+              </div>
+              <p
+                id="UsernameMatchingHelp"
+                class="fieldDescription"
+                data-i18n="usernameMatchingHelp"
+                hidden
+              >
+                {{usernameMatchingHelp}}
+              </p>
+              <div class="checkboxContainer checkboxContainer-withDescription">
+                <label
+                  ><input
+                    id="AllowSelfServiceLinking"
+                    type="checkbox"
+                    is="emby-checkbox"
+                  /><span data-i18n="allowSelfServiceLinkingLabel"
+                    >{{allowSelfServiceLinkingLabel}}</span
+                  ></label
+                >
+                <div
+                  class="fieldDescription checkboxFieldDescription"
+                  data-i18n="allowSelfServiceLinkingHelp"
+                >
+                  {{allowSelfServiceLinkingHelp}}
+                </div>
+              </div>
+            </div>
+            <div class="verticalSection">
+              <h2 class="sectionTitle" data-i18n="signInExperienceHeading">
+                {{signInExperienceHeading}}
+              </h2>
+              <div class="inputContainer inputContainer-withDescription">
+                <input
+                  id="LoginButtonText"
+                  type="text"
+                  is="emby-input"
+                  placeholder="Sign In with SSO"
+                  label="{{loginButtonTextLabel}}"
+                  data-i18n-label="loginButtonTextLabel"
+                />
+              </div>
+              <div
+                id="RedirectSignInPageToProviderContainer"
+                class="checkboxContainer checkboxContainer-withDescription"
+                hidden
+              >
+                <label
+                  ><input
+                    id="RedirectSignInPageToProvider"
+                    type="checkbox"
+                    is="emby-checkbox"
+                  /><span data-i18n="redirectSignInPageToProviderLabel"
+                    >{{redirectSignInPageToProviderLabel}}</span
+                  ></label
+                >
+                <div
+                  class="fieldDescription checkboxFieldDescription"
+                  data-i18n="redirectSignInPageToProviderHelp"
+                >
+                  {{redirectSignInPageToProviderHelp}}
+                </div>
+              </div>
+              <div class="checkboxContainer checkboxContainer-withDescription">
+                <label
+                  ><input
+                    id="RpInitiatedLogout"
+                    type="checkbox"
+                    is="emby-checkbox"
+                  /><span data-i18n="rpInitiatedLogoutLabel"
+                    >{{rpInitiatedLogoutLabel}}</span
+                  ></label
+                >
+                <div
+                  class="fieldDescription checkboxFieldDescription"
+                  data-i18n="rpInitiatedLogoutHelp"
+                >
+                  {{rpInitiatedLogoutHelp}}
+                </div>
+              </div>
+            </div>
+            <div class="verticalSection">
+              <h2 class="sectionTitle" data-i18n="profileHeading">
+                {{profileHeading}}
+              </h2>
+              <div class="checkboxContainer checkboxContainer-withDescription">
+                <label
+                  ><input
+                    id="SynchronizeProfileImages"
+                    type="checkbox"
+                    is="emby-checkbox"
+                  /><span data-i18n="synchronizeProfileImagesLabel"
+                    >{{synchronizeProfileImagesLabel}}</span
+                  ></label
+                >
+                <div
+                  class="fieldDescription checkboxFieldDescription"
+                  data-i18n="synchronizeProfileImagesHelp"
+                >
+                  {{synchronizeProfileImagesHelp}}
+                </div>
+              </div>
+            </div>
+          </div>
+          <div>
+            <button
+              id="SaveButton"
+              is="emby-button"
+              type="submit"
+              class="raised button-submit"
+              disabled
+            >
+              <span data-i18n="saveChanges">{{saveChanges}}</span>
+            </button>
+          </div>
+        </form>
+      </div>
+      <script>
+        const locale = document.documentElement.lang.toLowerCase();
+        const locales = [locale, locale.split("-")[0], "en-us"].filter(
+          (value, index, values) => values.indexOf(value) === index,
+        );
+        let dictionary;
+        const englishStrings = /* @english-strings */ {};
+        const loadDictionary = async () => {
+          for (const locale of locales) {
+            const response = await fetch(
+              "/oidc/strings/" + encodeURIComponent(locale),
+            );
+            if (response.ok) return response.json();
+          }
 
-                throw new Error('No OIDC configuration translation dictionary is available.');
-            };
-            const translate = (key, ...values) => dictionary[key].replace(/\{(\d+)\}/g, (_, index) => values[index]);
-            const page = document.querySelector('#OidcConfigPage');
-            const localize = () => {
-                document.title = translate('pageTitle');
-                page.querySelectorAll('[data-i18n]').forEach(element => { element.textContent = translate(element.dataset.i18n); });
-                page.querySelectorAll('[data-i18n-placeholder]').forEach(element => { element.placeholder = translate(element.dataset.i18nPlaceholder); });
-                page.querySelectorAll('[data-i18n-label]').forEach(element => {
-                    const text = translate(element.dataset.i18nLabel);
-                    element.setAttribute('label', text);
-                    if (element.labelElement) element.labelElement.textContent = text;
-                });
-            };
+          throw new Error(
+            "No OIDC configuration translation dictionary is available.",
+          );
+        };
+        const translate = (key, ...values) =>
+          (dictionary || englishStrings)[key].replace(
+            /\{(\d+)\}/g,
+            (_, index) => values[index],
+          );
+        const page = document.querySelector("#OidcConfigPage");
+        const localize = () => {
+          document.title = translate("pageTitle");
+          page.querySelectorAll("[data-i18n]").forEach((element) => {
+            element.textContent = translate(element.dataset.i18n);
+          });
+          page
+            .querySelectorAll("[data-i18n-placeholder]")
+            .forEach((element) => {
+              element.placeholder = translate(element.dataset.i18nPlaceholder);
+            });
+          page.querySelectorAll("[data-i18n-aria-label]").forEach((element) => {
+            element.setAttribute(
+              "aria-label",
+              translate(element.dataset.i18nAriaLabel),
+            );
+          });
+          page.querySelectorAll("[data-i18n-label]").forEach((element) => {
+            const text = translate(element.dataset.i18nLabel);
+            element.setAttribute("label", text);
+            if (element.labelElement) element.labelElement.textContent = text;
+          });
+          updatePolicies();
+        };
+        const tabs = [...page.querySelectorAll('[role="tab"]')];
+        const selectTab = (tab) => {
+          tabs.forEach((item) => {
+            const selected = item === tab;
+            item.setAttribute("aria-selected", selected);
+            item.tabIndex = selected ? 0 : -1;
+            page.querySelector(
+              "#" + item.getAttribute("aria-controls"),
+            ).hidden = !selected;
+          });
+        };
+        tabs.forEach((tab, index) => {
+          tab.addEventListener("click", () => selectTab(tab));
+          tab.addEventListener("keydown", (event) => {
+            const next =
+              event.key === "Home"
+                ? 0
+                : event.key === "End"
+                  ? tabs.length - 1
+                  : event.key === "ArrowRight"
+                    ? (index + 1) % tabs.length
+                    : event.key === "ArrowLeft"
+                      ? (index + tabs.length - 1) % tabs.length
+                      : null;
+            if (next === null) return;
+            event.preventDefault();
+            selectTab(tabs[next]);
+            tabs[next].focus();
+          });
+        });
+        page.querySelectorAll("[data-advanced-target]").forEach((link) =>
+          link.addEventListener("click", (event) => {
+            event.preventDefault();
+            selectTab(tabs[1]);
+            page.querySelector("#" + link.dataset.advancedTarget).focus();
+          }),
+        );
 
-            const pluginId = '4c5b9b96-80cd-4c3d-9e3d-23fa4ebf6ce4';
-            const fields = ['Enabled', 'PublicUrl', 'IssuerUrl', 'ClientId', 'ClientSecret', 'RequireVerifiedEmail', 'UserGroup', 'AdministratorGroup', 'GroupClaim', 'UsernameClaim', 'ProvisioningUsernameMode', 'AutomaticLinkingMode', 'AllowSelfServiceLinking', 'AdditionalScopes', 'LoginButtonText', 'PasswordLoginMode', 'RedirectSignInPageToProvider', 'SynchronizeProfileImages', 'RpInitiatedLogout'];
-            const checkboxes = ['Enabled', 'RequireVerifiedEmail', 'AllowSelfServiceLinking', 'RedirectSignInPageToProvider', 'SynchronizeProfileImages', 'RpInitiatedLogout'];
-            let savedConfiguration;
-            let configurationLoad = 0;
-            let saving = false;
-            const value = name => document.querySelector('#' + name)[checkboxes.includes(name) ? 'checked' : 'value'];
-            const currentConfiguration = () => Object.fromEntries(fields.map(name => [name, value(name)]));
-            const hasChanges = () => savedConfiguration && fields.some(name => value(name) !== savedConfiguration[name]);
-            const updateSaveButton = () => { document.querySelector('#SaveButton').disabled = saving || !hasChanges(); };
-            const updateRedirectSignInPageToProvider = () => { document.querySelector('#RedirectSignInPageToProviderContainer').style.display = value('PasswordLoginMode') === 'DisableForAllUsers' ? '' : 'none'; };
-            const loadConfiguration = () => {
-                const load = ++configurationLoad;
-                return ApiClient.getPluginConfiguration(pluginId).then(config => {
-                    if (load !== configurationLoad || saving || hasChanges()) return;
-                    savedConfiguration = Object.fromEntries(fields.map(name => [name, name === 'LoginButtonText' && config[name] === 'Sign In with SSO' ? '' : config[name]]));
-                    fields.forEach(name => { document.querySelector('#' + name)[checkboxes.includes(name) ? 'checked' : 'value'] = savedConfiguration[name]; }); updateRedirectSignInPageToProvider(); updateSaveButton();
-                }).catch(error => { if (load === configurationLoad) Dashboard.processErrorResponse(error); });
-            };
-            page.addEventListener('pageshow', () => {
-                if (dictionary) localize();
-                else initializeTranslations();
-                loadConfiguration();
+        const pluginId = "4c5b9b96-80cd-4c3d-9e3d-23fa4ebf6ce4";
+        const fields = [
+          "Enabled",
+          "PublicUrl",
+          "IssuerUrl",
+          "ClientId",
+          "ClientSecret",
+          "RequireVerifiedEmail",
+          "UserGroup",
+          "AdministratorGroup",
+          "GroupClaim",
+          "UsernameClaim",
+          "ProvisioningUsernameMode",
+          "AutomaticLinkingMode",
+          "AllowSelfServiceLinking",
+          "AdditionalScopes",
+          "LoginButtonText",
+          "PasswordLoginMode",
+          "RedirectSignInPageToProvider",
+          "SynchronizeProfileImages",
+          "RpInitiatedLogout",
+        ];
+        const checkboxes = [
+          "Enabled",
+          "RequireVerifiedEmail",
+          "AllowSelfServiceLinking",
+          "RedirectSignInPageToProvider",
+          "SynchronizeProfileImages",
+          "RpInitiatedLogout",
+        ];
+        let savedConfiguration;
+        let configurationLoad = 0;
+        let saving = false;
+        const value = (name) =>
+          document.querySelector("#" + name)[
+            checkboxes.includes(name) ? "checked" : "value"
+          ];
+        const currentConfiguration = () =>
+          Object.fromEntries(fields.map((name) => [name, value(name)]));
+        const hasChanges = () =>
+          savedConfiguration &&
+          fields.some((name) => value(name) !== savedConfiguration[name]);
+        const updateSaveButton = () => {
+          document.querySelector("#SaveButton").disabled =
+            saving || !hasChanges();
+        };
+        const updatePolicies = () => {
+          const redirectsAvailable =
+            value("PasswordLoginMode") === "DisableForAllUsers";
+          page.querySelector("#RedirectSignInPageToProviderContainer").hidden =
+            !redirectsAvailable;
+          page.querySelector("#RedirectSettingsHint").hidden =
+            !redirectsAvailable;
+          page.querySelector("#ProvisioningUsernameModeHelp").textContent =
+            translate(
+              value("ProvisioningUsernameMode") === "VerifiedEmail"
+                ? "provisioningEmailHelp"
+                : "provisioningUsernameHelp",
+            );
+          page.querySelector("#UsernameMatchingHelp").hidden =
+            value("AutomaticLinkingMode") !== "UsernameToUsername";
+          page
+            .querySelector("#AutomaticLinkingMode")
+            .setAttribute(
+              "aria-describedby",
+              "AutomaticLinkingModeHelp" +
+                (value("AutomaticLinkingMode") === "UsernameToUsername"
+                  ? " UsernameMatchingHelp"
+                  : ""),
+            );
+        };
+        const loadConfiguration = () => {
+          const load = ++configurationLoad;
+          page.querySelector("#ConfigurationLoading").hidden =
+            !!savedConfiguration;
+          page.querySelector("#ConfigurationLoadError").hidden = true;
+          return ApiClient.getPluginConfiguration(pluginId)
+            .then((config) => {
+              if (load !== configurationLoad || saving || hasChanges()) return;
+              savedConfiguration = Object.fromEntries(
+                fields.map((name) => [
+                  name,
+                  name === "LoginButtonText" &&
+                  config[name] === "Sign In with SSO"
+                    ? ""
+                    : config[name],
+                ]),
+              );
+              fields.forEach((name) => {
+                document.querySelector("#" + name)[
+                  checkboxes.includes(name) ? "checked" : "value"
+                ] = savedConfiguration[name];
+              });
+              updatePolicies();
+              updateValidation();
+              updateSaveButton();
+            })
+            .catch(() => {
+              if (load === configurationLoad)
+                page.querySelector("#ConfigurationLoadError").hidden = false;
+            })
+            .finally(() => {
+              if (load === configurationLoad)
+                page.querySelector("#ConfigurationLoading").hidden = true;
             });
-            const form = document.querySelector('#OidcConfigForm');
-            const validateGroups = () => {
-                const userGroup = document.querySelector('#UserGroup');
-                userGroup.setCustomValidity(userGroup.value.trim() || document.querySelector('#AdministratorGroup').value.trim() ? '' : translate('groupValidation'));
-            };
-            const validateHttpsUrl = name => {
-                const input = document.querySelector('#' + name);
-                try {
-                    input.setCustomValidity(!input.value || new URL(input.value).protocol === 'https:' ? '' : dictionary ? translate('httpsUrlValidation') : 'Enter an HTTPS URL.');
-                } catch {
-                    input.setCustomValidity(dictionary ? translate('httpsUrlValidation') : 'Enter an HTTPS URL.');
-                }
-            };
-            const clientSecret = document.querySelector('#ClientSecret');
-            const clientSecretToggle = document.querySelector('#ClientSecretToggle');
-            const updateClientSecretToggle = () => {
-                const visible = clientSecret.type === 'text';
-                const text = dictionary ? translate(visible ? 'hideClientSecret' : 'showClientSecret') : visible ? 'Hide' : 'Show';
-                clientSecretToggle.setAttribute('aria-label', text + ' ' + (dictionary ? translate('clientSecretLabel') : 'client secret'));
-                clientSecretToggle.setAttribute('aria-pressed', visible);
-                clientSecretToggle.textContent = text;
-            };
-            clientSecretToggle.addEventListener('click', () => {
-                clientSecret.type = clientSecret.type === 'password' ? 'text' : 'password';
-                updateClientSecretToggle();
+        };
+        page.addEventListener("pageshow", () => {
+          if (dictionary) localize();
+          else initializeTranslations();
+          loadConfiguration();
+        });
+        const form = document.querySelector("#OidcConfigForm");
+        const validateGroups = () => {
+          const userGroup = document.querySelector("#UserGroup");
+          const administratorGroup = page.querySelector("#AdministratorGroup");
+          userGroup.setCustomValidity(
+            !value("Enabled") ||
+              userGroup.value.trim() ||
+              administratorGroup.value.trim()
+              ? ""
+              : translate("groupValidation"),
+          );
+          administratorGroup.setCustomValidity(
+            value("Enabled") &&
+              value("PasswordLoginMode") === "DisableForAllUsers" &&
+              !administratorGroup.value.trim()
+              ? translate("administratorGroupValidation")
+              : "",
+          );
+        };
+        const validateHttpsUrl = (name) => {
+          const input = document.querySelector("#" + name);
+          if (!value("Enabled")) {
+            input.setCustomValidity("");
+            return;
+          }
+          try {
+            input.setCustomValidity(
+              !input.value || new URL(input.value).protocol === "https:"
+                ? ""
+                : translate("httpsUrlValidation"),
+            );
+          } catch {
+            input.setCustomValidity(translate("httpsUrlValidation"));
+          }
+        };
+        const updateValidation = () => {
+          ["IssuerUrl", "ClientId", "ClientSecret", "UsernameClaim"].forEach(
+            (name) => {
+              page.querySelector("#" + name).required = value("Enabled");
+            },
+          );
+          ["PublicUrl", "IssuerUrl"].forEach(validateHttpsUrl);
+          validateGroups();
+        };
+        const clientSecret = document.querySelector("#ClientSecret");
+        const clientSecretToggle = document.querySelector(
+          "#ClientSecretToggle",
+        );
+        const updateClientSecretToggle = () => {
+          const visible = clientSecret.type === "text";
+          const text = translate(
+            visible ? "hideClientSecret" : "showClientSecret",
+          );
+          const label =
+            text + " " + translate("clientSecretLabel").replace(/\s*\*$/, "");
+          clientSecretToggle.setAttribute("aria-label", label);
+          clientSecretToggle.title = label;
+          clientSecretToggle.setAttribute("aria-pressed", visible);
+          clientSecretToggle.querySelector(".material-icons").textContent =
+            visible ? "visibility_off" : "visibility";
+        };
+        clientSecretToggle.addEventListener("click", () => {
+          clientSecret.type =
+            clientSecret.type === "password" ? "text" : "password";
+          updateClientSecretToggle();
+        });
+        const save = () => {
+          if (saving || !hasChanges()) return;
+          const submittedConfiguration = currentConfiguration();
+          const reload = [
+            "Enabled",
+            "PasswordLoginMode",
+            "RedirectSignInPageToProvider",
+          ].some(
+            (name) => submittedConfiguration[name] !== savedConfiguration[name],
+          );
+          ++configurationLoad;
+          saving = true;
+          updateSaveButton();
+          Dashboard.showLoadingMsg();
+          ApiClient.getPluginConfiguration(pluginId)
+            .then((config) => {
+              fields.forEach((name) => {
+                config[name] = submittedConfiguration[name];
+              });
+              return ApiClient.updatePluginConfiguration(pluginId, config);
+            })
+            .then((result) => {
+              savedConfiguration = submittedConfiguration;
+              return Promise.resolve(
+                Dashboard.processPluginConfigurationUpdateResult(result),
+              ).then(() =>
+                reload
+                  ? location.reload()
+                  : dispatchEvent(new Event("oidcconfigurationchange")),
+              );
+            })
+            .catch((error) => Dashboard.processErrorResponse(error))
+            .finally(() => {
+              saving = false;
+              updateSaveButton();
             });
-            const save = () => {
-                if (saving) return;
-                const submittedConfiguration = currentConfiguration();
-                const reload = ['Enabled', 'PasswordLoginMode', 'RedirectSignInPageToProvider'].some(name => submittedConfiguration[name] !== savedConfiguration[name]);
-                ++configurationLoad;
-                saving = true;
-                updateSaveButton();
-                Dashboard.showLoadingMsg();
-                ApiClient.getPluginConfiguration(pluginId).then(config => {
-                    fields.forEach(name => { config[name] = submittedConfiguration[name]; });
-                    return ApiClient.updatePluginConfiguration(pluginId, config);
-                }).then(result => {
-                    savedConfiguration = submittedConfiguration;
-                    return Promise.resolve(Dashboard.processPluginConfigurationUpdateResult(result)).then(() => reload ? location.reload() : dispatchEvent(new Event('oidcconfigurationchange')));
-                }).catch(error => Dashboard.processErrorResponse(error)).finally(() => {
-                    saving = false;
-                    updateSaveButton();
-                });
-            };
-            form.addEventListener('submit', event => {
-                event.preventDefault();
-                validateGroups();
-                validateHttpsUrl('PublicUrl');
-                validateHttpsUrl('IssuerUrl');
-                if (!form.reportValidity()) return;
-                const mode = value('PasswordLoginMode');
-                if (mode !== savedConfiguration.PasswordLoginMode && mode !== 'AllowForAllUsers') {
-                    const users = mode === 'DisableForAllUsers' ? translate('allJellyfinUsers') : translate('linkedJellyfinUsers');
-                    Dashboard.confirm(translate('localPasswordWarning', users), translate('localPasswordWarningTitle'), confirmed => { if (confirmed) save(); });
-                    return;
-                }
-                save();
+        };
+        form.addEventListener("submit", (event) => {
+          event.preventDefault();
+          if (!savedConfiguration || saving) return;
+          updateValidation();
+          if (value("Enabled")) {
+            const invalid = [...form.querySelectorAll("input, select")].find(
+              (input) => !input.validity.valid,
+            );
+            if (invalid) {
+              selectTab(
+                tabs[
+                  invalid.closest('[role="tabpanel"]').id === "AdvancedPanel"
+                    ? 1
+                    : 0
+                ],
+              );
+              invalid.focus();
+              invalid.reportValidity();
+              return;
+            }
+          }
+          const mode = value("PasswordLoginMode");
+          if (
+            mode !== savedConfiguration.PasswordLoginMode &&
+            mode !== "AllowForAllUsers"
+          ) {
+            const users =
+              mode === "DisableForAllUsers"
+                ? translate("allJellyfinUsers")
+                : translate("linkedJellyfinUsers");
+            Dashboard.confirm(
+              translate("localPasswordWarning", users),
+              translate("localPasswordWarningTitle"),
+              (confirmed) => {
+                if (confirmed) save();
+              },
+            );
+            return;
+          }
+          save();
+        });
+        fields.forEach((name) =>
+          document
+            .querySelector("#" + name)
+            .addEventListener("input", updateSaveButton),
+        );
+        fields.forEach((name) =>
+          document
+            .querySelector("#" + name)
+            .addEventListener("change", updateSaveButton),
+        );
+        form.addEventListener("input", updateValidation);
+        form.addEventListener("change", () => {
+          updatePolicies();
+          updateValidation();
+        });
+        page
+          .querySelector("#ConfigurationRetry")
+          .addEventListener("click", loadConfiguration);
+        fields.forEach((name) => {
+          const input = page.querySelector("#" + name);
+          const description = input
+            .closest(".inputContainer, .selectContainer, .checkboxContainer")
+            .querySelector(".fieldDescription");
+          if (!description) return;
+          description.id = name + "Help";
+          input.setAttribute("aria-describedby", description.id);
+        });
+        let translationLoad;
+        const initializeTranslations = () => {
+          if (dictionary || translationLoad) return;
+          translationLoad = loadDictionary()
+            .then((strings) => {
+              dictionary = strings;
+              localize();
+              updateClientSecretToggle();
+            })
+            .catch(() => {
+              translationLoad = null;
+              if (page.isConnected) setTimeout(initializeTranslations, 1000);
             });
-            fields.forEach(name => document.querySelector('#' + name).addEventListener('input', updateSaveButton));
-            fields.forEach(name => document.querySelector('#' + name).addEventListener('change', updateSaveButton));
-            document.querySelector('#PasswordLoginMode').addEventListener('change', updateRedirectSignInPageToProvider);
-            ['PublicUrl', 'IssuerUrl'].forEach(name => document.querySelector('#' + name).addEventListener('input', () => validateHttpsUrl(name)));
-            document.querySelector('#UserGroup').addEventListener('input', validateGroups);
-            document.querySelector('#AdministratorGroup').addEventListener('input', validateGroups);
-            let translationLoad;
-            const initializeTranslations = () => {
-                if (dictionary || translationLoad) return;
-                translationLoad = loadDictionary().then(strings => {
-                    dictionary = strings;
-                    localize();
-                    updateClientSecretToggle();
-                }).catch(() => {
-                    translationLoad = null;
-                    if (page.isConnected) setTimeout(initializeTranslations, 1000);
-                });
-            };
-            loadConfiguration();
-            initializeTranslations();
-        </script>
+        };
+        loadConfiguration();
+        initializeTranslations();
+      </script>
     </div>
-</body>
+  </body>
 </html>

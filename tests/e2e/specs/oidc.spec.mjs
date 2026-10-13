@@ -304,19 +304,37 @@ test("loads the seeded OIDC settings and validates changes for an administrator"
     "type",
     "password",
   );
+  await expect(page.locator("#ClientSecretToggle")).toHaveAccessibleName(
+    "Show Client secret",
+  );
+  await expect(page.locator("#ClientSecretToggle .material-icons")).toHaveText(
+    "visibility",
+  );
   await page.locator("#ClientSecretToggle").click();
   await expect(page.locator("#ClientSecret")).toHaveAttribute("type", "text");
+  await expect(page.locator("#ClientSecretToggle")).toHaveAccessibleName(
+    "Hide Client secret",
+  );
+  await expect(page.locator("#ClientSecretToggle")).toHaveAttribute(
+    "aria-pressed",
+    "true",
+  );
+  await expect(page.locator("#ClientSecretToggle .material-icons")).toHaveText(
+    "visibility_off",
+  );
   await page.locator("#ClientSecretToggle").click();
   await expect(page.locator("#ClientSecret")).toHaveAttribute(
     "type",
     "password",
   );
 
+  await page.getByRole("tab", { name: "Advanced", exact: true }).click();
   await page.getByText("Synchronize profile images", { exact: true }).click();
   await expect(page.locator("#SaveButton")).toBeEnabled();
   await page.getByText("Synchronize profile images", { exact: true }).click();
   await expect(page.locator("#SaveButton")).toBeDisabled();
 
+  await page.getByRole("tab", { name: "General", exact: true }).click();
   await page.locator("#IssuerUrl").fill("");
   await expect(page.locator("#SaveButton")).toBeEnabled();
   await page.locator("#SaveButton").click();
@@ -339,6 +357,7 @@ test("loads the seeded OIDC settings and validates changes for an administrator"
     .fill("https://oidc.localhost:8443/keycloak/realms/jellyfin");
   await expect(page.locator("#SaveButton")).toBeDisabled();
 
+  await page.getByRole("tab", { name: "Advanced", exact: true }).click();
   await page.locator("#PublicUrl").fill("http://jellyfin.example.test");
   await page.locator("#SaveButton").click();
   expect(
@@ -349,6 +368,7 @@ test("loads the seeded OIDC settings and validates changes for an administrator"
   await page.locator("#PublicUrl").fill("https://localhost:8443");
   await expect(page.locator("#SaveButton")).toBeDisabled();
 
+  await page.getByRole("tab", { name: "General", exact: true }).click();
   await page
     .locator("#PasswordLoginMode")
     .selectOption("DisableForLinkedUsersOnly");
@@ -371,6 +391,166 @@ test("loads the seeded OIDC settings and validates changes for an administrator"
   await page.getByRole("button", { name: "Cancel" }).click();
 });
 
+test("navigates settings tabs by keyboard and reveals invalid fields without losing edits", async ({
+  page,
+}) => {
+  await localSignIn(page, "root", "");
+  await page.goto(
+    "/web/index.html#/configurationpage?name=OIDC%20Authentication",
+  );
+  await expect(page.locator("#ClientId")).toHaveValue("jellyfin");
+  const general = page.getByRole("tab", { name: "General", exact: true });
+  const advanced = page.getByRole("tab", { name: "Advanced", exact: true });
+  await expect(general).toHaveAttribute("aria-selected", "true");
+  await expect(page.locator("#AdvancedPanel")).toBeHidden();
+  await general.focus();
+  await page.keyboard.press("ArrowRight");
+  await expect(advanced).toBeFocused();
+  await expect(advanced).toHaveAttribute("aria-selected", "true");
+  await expect(page.locator("#GeneralPanel")).toBeHidden();
+  await page.keyboard.press("Home");
+  await expect(general).toBeFocused();
+  await page.keyboard.press("End");
+  await expect(advanced).toBeFocused();
+  await page.keyboard.press("ArrowRight");
+  await expect(general).toBeFocused();
+
+  await page.locator("#ClientId").fill("draft-client");
+  await advanced.click();
+  await expect(
+    page.locator("#AutomaticLinkingMode"),
+  ).not.toHaveAccessibleDescription(/Only use this when Provider usernames/);
+  await expect(
+    page.locator("#ProvisioningUsernameMode"),
+  ).not.toHaveAccessibleDescription(/currently verified email/);
+  await page.locator("#LoginButtonText").fill("Draft sign-in label");
+  await page.locator("#UsernameClaim").fill("");
+  await general.click();
+  await page.locator("#SaveButton").click();
+  await expect(advanced).toHaveAttribute("aria-selected", "true");
+  await expect(page.locator("#UsernameClaim")).toBeFocused();
+  await expect(page.locator("#LoginButtonText")).toHaveValue(
+    "Draft sign-in label",
+  );
+  await page.locator("#UsernameClaim").fill("preferred_username");
+  await page
+    .locator("#AutomaticLinkingMode")
+    .selectOption("UsernameToUsername");
+  await expect(page.locator("#UsernameMatchingHelp")).toBeVisible();
+  await expect(
+    page.locator("#AutomaticLinkingMode"),
+  ).toHaveAccessibleDescription(/Only use this when Provider usernames/);
+  await page.locator("#ProvisioningUsernameMode").selectOption("VerifiedEmail");
+  await expect(page.locator("#ProvisioningUsernameModeHelp")).toHaveText(
+    /Requires currently verified email/,
+  );
+  await expect(
+    page.locator("#ProvisioningUsernameMode"),
+  ).toHaveAccessibleDescription(/currently verified email/);
+  await general.click();
+  await expect(page.locator("#ClientId")).toHaveValue("draft-client");
+  await expect(page.locator("#ProvisioningUsernameMode")).toHaveValue(
+    "VerifiedEmail",
+  );
+  await expect(page.locator("#AutomaticLinkingMode")).toHaveValue(
+    "UsernameToUsername",
+  );
+
+  await page.locator("#AdministratorGroup").fill("");
+  await page.locator("#PasswordLoginMode").selectOption("DisableForAllUsers");
+  await expect(page.locator("#RedirectSettingsHint")).toBeVisible();
+  await page.locator("#SaveButton").click();
+  await expect(page.locator("#AdministratorGroup")).toBeFocused();
+  expect(
+    await page
+      .locator("#AdministratorGroup")
+      .evaluate((input) => input.validationMessage),
+  ).toContain("Administrator group");
+  await page.locator("#AdministratorGroup").fill("jellyfin-admins");
+  await page
+    .locator("[data-advanced-target='RedirectSignInPageToProvider']")
+    .click();
+  await expect(page.locator("#RedirectSignInPageToProvider")).toBeFocused();
+  await expect(
+    page.locator("#RedirectSignInPageToProviderContainer"),
+  ).toBeVisible();
+});
+
+test("can disable OIDC with incomplete connection settings", async ({
+  page,
+}) => {
+  await localSignIn(page, "root", "");
+  const original = await page.evaluate(async () => {
+    const config = await ApiClient.getPluginConfiguration(
+      "4c5b9b96-80cd-4c3d-9e3d-23fa4ebf6ce4",
+    );
+    return {
+      Enabled: config.Enabled,
+      IssuerUrl: config.IssuerUrl,
+      UsernameClaim: config.UsernameClaim,
+    };
+  });
+  try {
+    await page.goto(
+      "/web/index.html#/configurationpage?name=OIDC%20Authentication",
+    );
+    await expect(page.locator("#Enabled")).toBeChecked();
+    await page.locator("#IssuerUrl").fill("");
+    await page.getByRole("tab", { name: "Advanced", exact: true }).click();
+    await page.locator("#UsernameClaim").fill("");
+    await page.getByRole("tab", { name: "General", exact: true }).click();
+    await page.getByText("Enable OIDC", { exact: true }).click();
+    const saved = page.waitForResponse(
+      (response) =>
+        response.request().method() === "POST" &&
+        response.url().endsWith("/Configuration"),
+    );
+    const reloaded = page.waitForEvent("load");
+    await page.locator("#SaveButton").click();
+    expect((await saved).ok()).toBe(true);
+    await reloaded;
+    await expect(page.locator("#Enabled")).not.toBeChecked();
+    await expect(page.locator("#IssuerUrl")).toHaveValue("");
+  } finally {
+    await page.evaluate(async (original) => {
+      const config = await ApiClient.getPluginConfiguration(
+        "4c5b9b96-80cd-4c3d-9e3d-23fa4ebf6ce4",
+      );
+      Object.assign(config, original);
+      await ApiClient.updatePluginConfiguration(
+        "4c5b9b96-80cd-4c3d-9e3d-23fa4ebf6ce4",
+        config,
+      );
+    }, original);
+  }
+});
+
+test("shows a settings load failure and retries without overwriting edits", async ({
+  page,
+}) => {
+  await localSignIn(page, "root", "");
+  const configurationUrl =
+    "**/Plugins/4c5b9b96-80cd-4c3d-9e3d-23fa4ebf6ce4/Configuration";
+  await page.route(configurationUrl, (route) => route.fulfill({ status: 503 }));
+  await page.goto(
+    "/web/index.html#/configurationpage?name=OIDC%20Authentication",
+  );
+  await expect(page.locator("#ConfigurationLoadError")).toBeVisible();
+  await expect(page.locator("#SaveButton")).toBeDisabled();
+  await page.unroute(configurationUrl);
+  await page.locator("#ConfigurationRetry").click();
+  await expect(page.locator("#ClientId")).toHaveValue("jellyfin");
+  await expect(page.locator("#ConfigurationLoadError")).toBeHidden();
+  await page.locator("#ClientId").fill("unsaved-client");
+  await page.evaluate(() =>
+    document
+      .querySelector("#OidcConfigPage")
+      .dispatchEvent(new Event("pageshow")),
+  );
+  await expect(page.locator("#ClientId")).toHaveValue("unsaved-client");
+  await expect(page.locator("#SaveButton")).toBeEnabled();
+});
+
 test("saves the verified-email requirement and username claim without renaming existing users", async ({
   page,
 }) => {
@@ -386,6 +566,7 @@ test("saves the verified-email requirement and username claim without renaming e
   try {
     await page.getByText("Require verified email", { exact: true }).click();
     await expect(page.locator("#RequireVerifiedEmail")).not.toBeChecked();
+    await page.getByRole("tab", { name: "Advanced", exact: true }).click();
     await page.locator("#UsernameClaim").fill("email");
     await page.locator("#AutomaticLinkingMode").selectOption("None");
     await page
@@ -410,6 +591,7 @@ test("saves the verified-email requirement and username claim without renaming e
     await expect(page.locator("#ProvisioningUsernameMode")).toHaveValue(
       "VerifiedEmail",
     );
+    await page.getByRole("tab", { name: "Advanced", exact: true }).click();
     await page
       .locator("#ProvisioningUsernameMode")
       .selectOption("UsernameClaim");
@@ -428,6 +610,7 @@ test("saves the verified-email requirement and username claim without renaming e
       expect((await response).ok()).toBe(true);
       await page.reload();
       await expect(page.locator("#AutomaticLinkingMode")).toHaveValue(mode);
+      await page.getByRole("tab", { name: "Advanced", exact: true }).click();
     }
     expect((await currentUser(page)).Name).toBe(originalUser.Name);
   } finally {
@@ -561,6 +744,7 @@ test("keeps saved configuration visible when an older load finishes late", async
         .dispatchEvent(new Event("pageshow")),
     );
     await loadStarted;
+    await page.getByRole("tab", { name: "Advanced", exact: true }).click();
     await page.locator("#LoginButtonText").fill("Saved UI label");
     const saved = page.waitForResponse(
       (response) =>
@@ -611,6 +795,7 @@ test("shows configuration save failures and allows retrying the draft", async ({
       : route.continue(),
   );
   try {
+    await page.getByRole("tab", { name: "Advanced", exact: true }).click();
     await page.locator("#LoginButtonText").fill("Retry UI label");
     await page.locator("#SaveButton").click();
     await expect(

@@ -1,13 +1,13 @@
 using System.Security.Claims;
 using System.Text.Json;
 using System.Text.RegularExpressions;
+using Jellyfin.Plugin.Oidc.Api;
 using Jellyfin.Plugin.Oidc.Configuration;
 using Jellyfin.Plugin.Oidc.Identity;
-using Jellyfin.Plugin.Oidc.Api;
 using Microsoft.AspNetCore.DataProtection;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging.Abstractions;
-using Microsoft.AspNetCore.Http;
 using Xunit;
 
 namespace Jellyfin.Plugin.Oidc.Tests;
@@ -15,35 +15,56 @@ namespace Jellyfin.Plugin.Oidc.Tests;
 public sealed class OidcRulesTests
 {
     [Fact]
-    public void Configuration_strings_have_matching_keys_and_preserve_translated_values_and_placeholders()
+    public void Configuration_strings_fall_back_to_english_and_preserve_translated_values_and_placeholders()
     {
         var assembly = typeof(PluginConfiguration).Assembly;
-        using var englishStream = assembly
-            .GetManifestResourceStream("Jellyfin.Plugin.Oidc.Configuration.Strings.en-us.json");
+        using var englishStream = assembly.GetManifestResourceStream(
+            "Jellyfin.Plugin.Oidc.Configuration.Strings.en-us.json"
+        );
 
         Assert.NotNull(englishStream);
         var expectedKeys = GetJsonKeys(englishStream);
         englishStream.Position = 0;
         var english = JsonSerializer.Deserialize<Dictionary<string, string>>(englishStream)!;
-        foreach (var resourceName in assembly.GetManifestResourceNames().Where(name => name.StartsWith("Jellyfin.Plugin.Oidc.Configuration.Strings.", StringComparison.Ordinal)))
+        foreach (
+            var resourceName in assembly
+                .GetManifestResourceNames()
+                .Where(name =>
+                    name.StartsWith(
+                        "Jellyfin.Plugin.Oidc.Configuration.Strings.",
+                        StringComparison.Ordinal
+                    )
+                )
+        )
         {
             using var stream = assembly.GetManifestResourceStream(resourceName);
             Assert.NotNull(stream);
             var keys = GetJsonKeys(stream);
-            Assert.Equal(expectedKeys, keys);
+            Assert.All(keys, key => Assert.Contains(key, expectedKeys));
             stream.Position = 0;
             var translated = JsonSerializer.Deserialize<Dictionary<string, string>>(stream)!;
             var locale = resourceName["Jellyfin.Plugin.Oidc.Configuration.Strings.".Length..^5];
-            var controller = new OidcController(null!, new EphemeralDataProtectionProvider(), NullLogger<OidcController>.Instance);
+            var controller = new OidcController(
+                null!,
+                new EphemeralDataProtectionProvider(),
+                NullLogger<OidcController>.Instance
+            );
             var response = Assert.IsType<JsonResult>(controller.Strings(locale));
             var dictionary = Assert.IsType<Dictionary<string, string>>(response.Value);
             Assert.Equal(expectedKeys, dictionary.Keys.Order().ToArray());
+            foreach (var key in expectedKeys.Except(keys))
+                Assert.Equal(english[key], dictionary[key]);
             foreach (var entry in translated)
             {
                 Assert.False(string.IsNullOrWhiteSpace(entry.Value));
                 Assert.Equal(entry.Value, dictionary[entry.Key]);
-                Assert.Equal(Regex.Matches(english[entry.Key], @"\{\d+\}").Select(match => match.Value).Order(),
-                    Regex.Matches(entry.Value, @"\{\d+\}").Select(match => match.Value).Order());
+                Assert.Equal(
+                    Regex
+                        .Matches(english[entry.Key], @"\{\d+\}")
+                        .Select(match => match.Value)
+                        .Order(),
+                    Regex.Matches(entry.Value, @"\{\d+\}").Select(match => match.Value).Order()
+                );
             }
         }
     }
@@ -52,13 +73,16 @@ public sealed class OidcRulesTests
     public void Configuration_page_embeds_english_strings_before_translations_load()
     {
         var assembly = typeof(PluginConfiguration).Assembly;
-        using var stream = assembly.GetManifestResourceStream("Jellyfin.Plugin.Oidc.Configuration.configPage.html");
+        using var stream = assembly.GetManifestResourceStream(
+            "Jellyfin.Plugin.Oidc.Configuration.configPage.html"
+        );
         Assert.NotNull(stream);
         using var reader = new StreamReader(stream);
         var html = reader.ReadToEnd();
 
         Assert.Contains("<title data-i18n=\"pageTitle\">OIDC Authentication</title>", html);
-        Assert.Contains("Add &lt;Public Jellyfin URL&gt;/web/index.html", html);
+        Assert.Contains("Enable RP-initiated logout", html);
+        Assert.Contains("The Provider&#39;s HTTPS issuer URL.", html);
         Assert.DoesNotContain("{{", html);
     }
 
@@ -74,11 +98,16 @@ public sealed class OidcRulesTests
         var match = Regex.Match(script, @"const profileStrings = (\{[^\r\n]+\});");
         Assert.True(match.Success);
         using var dictionary = JsonDocument.Parse(match.Groups[1].Value);
-        using var englishStream = assembly.GetManifestResourceStream("Jellyfin.Plugin.Oidc.Configuration.Strings.en-us.json")!;
+        using var englishStream = assembly.GetManifestResourceStream(
+            "Jellyfin.Plugin.Oidc.Configuration.Strings.en-us.json"
+        )!;
         using var english = JsonDocument.Parse(englishStream);
         foreach (var entry in english.RootElement.EnumerateObject())
         {
-            Assert.Equal(entry.Value.GetString(), dictionary.RootElement.GetProperty(entry.Name).GetString());
+            Assert.Equal(
+                entry.Value.GetString(),
+                dictionary.RootElement.GetProperty(entry.Name).GetString()
+            );
         }
     }
 
@@ -86,17 +115,84 @@ public sealed class OidcRulesTests
     {
         using var document = JsonDocument.Parse(stream);
         Assert.Equal(JsonValueKind.Object, document.RootElement.ValueKind);
-        return document.RootElement.EnumerateObject().Select(property => property.Name).Order().ToArray();
+        return document
+            .RootElement.EnumerateObject()
+            .Select(property => property.Name)
+            .Order()
+            .ToArray();
     }
 
     [Theory]
-    [InlineData("https://jellyfin.example.test", "https://identity.example.test", "client", "secret", "users", "", PasswordLoginMode.AllowForAllUsers, null)]
-    [InlineData("", "https://identity.example.test", "client", "secret", "", "admins", PasswordLoginMode.AllowForAllUsers, null)]
-    [InlineData("http://jellyfin.example.test", "https://identity.example.test", "client", "secret", "users", "", PasswordLoginMode.AllowForAllUsers, "HTTPS")]
-    [InlineData("https://jellyfin.example.test", "http://identity.example.test", "client", "secret", "users", "", PasswordLoginMode.AllowForAllUsers, "HTTPS")]
-    [InlineData("https://jellyfin.example.test", "https://identity.example.test", "", "secret", "users", "", PasswordLoginMode.AllowForAllUsers, "Client ID")]
-    [InlineData("https://jellyfin.example.test", "https://identity.example.test", "client", "secret", "", "", PasswordLoginMode.AllowForAllUsers, "Group")]
-    [InlineData("https://jellyfin.example.test", "https://identity.example.test", "client", "secret", "users", "", PasswordLoginMode.DisableForAllUsers, "Administrator Group")]
+    [InlineData(
+        "https://jellyfin.example.test",
+        "https://identity.example.test",
+        "client",
+        "secret",
+        "users",
+        "",
+        PasswordLoginMode.AllowForAllUsers,
+        null
+    )]
+    [InlineData(
+        "",
+        "https://identity.example.test",
+        "client",
+        "secret",
+        "",
+        "admins",
+        PasswordLoginMode.AllowForAllUsers,
+        null
+    )]
+    [InlineData(
+        "http://jellyfin.example.test",
+        "https://identity.example.test",
+        "client",
+        "secret",
+        "users",
+        "",
+        PasswordLoginMode.AllowForAllUsers,
+        "HTTPS"
+    )]
+    [InlineData(
+        "https://jellyfin.example.test",
+        "http://identity.example.test",
+        "client",
+        "secret",
+        "users",
+        "",
+        PasswordLoginMode.AllowForAllUsers,
+        "HTTPS"
+    )]
+    [InlineData(
+        "https://jellyfin.example.test",
+        "https://identity.example.test",
+        "",
+        "secret",
+        "users",
+        "",
+        PasswordLoginMode.AllowForAllUsers,
+        "Client ID"
+    )]
+    [InlineData(
+        "https://jellyfin.example.test",
+        "https://identity.example.test",
+        "client",
+        "secret",
+        "",
+        "",
+        PasswordLoginMode.AllowForAllUsers,
+        "Group"
+    )]
+    [InlineData(
+        "https://jellyfin.example.test",
+        "https://identity.example.test",
+        "client",
+        "secret",
+        "users",
+        "",
+        PasswordLoginMode.DisableForAllUsers,
+        "Administrator Group"
+    )]
     public void Enabled_configuration_validates_required_security_settings(
         string publicUrl,
         string issuerUrl,
@@ -105,7 +201,8 @@ public sealed class OidcRulesTests
         string userGroup,
         string administratorGroup,
         PasswordLoginMode passwordLoginMode,
-        string? expectedError)
+        string? expectedError
+    )
     {
         var configuration = new PluginConfiguration
         {
@@ -140,8 +237,16 @@ public sealed class OidcRulesTests
     [Fact]
     public void Unknown_automatic_linking_mode_is_rejected()
     {
-        Assert.NotNull(OidcConfigurationValidator.Validate(new PluginConfiguration { AutomaticLinkingMode = (AutomaticLinkingMode)99 }));
-        Assert.NotNull(OidcConfigurationValidator.Validate(new PluginConfiguration { ProvisioningUsernameMode = (ProvisioningUsernameMode)99 }));
+        Assert.NotNull(
+            OidcConfigurationValidator.Validate(
+                new PluginConfiguration { AutomaticLinkingMode = (AutomaticLinkingMode)99 }
+            )
+        );
+        Assert.NotNull(
+            OidcConfigurationValidator.Validate(
+                new PluginConfiguration { ProvisioningUsernameMode = (ProvisioningUsernameMode)99 }
+            )
+        );
     }
 
     [Fact]
@@ -149,11 +254,33 @@ public sealed class OidcRulesTests
     {
         var state = new OidcUserAdministration
         {
-            UserId = Guid.NewGuid(), Version = Guid.NewGuid(), AutomaticReattachmentBlocked = true,
-            UnlinkOperation = Guid.NewGuid(), Request = new PendingLinkRequest { Issuer = "https://identity.example.test", Username = "Provider-Name", UsernameClaim = "preferred_username", CreatedAt = DateTime.UtcNow.AddYears(-10) },
-            PendingRevocations = [new OidcSessionProvenance { AuthenticationId = 42, UserId = Guid.NewGuid(), TokenFingerprint = "fingerprint" }],
+            UserId = Guid.NewGuid(),
+            Version = Guid.NewGuid(),
+            AutomaticReattachmentBlocked = true,
+            UnlinkOperation = Guid.NewGuid(),
+            Request = new PendingLinkRequest
+            {
+                Issuer = "https://identity.example.test",
+                Username = "Provider-Name",
+                UsernameClaim = "preferred_username",
+                CreatedAt = DateTime.UtcNow.AddYears(-10),
+            },
+            PendingRevocations =
+            [
+                new OidcSessionProvenance
+                {
+                    AuthenticationId = 42,
+                    UserId = Guid.NewGuid(),
+                    TokenFingerprint = "fingerprint",
+                },
+            ],
         };
-        var original = new PluginConfiguration { IdentityRevision = 12, UserAdministration = [state], OidcSessions = state.PendingRevocations.ToList() };
+        var original = new PluginConfiguration
+        {
+            IdentityRevision = 12,
+            UserAdministration = [state],
+            OidcSessions = state.PendingRevocations.ToList(),
+        };
         var serializer = new System.Xml.Serialization.XmlSerializer(typeof(PluginConfiguration));
         using var writer = new StringWriter();
         serializer.Serialize(writer, original);
@@ -166,7 +293,10 @@ public sealed class OidcRulesTests
         Assert.Equal("preferred_username", restoredState.Request.UsernameClaim);
         Assert.True(restoredState.AutomaticReattachmentBlocked);
         Assert.Equal(state.UnlinkOperation, restoredState.UnlinkOperation);
-        Assert.Equal("fingerprint", Assert.Single(restoredState.PendingRevocations).TokenFingerprint);
+        Assert.Equal(
+            "fingerprint",
+            Assert.Single(restoredState.PendingRevocations).TokenFingerprint
+        );
         Assert.Equal(42, Assert.Single(restored.OidcSessions).AuthenticationId);
         Assert.Equal(12, restored.IdentityRevision);
     }
@@ -184,18 +314,31 @@ public sealed class OidcRulesTests
         Assert.True(configuration.RequireVerifiedEmail);
         Assert.Equal("preferred_username", configuration.UsernameClaim);
         Assert.Equal(AutomaticLinkingMode.EmailToUsername, configuration.AutomaticLinkingMode);
-        Assert.Equal(ProvisioningUsernameMode.UsernameClaim, configuration.ProvisioningUsernameMode);
+        Assert.Equal(
+            ProvisioningUsernameMode.UsernameClaim,
+            configuration.ProvisioningUsernameMode
+        );
     }
 
     [Fact]
     public void Configured_username_claim_reads_only_a_top_level_string_and_does_not_change_the_subject()
     {
-        var principal = new ClaimsPrincipal(new ClaimsIdentity([
-            new Claim("sub", "subject"), new Claim("email", "user@example.test"), new Claim("email_verified", "true"),
-            new Claim("groups", "users"), new Claim("preferred_username", "default-name"), new Claim("login_name", "mapped-name"),
-            new Claim("profile", "{\"name\":\"nested-name\"}", "JSON"),
-        ]));
-        var configuration = new PluginConfiguration { UserGroup = "users", UsernameClaim = " login_name " };
+        var principal = new ClaimsPrincipal(
+            new ClaimsIdentity([
+                new Claim("sub", "subject"),
+                new Claim("email", "user@example.test"),
+                new Claim("email_verified", "true"),
+                new Claim("groups", "users"),
+                new Claim("preferred_username", "default-name"),
+                new Claim("login_name", "mapped-name"),
+                new Claim("profile", "{\"name\":\"nested-name\"}", "JSON"),
+            ])
+        );
+        var configuration = new PluginConfiguration
+        {
+            UserGroup = "users",
+            UsernameClaim = " login_name ",
+        };
         Assert.True(IdentityClaims.TryCreate(principal, configuration, out var identity));
         Assert.Equal("mapped-name", identity.Username);
         Assert.Equal("subject", identity.Subject);
@@ -210,11 +353,20 @@ public sealed class OidcRulesTests
     [Fact]
     public void Email_username_claim_never_uses_unverified_email()
     {
-        var configuration = new PluginConfiguration { UserGroup = "users", UsernameClaim = "email", RequireVerifiedEmail = false };
-        var principal = new ClaimsPrincipal(new ClaimsIdentity([
-            new Claim("sub", "subject"), new Claim("groups", "users"),
-            new Claim("email", "unverified@example.test"), new Claim("email_verified", "false"),
-        ]));
+        var configuration = new PluginConfiguration
+        {
+            UserGroup = "users",
+            UsernameClaim = "email",
+            RequireVerifiedEmail = false,
+        };
+        var principal = new ClaimsPrincipal(
+            new ClaimsIdentity([
+                new Claim("sub", "subject"),
+                new Claim("groups", "users"),
+                new Claim("email", "unverified@example.test"),
+                new Claim("email_verified", "false"),
+            ])
+        );
         Assert.True(IdentityClaims.TryCreate(principal, configuration, out var identity));
         Assert.Empty(identity.Email);
         Assert.Empty(identity.Username);
@@ -224,13 +376,14 @@ public sealed class OidcRulesTests
     public void Verified_administrator_group_is_eligible()
     {
         var configuration = new PluginConfiguration { AdministratorGroup = "jellyfin-admins" };
-        var principal = new ClaimsPrincipal(new ClaimsIdentity(
-        [
-            new Claim("sub", "subject"),
-            new Claim("email", "user@example.test"),
-            new Claim("email_verified", "true"),
-            new Claim("groups", "jellyfin-admins"),
-        ]));
+        var principal = new ClaimsPrincipal(
+            new ClaimsIdentity([
+                new Claim("sub", "subject"),
+                new Claim("email", "user@example.test"),
+                new Claim("email_verified", "true"),
+                new Claim("groups", "jellyfin-admins"),
+            ])
+        );
 
         Assert.True(IdentityClaims.TryCreate(principal, configuration, out var identity));
         Assert.True(identity.IsAdministrator);
@@ -240,13 +393,14 @@ public sealed class OidcRulesTests
     public void Unverified_email_is_denied()
     {
         var configuration = new PluginConfiguration { UserGroup = "jellyfin-users" };
-        var principal = new ClaimsPrincipal(new ClaimsIdentity(
-        [
-            new Claim("sub", "subject"),
-            new Claim("email", "user@example.test"),
-            new Claim("email_verified", "false"),
-            new Claim("groups", "jellyfin-users"),
-        ]));
+        var principal = new ClaimsPrincipal(
+            new ClaimsIdentity([
+                new Claim("sub", "subject"),
+                new Claim("email", "user@example.test"),
+                new Claim("email_verified", "false"),
+                new Claim("groups", "jellyfin-users"),
+            ])
+        );
 
         Assert.False(IdentityClaims.TryCreate(principal, configuration, out _));
     }
@@ -259,13 +413,14 @@ public sealed class OidcRulesTests
             UserGroup = "jellyfin-users, other-users",
             AdministratorGroup = "jellyfin-admins",
         };
-        var principal = new ClaimsPrincipal(new ClaimsIdentity(
-        [
-            new Claim("sub", "subject"),
-            new Claim("email", "user@example.test"),
-            new Claim("email_verified", "true"),
-            new Claim("groups", "[\"jellyfin-users\",\"jellyfin-admins\"]"),
-        ]));
+        var principal = new ClaimsPrincipal(
+            new ClaimsIdentity([
+                new Claim("sub", "subject"),
+                new Claim("email", "user@example.test"),
+                new Claim("email_verified", "true"),
+                new Claim("groups", "[\"jellyfin-users\",\"jellyfin-admins\"]"),
+            ])
+        );
 
         Assert.True(IdentityClaims.TryCreate(principal, configuration, out var identity));
         Assert.Equal(new OidcIdentity("subject", "user@example.test", true), identity);
@@ -274,15 +429,20 @@ public sealed class OidcRulesTests
     [Fact]
     public void Custom_group_claim_and_multiple_claims_are_supported()
     {
-        var configuration = new PluginConfiguration { GroupClaim = "roles", UserGroup = "jellyfin-users" };
-        var principal = new ClaimsPrincipal(new ClaimsIdentity(
-        [
-            new Claim("sub", "subject"),
-            new Claim("email", "user@example.test"),
-            new Claim("email_verified", "true"),
-            new Claim("roles", "other-role"),
-            new Claim("roles", "jellyfin-users"),
-        ]));
+        var configuration = new PluginConfiguration
+        {
+            GroupClaim = "roles",
+            UserGroup = "jellyfin-users",
+        };
+        var principal = new ClaimsPrincipal(
+            new ClaimsIdentity([
+                new Claim("sub", "subject"),
+                new Claim("email", "user@example.test"),
+                new Claim("email_verified", "true"),
+                new Claim("roles", "other-role"),
+                new Claim("roles", "jellyfin-users"),
+            ])
+        );
 
         Assert.True(IdentityClaims.TryCreate(principal, configuration, out _));
     }
@@ -290,7 +450,9 @@ public sealed class OidcRulesTests
     [Fact]
     public void Requested_scopes_include_standard_and_configured_scopes()
     {
-        var scopes = OidcOptions.RequestedScopes(new PluginConfiguration { AdditionalScopes = "groups openid custom" });
+        var scopes = OidcOptions.RequestedScopes(
+            new PluginConfiguration { AdditionalScopes = "groups openid custom" }
+        );
 
         Assert.Equal(["openid", "email", "profile", "groups", "custom"], scopes);
     }
@@ -298,15 +460,22 @@ public sealed class OidcRulesTests
     [Fact]
     public void Group_membership_is_case_sensitive()
     {
-        var principal = new ClaimsPrincipal(new ClaimsIdentity(
-        [
-            new Claim("sub", "subject"),
-            new Claim("email", "user@example.test"),
-            new Claim("email_verified", "true"),
-            new Claim("groups", "jellyfin-users"),
-        ]));
+        var principal = new ClaimsPrincipal(
+            new ClaimsIdentity([
+                new Claim("sub", "subject"),
+                new Claim("email", "user@example.test"),
+                new Claim("email_verified", "true"),
+                new Claim("groups", "jellyfin-users"),
+            ])
+        );
 
-        Assert.False(IdentityClaims.TryCreate(principal, new PluginConfiguration { UserGroup = "Jellyfin-Users" }, out _));
+        Assert.False(
+            IdentityClaims.TryCreate(
+                principal,
+                new PluginConfiguration { UserGroup = "Jellyfin-Users" },
+                out _
+            )
+        );
     }
 
     [Theory]
@@ -315,17 +484,29 @@ public sealed class OidcRulesTests
     [InlineData("subject", "user@example.test", "not-a-bool", "jellyfin-users")]
     [InlineData("subject", "user@example.test", "true", "other-group")]
     [InlineData("subject", "user@example.test", "true", "[invalid")]
-    public void Missing_or_ineligible_identity_claims_are_denied(string subject, string email, string verified, string groups)
+    public void Missing_or_ineligible_identity_claims_are_denied(
+        string subject,
+        string email,
+        string verified,
+        string groups
+    )
     {
-        var principal = new ClaimsPrincipal(new ClaimsIdentity(
-        [
-            new Claim("sub", subject),
-            new Claim("email", email),
-            new Claim("email_verified", verified),
-            new Claim("groups", groups),
-        ]));
+        var principal = new ClaimsPrincipal(
+            new ClaimsIdentity([
+                new Claim("sub", subject),
+                new Claim("email", email),
+                new Claim("email_verified", verified),
+                new Claim("groups", groups),
+            ])
+        );
 
-        Assert.False(IdentityClaims.TryCreate(principal, new PluginConfiguration { UserGroup = "jellyfin-users" }, out _));
+        Assert.False(
+            IdentityClaims.TryCreate(
+                principal,
+                new PluginConfiguration { UserGroup = "jellyfin-users" },
+                out _
+            )
+        );
     }
 
     [Theory]
@@ -358,18 +539,28 @@ public sealed class OidcRulesTests
             },
         };
 
-        Assert.Equal("https://jellyfin.example.test:8096/jellyfin", PublicUrls.Get(context.Request, new PluginConfiguration()));
+        Assert.Equal(
+            "https://jellyfin.example.test:8096/jellyfin",
+            PublicUrls.Get(context.Request, new PluginConfiguration())
+        );
     }
 
     [Theory]
     [InlineData("https", "", true)]
     [InlineData("http", "", false)]
     [InlineData("http", "https://jellyfin.example.test", true)]
-    public void Public_url_must_effectively_use_https(string scheme, string publicUrl, bool expected)
+    public void Public_url_must_effectively_use_https(
+        string scheme,
+        string publicUrl,
+        bool expected
+    )
     {
         var context = new DefaultHttpContext { Request = { Scheme = scheme } };
 
-        Assert.Equal(expected, PublicUrls.UsesHttps(context.Request, new PluginConfiguration { PublicUrl = publicUrl }));
+        Assert.Equal(
+            expected,
+            PublicUrls.UsesHttps(context.Request, new PluginConfiguration { PublicUrl = publicUrl })
+        );
     }
 
     [Fact]
@@ -377,7 +568,13 @@ public sealed class OidcRulesTests
     {
         var context = new DefaultHttpContext();
 
-        Assert.Equal("https://jellyfin.example.test", PublicUrls.Get(context.Request, new PluginConfiguration { PublicUrl = "https://jellyfin.example.test/" }));
+        Assert.Equal(
+            "https://jellyfin.example.test",
+            PublicUrls.Get(
+                context.Request,
+                new PluginConfiguration { PublicUrl = "https://jellyfin.example.test/" }
+            )
+        );
     }
 
     [Fact]
@@ -385,7 +582,13 @@ public sealed class OidcRulesTests
     {
         var context = new DefaultHttpContext();
 
-        Assert.Equal("https://jellyfin.example.test/web/index.html", PublicUrls.LogoutReturnUrl(context.Request, new PluginConfiguration { PublicUrl = "https://jellyfin.example.test" }));
+        Assert.Equal(
+            "https://jellyfin.example.test/web/index.html",
+            PublicUrls.LogoutReturnUrl(
+                context.Request,
+                new PluginConfiguration { PublicUrl = "https://jellyfin.example.test" }
+            )
+        );
     }
 
     [Fact]
@@ -393,7 +596,13 @@ public sealed class OidcRulesTests
     {
         var context = new DefaultHttpContext();
 
-        Assert.Equal("/jellyfin/oidc", PublicUrls.OidcPath(context.Request, new PluginConfiguration { PublicUrl = "https://jellyfin.example.test/jellyfin" }));
+        Assert.Equal(
+            "/jellyfin/oidc",
+            PublicUrls.OidcPath(
+                context.Request,
+                new PluginConfiguration { PublicUrl = "https://jellyfin.example.test/jellyfin" }
+            )
+        );
     }
 
     [Fact]
