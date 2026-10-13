@@ -11,6 +11,9 @@ description: |
   Simple OpenID Connect sign-in for Jellyfin 12+, with one Identity Provider, group-based access, and Jellyfin-controlled permissions and viewing activity.
 category: "Authentication"
 artifacts:
+  - "LICENSE"
+  - "NOTICE"
+  - "Apache-2.0.txt"
   - "Jellyfin.Plugin.Oidc.dll"
   - "Microsoft.AspNetCore.Authentication.OpenIdConnect.dll"
   - "Microsoft.Bcl.Cryptography.dll"

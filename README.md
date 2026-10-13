@@ -79,6 +79,7 @@ OIDC sign-in requires an HTTPS public URL. If Jellyfin is behind a reverse proxy
 | Setting                      | Required                   | Default             | Description                                                                                   |
 | ---------------------------- | -------------------------- | ------------------- | --------------------------------------------------------------------------------------------- |
 | Enable OIDC                  | Yes                        | Off                 | Lets users who meet your group rules sign in.                                                 |
+| Provider                     | No                         | Other               | Select Authentik, Authelia, Keycloak, Pocket ID, ZITADEL, or Other. Determines the sign-in button's provider name and icon. |
 | Public Jellyfin URL override | No                         | Browser HTTPS address | The public HTTPS address to use for callbacks and sign-out.                                 |
 | Issuer URL                   | Yes                        | -                   | The HTTPS address of your OIDC service.                                                       |
 | Client ID                    | Yes                        | -                   | The client ID from your OIDC service.                                                         |
@@ -92,7 +93,7 @@ OIDC sign-in requires an HTTPS public URL. If Jellyfin is behind a reverse proxy
 | Allow self-service linking   | No                         | Off                 | Allow signed-in Jellyfin Users to link or unlink their Provider from their own profile. |
 | Require verified email       | No                         | On                  | Require a supplied email with `email_verified=true` for linking and all Identity Provider sign-ins, including linked users. |
 | Additional requested scopes  | No                         | -                   | Space-separated scopes requested in addition to `openid email profile`.                       |
-| Login button text            | No                         | `Sign In with SSO`  | The text on the Jellyfin sign-in button.                                                      |
+| Provider name                | No, shown for Other        | `SSO`               | Name shown in `Sign In with <Provider Name>` when Other is selected. Other uses a key icon; named providers use their bundled monochrome logos. |
 | Password login mode          | No                         | Allow for all users | Choose who can use local passwords.                                                           |
 | Redirect sign-in page to provider | No                    | Off                 | Directly redirect to the Identity Provider when passwords are disabled for all users.          |
 | RP-Initiated Logout          | No                         | Off                 | Also sign out from your OIDC service when it supports this.                                   |
@@ -129,7 +130,7 @@ SSO respects the sign-in page's **Remember Me** choice and returns to the reques
 
 ## Link Your Identity Provider
 
-An administrator must first enable **Allow self-service linking**, which is off for new installations. Sign in to Jellyfin, open your own **Profile**, and select **Link account** in the **SSO** card above the password fields. Authenticate with the configured Identity Provider, then return to the profile. Its status shows **Linked as your verified email**, or the Identity Provider username when no email is recorded. Older links without either value show **Linked** until a successful sign-in supplies display metadata. This works in both modern UI and legacy UI. The identity must belong to an allowed or administrator group and supply a verified email unless **Require verified email** is disabled.
+An administrator must first enable **Allow self-service linking**, which is off for new installations. Sign in to Jellyfin, open your own **Profile**, and select **Link account** in the Provider card above the password fields. The heading uses the same icon and provider name as the sign-in button; Other defaults to the key icon and **SSO** when no name is supplied. Authenticate with the configured Identity Provider, then return to the profile. Its status shows **Linked as your verified email**, or the Identity Provider username when no email is recorded. Older links without either value show **Linked** until a successful sign-in supplies display metadata. This works in both modern UI and legacy UI. The identity must belong to an allowed or administrator group and supply a verified email unless **Require verified email** is disabled.
 
 Linking preserves your username, permissions, and current Jellyfin session. Under **Disable for linked users only**, it disables local-password sign-in immediately. Future Identity Provider sign-ins update administrator access from group membership and optionally synchronize your profile image.
 
@@ -254,3 +255,5 @@ Feel free to donate if you'd like to support development.
 ## License
 
 Copyright © 2026 edmogeor. Licensed under [GPL-3.0-or-later](LICENSE).
+
+Bundled provider logo sources and third-party license notices are recorded in [NOTICE](NOTICE).

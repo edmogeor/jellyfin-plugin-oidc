@@ -1,3 +1,66 @@
 OIDC Authentication for Jellyfin
 Copyright (C) 2026 edmogeor
 Licensed under GPL-3.0-or-later. See LICENSE.
+
+Provider logos
+==============
+
+The SVGs in Jellyfin.Plugin.Oidc/Web/Providers are embedded in the plugin DLL.
+Modified 2026-10-13 to use currentColor. Original geometry is retained;
+ZITADEL export metadata and unused/invisible elements have been removed.
+The names and logos identify their respective products; no endorsement is implied.
+
+Authentik, Authelia, and Keycloak icons:
+  Simple Icons, revision 4d29a35c954699b389a834aacc97dd6e7e74143c.
+  https://github.com/simple-icons/simple-icons/tree/4d29a35c954699b389a834aacc97dd6e7e74143c/icons
+  Simple Icons contributions are distributed under CC0-1.0:
+  https://creativecommons.org/publicdomain/zero/1.0/
+  Underlying brands retain their rights.
+
+  Authentik source:
+  https://github.com/goauthentik/authentik/blob/2c64f72ebc57dad9789c1fb799dd7cd39003d043/web/icons/icon.svg
+
+  Authelia source (Apache-2.0; see Apache-2.0.txt):
+  https://github.com/authelia/authelia/blob/8316cd4eb7a6f0778c8f480c61ad76a88416fc3a/docs/static/images/branding/logo.svg
+  Branding: https://www.authelia.com/reference/guides/branding/
+
+  Keycloak source:
+  https://github.com/keycloak/keycloak-misc/blob/dee033f2d6d6b5c3a6ce8eb84e285f7e5626dbf6/logo/icon-black.svg
+  Trademark usage: https://www.linuxfoundation.org/legal/trademark-usage
+
+ZITADEL icon:
+  Copyright 2020 CAOS AG.
+  Sourced from the Apache-2.0-licensed revision
+  74ff154b19a84ba737bc041593c72c6ecbc79f10, not the current repository license.
+  https://github.com/zitadel/zitadel/blob/74ff154b19a84ba737bc041593c72c6ecbc79f10/console/src/assets/images/zitadel-logo-solo-dark-icon.svg
+  https://github.com/zitadel/zitadel/blob/74ff154b19a84ba737bc041593c72c6ecbc79f10/LICENSE
+  See Apache-2.0.txt.
+
+Pocket ID icon:
+  https://github.com/pocket-id/pocket-id/blob/80a504b454f273efea6b692857f1ceb6a34b2e7f/backend/resources/default-images/logoLight.svg
+
+BSD 2-Clause License
+
+Copyright (c) 2024, Elias Schneider
+All rights reserved.
+
+Redistribution and use in source and binary forms, with or without
+modification, are permitted provided that the following conditions are met:
+
+1. Redistributions of source code must retain the above copyright notice, this
+   list of conditions and the following disclaimer.
+
+2. Redistributions in binary form must reproduce the above copyright notice,
+   this list of conditions and the following disclaimer in the documentation
+   and/or other materials provided with the distribution.
+
+THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE
+FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
+OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.

@@ -1,6 +1,9 @@
 (() => {
     const oidcUrl = new URL('.', document.currentScript.src);
     const serverUrl = new URL('../', oidcUrl);
+    const iconVersion = new URL(document.currentScript.src).search;
+    const providerNames = { Authentik: 'Authentik', Authelia: 'Authelia', Keycloak: 'Keycloak', PocketId: 'Pocket ID', Zitadel: 'ZITADEL' };
+    const providerName = (provider = window.oidcProvider, name = window.oidcProviderName) => Object.hasOwn(providerNames, provider) ? providerNames[provider] : name?.trim() || profileStrings.linkHeading;
     const endpoint = () => {
         const route = new URL(location.hash.replace(/^#!?/, '') || '/home', location.origin);
         const destination = route.pathname === '/login' ? route.searchParams.get('url') || '/home' : route.pathname + route.search;
@@ -10,7 +13,7 @@
     const isLoginPage = () => /^#!?\/login(?:\?|$)/.test(location.hash);
     const hasOidcError = () => location.search.includes('oidcError=1') || location.hash.includes('oidcError=1');
     const isSignedOut = () => location.search.includes('oidcSignedOut=1');
-    const loginLabel = () => window.oidcButtonText || 'Sign In with SSO';
+    const loginLabel = () => profileStrings.signInWithProvider.replace('{0}', () => providerName());
     const signedOutLabel = () => window.oidcSignedOutText || 'Signed Out';
     const revealLogin = () => document.querySelector('#oidc-login-redirect-style')?.remove();
     const isPrimaryLogin = () => window.oidcPasswordLoginMode === 'DisableForAllUsers';
@@ -33,8 +36,24 @@
     };
     const profileStrings = /* @english-strings */ {};
     const uiStyle = document.createElement('style');
-    uiStyle.textContent = '.formDialogHeader.justify-content-center > .formDialogHeaderTitle { margin-inline: 0; } #oidc-admin-panel .emby-button .material-icons { font-size: 1.2em; margin-inline-end: 0.4em; }';
+    uiStyle.textContent = '.formDialogHeader.justify-content-center > .formDialogHeaderTitle { margin-inline: 0; } #oidc-admin-panel .emby-button .material-icons { font-size: 1.2em; margin-inline-end: 0.4em; } #oidc-admin-panel button:disabled, #oidc-admin-panel button:disabled:hover { background: var(--jf-palette-action-disabledBackground); color: var(--jf-palette-text-disabled); opacity: 0.5; cursor: not-allowed; box-shadow: none; transform: none; } .oidc-login-content { display: inline-flex; align-items: center; justify-content: center; gap: 0.5em; max-width: 100%; } [data-oidc-login-label], [data-oidc-profile-name], [data-oidc-admin-provider-name] { min-width: 0; overflow-wrap: anywhere; } .oidc-provider-icon { display: inline-block; width: 1.25em; height: 1.25em; flex-shrink: 0; color: inherit; } .oidc-provider-icon:not(.material-icons) { background-color: currentColor; } .oidc-provider-icon.material-icons { font-size: 1.25em; width: 1em; height: 1em; line-height: 1; } .oidc-admin-status-line { display: flex; align-items: center; flex-wrap: wrap; gap: 0.75em; } .oidc-admin-provider { display: inline-flex; align-items: center; gap: 0.5em; min-width: 0; max-width: 100%; padding-inline-end: 0.75em; border-inline-end: 1px solid var(--jf-palette-divider); color: var(--jf-palette-text-primary, inherit); }';
     document.head.append(uiStyle);
+    function updateLoginPresentation(button) {
+        const text = loginLabel();
+        button.setAttribute('aria-label', text);
+        button.querySelector('[data-oidc-login-label]').textContent = text;
+        updateProviderIcon(button.querySelector('[data-oidc-provider-icon]'));
+    }
+    function updateProviderIcon(icon, provider = window.oidcProvider) {
+        provider = Object.hasOwn(providerNames, provider) ? provider : 'Other';
+        if (icon.dataset.oidcProviderIcon === provider) return;
+        icon.dataset.oidcProviderIcon = provider;
+        icon.className = 'oidc-provider-icon' + (provider === 'Other' ? ' material-icons' : '');
+        icon.textContent = provider === 'Other' ? 'vpn_key' : '';
+        const mask = provider === 'Other' ? '' : `url("${oidcUrl}icons/${provider}.svg${iconVersion}") center / contain no-repeat`;
+        icon.style.mask = mask;
+        icon.style.webkitMask = mask;
+    }
     function linkedIdentityText(state) {
         const identity = state.Email || state.Username;
         return identity ? profileStrings.linkLinkedAs.replace('{0}', identity) : profileStrings.linkLinked;
@@ -185,9 +204,13 @@
         const body = document.createElement('div'); body.className = 'listItemBody';
         Object.assign(body.style, { display: 'flex', flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: '1rem', padding: '1em', boxSizing: 'border-box', width: '100%' });
         const details = document.createElement('div'); Object.assign(details.style, { flex: '1 1 14rem', minWidth: '0' });
-        const heading = document.createElement('div'); heading.className = 'listItemBodyText'; heading.textContent = profileStrings.linkHeading;
+        const heading = document.createElement('div'); heading.className = 'listItemBodyText';
+        const headingIcon = document.createElement('span'); headingIcon.dataset.oidcProviderIcon = ''; headingIcon.setAttribute('aria-hidden', 'true');
+        const headingName = document.createElement('span'); headingName.dataset.oidcProfileName = 'true'; headingName.textContent = providerName('Other', '');
+        updateProviderIcon(headingIcon, 'Other');
+        heading.append(headingIcon, headingName);
         heading.setAttribute('role', 'heading'); heading.setAttribute('aria-level', '2');
-        Object.assign(heading.style, { fontWeight: '600', color: 'var(--jf-palette-text-primary, inherit)' });
+        Object.assign(heading.style, { display: 'flex', alignItems: 'center', gap: '0.5em', whiteSpace: 'normal', fontWeight: '600', color: 'var(--jf-palette-text-primary, inherit)' });
         const status = document.createElement('p'); status.className = 'listItemBodyText secondaryText'; status.setAttribute('role', 'status');
         Object.assign(status.style, { overflowWrap: 'anywhere', margin: '0' });
         const icon = document.createElement('span'); icon.className = 'material-icons hide'; icon.setAttribute('aria-hidden', 'true');
@@ -212,7 +235,7 @@
         let anchor = content.querySelector('.updatePasswordForm');
         while (anchor && anchor.parentElement !== content) anchor = anchor.parentElement;
         content.insertBefore(section, anchor);
-        return { section, heading, help, button, buttonIcon, label, setStatus, showButton };
+        return { section, headingIcon, headingName, help, button, buttonIcon, label, setStatus, showButton };
     }
     async function completeProfileLink(session, current) {
         const params = new URLSearchParams(location.search);
@@ -226,7 +249,7 @@
         if (current()) linkNotification(response.ok ? profileStrings.linkSuccess : profileStrings.linkError, !response.ok);
     }
     function mountProfile(content, session, route, key) {
-        const { section, heading, help, button, buttonIcon, label, setStatus, showButton } = createProfileCard(content, key);
+        const { section, headingIcon, headingName, help, button, buttonIcon, label, setStatus, showButton } = createProfileCard(content, key);
         if (isPrimaryLogin()) { section.passwordLoginDisabled = true; setProfilePasswordVisibility(content, true); }
         const current = () => section === profileSection && section.isConnected && activeSession()?.token === session.token;
         async function unlink(state) {
@@ -266,13 +289,14 @@
             try {
                 Object.assign(profileStrings, await loadStrings());
                 if (!current()) return;
-                heading.textContent = profileStrings.linkHeading;
                 const response = await linkRequest(session, 'link');
                 if (!current()) return;
                 if (response.status === 404) { profileUnavailableKey = key; section.remove(); restoreProfilePasswords(); return; }
                 if (!response.ok) throw new Error('Link status unavailable');
                 const state = await response.json();
                 if (!current()) return;
+                headingName.textContent = providerName(state.Provider, state.ProviderName);
+                updateProviderIcon(headingIcon, state.Provider);
                 section.passwordLoginDisabled = state.PasswordLoginDisabled;
                 setProfilePasswordVisibility(content, state.PasswordLoginDisabled);
                 const status = identityStatus(state);
@@ -349,9 +373,12 @@
         }
         const button = document.createElement('button');
         button.type = 'button'; button.setAttribute('is', 'emby-button'); button.className = 'raised block' + (isPrimaryLogin() ? ' button-submit' : '');
-        button.dataset.oidcLogin = 'true'; button.setAttribute('aria-label', loginLabel());
-        const label = document.createElement('span'); label.textContent = loginLabel();
-        button.append(label);
+        button.dataset.oidcLogin = 'true';
+        const content = document.createElement('span'); content.className = 'oidc-login-content';
+        const icon = document.createElement('span'); icon.dataset.oidcProviderIcon = ''; icon.setAttribute('aria-hidden', 'true');
+        const label = document.createElement('span'); label.dataset.oidcLoginLabel = 'true';
+        content.append(icon, label); button.append(content);
+        updateLoginPresentation(button);
         button.onclick = () => {
             button.disabled = true;
             button.setAttribute('aria-label', profileStrings.linkRedirecting);
@@ -364,8 +391,7 @@
     const resetLoginButton = () => {
         document.querySelectorAll('[data-oidc-login]').forEach(button => {
             button.disabled = false;
-            button.setAttribute('aria-label', loginLabel());
-            button.querySelector('span').textContent = loginLabel();
+            updateLoginPresentation(button);
             button.classList.toggle('button-submit', isPrimaryLogin());
             updateLoginContainer(button);
         });
@@ -448,10 +474,13 @@
         const config = response.ok ? await response.json() : null;
         window.oidcEnabled = !!config;
         if (!config) {
+            window.oidcProvider = 'Other';
+            window.oidcProviderName = '';
             window.oidcRedirectSignInPageToProvider = false; window.oidcRpInitiatedLogout = false;
             window.oidcPasswordLoginMode = 'AllowForAllUsers'; revealLogin(); addLogin(); return;
         }
-        window.oidcButtonText = config.LoginButtonText;
+        window.oidcProviderName = config.ProviderName;
+        window.oidcProvider = config.Provider;
         window.oidcRpInitiatedLogout = config.RpInitiatedLogout;
         window.oidcPasswordLoginMode = config.PasswordLoginMode;
         window.oidcRedirectSignInPageToProvider = config.RedirectSignInPageToProvider;
@@ -608,9 +637,13 @@
             if (!state && busy) children.push(h(Loading, { key: 'loading' }));
             if (state) {
                 const status = identityStatus(state);
-                children.push(h('p', { key: 'status', className: 'listItemBodyText secondaryText', role: 'status', style: { margin: 0, color: status.color } },
-                    h('span', { className: 'material-icons', 'aria-hidden': 'true', style: statusIconStyle }, status.icon),
-                    h('span', { 'data-oidc-status-text': 'true' }, status.text)));
+                children.push(h('div', { key: 'status', className: 'oidc-admin-status-line' },
+                    h('span', { className: 'oidc-admin-provider' },
+                        h('span', { 'aria-hidden': 'true', 'data-oidc-provider-icon': '', ref: element => { if (element) updateProviderIcon(element, state.Provider); } }),
+                        h('span', { 'data-oidc-admin-provider-name': 'true' }, providerName(state.Provider, state.ProviderName))),
+                    h('p', { className: 'listItemBodyText secondaryText', role: 'status', style: { margin: 0, minWidth: 0, overflowWrap: 'anywhere', whiteSpace: 'normal', color: status.color } },
+                        h('span', { className: 'material-icons', 'aria-hidden': 'true', style: statusIconStyle }, status.icon),
+                        h('span', { 'data-oidc-status-text': 'true' }, status.text))));
                 if (!state.OidcAvailable) children.push(h(Alert, { key: 'disabled', severity: 'warning' }, text('adminDisabled')));
                 if (state.AutomaticReattachmentBlocked) children.push(h('p', { key: 'block', className: 'fieldDescription' }, text('adminBlocked')));
                 if (state.PartialRevocation) children.push(h(Alert, { key: 'partial', severity: 'warning' }, text('adminPartial')), button('adminRetrySignOut', () => mutate('/retry-sign-out', 'POST', { Operation: state.UnlinkOperation }), { icon: 'refresh' }));

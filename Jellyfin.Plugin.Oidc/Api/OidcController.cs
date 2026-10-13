@@ -44,7 +44,7 @@ public sealed class OidcController : ControllerBase
 
         var redirectsToProvider = configuration.PasswordLoginMode == PasswordLoginMode.DisableForAllUsers
             && configuration.RedirectSignInPageToProvider;
-        return new WebConfiguration(configuration.LoginButtonText, configuration.PasswordLoginMode.ToString(), redirectsToProvider, configuration.RpInitiatedLogout);
+        return new WebConfiguration(configuration.ProviderName, configuration.PasswordLoginMode.ToString(), redirectsToProvider, configuration.RpInitiatedLogout, configuration.Provider.ToString());
     }
 
     /// <summary>Serves the small Jellyfin Web integration script.</summary>
@@ -61,6 +61,18 @@ public sealed class OidcController : ControllerBase
 
         using var reader = new StreamReader(stream);
         return Content(reader.ReadToEnd(), "application/javascript");
+    }
+
+    /// <summary>Serves a bundled monochrome Identity Provider logo.</summary>
+    [AllowAnonymous]
+    [HttpGet("icons/{provider}.svg")]
+    [Produces("image/svg+xml")]
+    public IActionResult Icon(IdentityProviderType provider)
+    {
+        var stream = typeof(OidcController).Assembly.GetManifestResourceStream($"Jellyfin.Plugin.Oidc.Web.Providers.{provider}.svg");
+        if (stream is null) return NotFound();
+        Response.Headers.CacheControl = "public, max-age=86400";
+        return File(stream, "image/svg+xml");
     }
 
     /// <summary>Serves a plugin configuration-page translation dictionary.</summary>
@@ -160,6 +172,6 @@ public sealed class OidcController : ControllerBase
     /// <summary>Non-secret settings used by the browser integration.</summary>
     // JSON serialization reads these endpoint fields.
     // ReSharper disable NotAccessedPositionalProperty.Global
-    public sealed record WebConfiguration(string LoginButtonText, string PasswordLoginMode, bool RedirectSignInPageToProvider, bool RpInitiatedLogout);
+    public sealed record WebConfiguration(string ProviderName, string PasswordLoginMode, bool RedirectSignInPageToProvider, bool RpInitiatedLogout, string Provider);
     // ReSharper restore NotAccessedPositionalProperty.Global
 }

@@ -765,6 +765,40 @@ public sealed class OidcProvisioningTests
     }
 
     [Fact]
+    public async Task Profile_branding_survives_disabled_oidc_and_does_not_mislabel_an_old_issuer()
+    {
+        using var fixture = new ProvisioningFixture();
+        fixture.Configuration.Provider = IdentityProviderType.Authentik;
+        fixture.Configuration.ProviderName = "Home Identity";
+        var user = await fixture.SeedUserAsync("owner");
+        Assert.True(await fixture.LinkAsync(user.Id, "private-subject"));
+        fixture.Configuration.Enabled = false;
+        var administrator = await fixture.AdminAsync();
+        var controller = fixture.Profile(user.Id);
+        var response = Assert.IsType<OkObjectResult>(await controller.Status());
+        using var status = JsonDocument.Parse(JsonSerializer.Serialize(response.Value));
+        Assert.Equal("Authentik", status.RootElement.GetProperty("Provider").GetString());
+        Assert.Equal("Home Identity", status.RootElement.GetProperty("ProviderName").GetString());
+        var adminResponse = Assert.IsType<OkObjectResult>(await administrator.Status(user.Id));
+        using var adminStatus = JsonDocument.Parse(JsonSerializer.Serialize(adminResponse.Value));
+        Assert.Equal("Authentik", adminStatus.RootElement.GetProperty("Provider").GetString());
+        Assert.Equal("Home Identity", adminStatus.RootElement.GetProperty("ProviderName").GetString());
+        fixture.Configuration.IssuerUrl = "https://replacement.example.test";
+        response = Assert.IsType<OkObjectResult>(await controller.Status());
+        var json = JsonSerializer.Serialize(response.Value);
+        using var historical = JsonDocument.Parse(json);
+        Assert.Equal("Other", historical.RootElement.GetProperty("Provider").GetString());
+        Assert.Empty(historical.RootElement.GetProperty("ProviderName").GetString()!);
+        Assert.DoesNotContain("private-subject", json);
+        Assert.DoesNotContain("https://identity.example.test", json);
+        Assert.DoesNotContain(fixture.Configuration.IssuerUrl, json);
+        adminResponse = Assert.IsType<OkObjectResult>(await administrator.Status(user.Id));
+        using var historicalAdmin = JsonDocument.Parse(JsonSerializer.Serialize(adminResponse.Value));
+        Assert.Equal("Other", historicalAdmin.RootElement.GetProperty("Provider").GetString());
+        Assert.Empty(historicalAdmin.RootElement.GetProperty("ProviderName").GetString()!);
+    }
+
+    [Fact]
     public async Task Profile_unlink_rolls_back_failed_saves_and_supports_disabled_plugin_recovery()
     {
         using var fixture = new ProvisioningFixture();

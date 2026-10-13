@@ -339,6 +339,29 @@
                   ></label
                 >
               </div>
+              <div class="selectContainer">
+                <label for="Provider" data-i18n="providerLabel">{{providerLabel}}</label>
+                <select id="Provider" is="emby-select" class="emby-select">
+                  <option value="Authentik">Authentik</option>
+                  <option value="Authelia">Authelia</option>
+                  <option value="Keycloak">Keycloak</option>
+                  <option value="PocketId">Pocket ID</option>
+                  <option value="Zitadel">ZITADEL</option>
+                  <option value="Other" selected data-i18n="providerOther">{{providerOther}}</option>
+                </select>
+                <span class="material-icons oidc-select-arrow" aria-hidden="true">arrow_drop_down</span>
+              </div>
+              <div id="ProviderNameContainer" class="inputContainer">
+                <input
+                  id="ProviderName"
+                  type="text"
+                  is="emby-input"
+                  placeholder="SSO"
+                  maxlength="128"
+                  label="{{providerNameLabel}}"
+                  data-i18n-label="providerNameLabel"
+                />
+              </div>
               <div class="inputContainer inputContainer-withDescription">
                 <input
                   id="IssuerUrl"
@@ -663,16 +686,6 @@
               <h2 class="sectionTitle" data-i18n="signInExperienceHeading">
                 {{signInExperienceHeading}}
               </h2>
-              <div class="inputContainer inputContainer-withDescription">
-                <input
-                  id="LoginButtonText"
-                  type="text"
-                  is="emby-input"
-                  placeholder="Sign In with SSO"
-                  label="{{loginButtonTextLabel}}"
-                  data-i18n-label="loginButtonTextLabel"
-                />
-              </div>
               <div
                 id="RedirectSignInPageToProviderContainer"
                 class="checkboxContainer checkboxContainer-withDescription"
@@ -837,6 +850,8 @@
         const pluginId = "4c5b9b96-80cd-4c3d-9e3d-23fa4ebf6ce4";
         const fields = [
           "Enabled",
+          "Provider",
+          "ProviderName",
           "PublicUrl",
           "IssuerUrl",
           "ClientId",
@@ -850,7 +865,6 @@
           "AutomaticLinkingMode",
           "AllowSelfServiceLinking",
           "AdditionalScopes",
-          "LoginButtonText",
           "PasswordLoginMode",
           "RedirectSignInPageToProvider",
           "SynchronizeProfileImages",
@@ -881,6 +895,7 @@
             saving || !hasChanges();
         };
         const updatePolicies = () => {
+          page.querySelector("#ProviderNameContainer").hidden = value("Provider") !== "Other";
           const redirectsAvailable =
             value("PasswordLoginMode") === "DisableForAllUsers";
           page.querySelector("#RedirectSignInPageToProviderContainer").hidden =
@@ -914,13 +929,7 @@
             .then((config) => {
               if (load !== configurationLoad || saving || hasChanges()) return;
               savedConfiguration = Object.fromEntries(
-                fields.map((name) => [
-                  name,
-                  name === "LoginButtonText" &&
-                  config[name] === "Sign In with SSO"
-                    ? ""
-                    : config[name],
-                ]),
+                fields.map((name) => [name, config[name]]),
               );
               fields.forEach((name) => {
                 document.querySelector("#" + name)[

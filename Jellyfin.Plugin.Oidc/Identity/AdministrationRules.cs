@@ -5,6 +5,11 @@ namespace Jellyfin.Plugin.Oidc.Identity;
 /// <summary>Shared approval and reservation rules, evaluated inside the configuration gate.</summary>
 public static class AdministrationRules
 {
+    /// <summary>Determines whether current Provider branding describes the user's Identity Link.</summary>
+    public static bool UsesCurrentProvider(PluginConfiguration configuration, IdentityLink? link) =>
+        link is null || string.IsNullOrEmpty(link.Issuer)
+        || link.Issuer == (configuration.IssuerUrl ?? string.Empty).TrimEnd('/');
+
     /// <summary>Accepts the current version or a harmless duplicate of the latest unlink.</summary>
     public static bool CanUnlink(
         PluginConfiguration configuration,

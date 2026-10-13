@@ -484,6 +484,319 @@ test("loads the seeded OIDC settings and validates changes for an administrator"
   await page.getByRole("button", { name: "Cancel" }).click();
 });
 
+test("saves the Provider selection as non-secret display metadata without changing connection settings", async ({
+  page,
+  browser,
+}) => {
+  await signIn(page);
+  const original = await page.evaluate(() =>
+    ApiClient.getPluginConfiguration("4c5b9b96-80cd-4c3d-9e3d-23fa4ebf6ce4"),
+  );
+  await page.goto(
+    "/web/index.html#/configurationpage?name=OIDC%20Authentication",
+  );
+  const selector = page.getByRole("combobox", {
+    name: "Provider",
+    exact: true,
+  });
+  await expect(selector).toHaveValue(original.Provider);
+  await expect(selector.locator("option")).toHaveText([
+    "Authentik",
+    "Authelia",
+    "Keycloak",
+    "Pocket ID",
+    "ZITADEL",
+    "Other",
+  ]);
+  await expect(page.locator("#LoginButtonText")).toHaveCount(0);
+  await expect(
+    page.locator("#ProviderNameContainer .fieldDescription"),
+  ).toHaveCount(0);
+  const login = await browser.newPage({ ignoreHTTPSErrors: true });
+  const profile = await browser.newPage({ ignoreHTTPSErrors: true });
+  await localSignIn(profile, "root", "");
+  const profileUserId = await profile.evaluate(() =>
+    ApiClient.getCurrentUserId(),
+  );
+  const names = {
+    Authentik: "Authentik",
+    Authelia: "Authelia",
+    Keycloak: "Keycloak",
+    PocketId: "Pocket ID",
+    Zitadel: "ZITADEL",
+    Other: "SSO",
+  };
+  try {
+    for (const provider of [
+      "Authentik",
+      "Authelia",
+      "Keycloak",
+      "PocketId",
+      "Zitadel",
+      "Other",
+    ]) {
+      await selector.selectOption(provider);
+      if (provider === "Other")
+        await expect(page.locator("#ProviderName")).toBeVisible();
+      else await expect(page.locator("#ProviderNameContainer")).toBeHidden();
+      await page.locator("#SaveButton").click();
+      await expect(page.locator("#SaveButton")).toBeDisabled();
+      await page.waitForFunction(
+        (provider) => window.oidcProvider === provider,
+        provider,
+      );
+      const response = await page.request.get("/oidc/config");
+      expect(response.headers()["cache-control"]).toContain("no-store");
+      const config = await response.json();
+      expect(config.Provider).toBe(provider);
+      expect(Object.keys(config).sort()).toEqual([
+        "PasswordLoginMode",
+        "Provider",
+        "ProviderName",
+        "RedirectSignInPageToProvider",
+        "RpInitiatedLogout",
+      ]);
+      await page.reload();
+      await expect(selector).toHaveValue(provider);
+      await showLogin(login);
+      const button = login.locator("[data-oidc-login]");
+      await expect(button).toHaveAccessibleName(
+        "Sign In with " + names[provider],
+      );
+      const icon = button.locator("[data-oidc-provider-icon]");
+      await expect(icon).toHaveAttribute("data-oidc-provider-icon", provider);
+      await expect(icon).toHaveAttribute("aria-hidden", "true");
+      if (provider === "Other") {
+        await expect(icon).toHaveText("vpn_key");
+        await expect(icon).toHaveCSS("mask-image", "none");
+      } else {
+        const asset = await login.request.get(`/oidc/icons/${provider}.svg`);
+        expect(asset.ok()).toBe(true);
+        expect(asset.headers()["content-type"]).toContain("image/svg+xml");
+        expect(await asset.text()).toContain('fill="currentColor"');
+        await expect(icon).toHaveCSS(
+          "mask-image",
+          new RegExp(`/oidc/icons/${provider}\\.svg`),
+        );
+        for (const hover of [false, true]) {
+          if (hover) await button.hover();
+          const colors = await icon.evaluate((element) => ({
+            icon: getComputedStyle(element).backgroundColor,
+            text: getComputedStyle(element.closest("button")).color,
+          }));
+          expect(colors.icon).toBe(colors.text);
+        }
+      }
+      await profile.goto("/web/index.html#/userprofile");
+      await profile.reload();
+      const heading = profile
+        .locator("[data-oidc-profile]")
+        .getByRole("heading", { level: 2 });
+      await expect(heading).toHaveAccessibleName(names[provider]);
+      const profileIcon = heading.locator("[data-oidc-provider-icon]");
+      await expect(profileIcon).toHaveAttribute(
+        "data-oidc-provider-icon",
+        provider,
+      );
+      await expect(profileIcon).toHaveAttribute("aria-hidden", "true");
+      if (provider === "Other") await expect(profileIcon).toHaveText("vpn_key");
+      else {
+        await expect(profileIcon).toHaveCSS(
+          "mask-image",
+          new RegExp(`/oidc/icons/${provider}\\.svg`),
+        );
+        const colors = await profileIcon.evaluate((element) => ({
+          icon: getComputedStyle(element).backgroundColor,
+          text: getComputedStyle(element.parentElement).color,
+        }));
+        expect(colors.icon).toBe(colors.text);
+      }
+      await profile.goto(
+        `/web/index.html#/dashboard/users/${profileUserId}/profile?oidc=1`,
+      );
+      const panel = profile.getByRole("tabpanel", { name: "OIDC" });
+      const providerIdentity = panel.locator(".oidc-admin-provider");
+      await expect(panel.locator("[data-oidc-status-text]")).toHaveText(
+        "Not linked",
+      );
+      await expect(
+        providerIdentity.locator("[data-oidc-admin-provider-name]"),
+      ).toHaveText(names[provider]);
+      await expect(
+        providerIdentity.locator("[data-oidc-provider-icon]"),
+      ).toHaveAttribute("data-oidc-provider-icon", provider);
+      await expect(providerIdentity).toHaveCSS(
+        "border-inline-end-width",
+        "1px",
+      );
+      await expect(
+        panel.locator(".oidc-admin-status-line > :first-child"),
+      ).toHaveClass("oidc-admin-provider");
+    }
+    const saved = await page.evaluate(() =>
+      ApiClient.getPluginConfiguration("4c5b9b96-80cd-4c3d-9e3d-23fa4ebf6ce4"),
+    );
+    for (const field of [
+      "IssuerUrl",
+      "ClientId",
+      "ClientSecret",
+      "AdditionalScopes",
+      "GroupClaim",
+      "UsernameClaim",
+      "UserGroup",
+      "AdministratorGroup",
+      "IdentityLinks",
+    ])
+      expect(saved[field]).toEqual(original[field]);
+    expect(saved.ProviderName).toBe(original.ProviderName);
+  } finally {
+    await setConfigurationValue(page, "Provider", original.Provider);
+    await login.close();
+    await profile.close();
+  }
+});
+
+test("uses the Other provider name safely with an SSO fallback and keeps icons while redirecting", async ({
+  browser,
+  page,
+}) => {
+  await signIn(page);
+  const original = await page.evaluate(() =>
+    ApiClient.getPluginConfiguration("4c5b9b96-80cd-4c3d-9e3d-23fa4ebf6ce4"),
+  );
+  const userId = await page.evaluate(() => ApiClient.getCurrentUserId());
+  const login = await browser.newPage({ ignoreHTTPSErrors: true });
+  async function checkRedirecting(provider) {
+    let release;
+    let finished;
+    const held = new Promise((resolve) => {
+      release = resolve;
+    });
+    const completed = new Promise((resolve) => {
+      finished = resolve;
+    });
+    await login.route("**/oidc/start*", async (route) => {
+      await held;
+      await route.abort();
+      finished();
+    });
+    try {
+      const started = login.waitForRequest(
+        (request) => new URL(request.url()).pathname === "/oidc/start",
+      );
+      const button = login.locator("[data-oidc-login]");
+      const state = await button.evaluate((element) => {
+        element.click();
+        const icon = element.querySelector("[data-oidc-provider-icon]");
+        const style = getComputedStyle(icon);
+        const box = icon.getBoundingClientRect();
+        return {
+          disabled: element.disabled,
+          label: element.getAttribute("aria-label"),
+          text: element.querySelector("[data-oidc-login-label]").textContent,
+          provider: icon.dataset.oidcProviderIcon,
+          iconText: icon.textContent,
+          visible:
+            box.width > 0 &&
+            box.height > 0 &&
+            style.visibility !== "hidden" &&
+            style.display !== "none",
+          iconColor: style.backgroundColor,
+          textColor: getComputedStyle(element).color,
+        };
+      });
+      await started;
+      expect(state.disabled).toBe(true);
+      expect(state.label).toBe("Redirecting...");
+      expect(state.text).toBe("Redirecting...");
+      expect(state.visible).toBe(true);
+      expect(state.provider).toBe(provider);
+      if (provider === "Other") expect(state.iconText).toBe("vpn_key");
+      else expect(state.iconColor).toBe(state.textColor);
+    } finally {
+      release();
+      await completed;
+      await login.unroute("**/oidc/start*");
+    }
+  }
+  try {
+    await setConfigurationValue(page, "Provider", "Other");
+    for (const [name, displayed] of [
+      ["", "SSO"],
+      ["   ", "SSO"],
+      ["  Home Login  ", "Home Login"],
+      ["Home $&", "Home $&"],
+      ["<img src=x onerror=alert(1)>", "<img src=x onerror=alert(1)>"],
+    ]) {
+      await setConfigurationValue(page, "ProviderName", name);
+      await showLogin(login);
+      const button = login.locator("[data-oidc-login]");
+      await expect(button).toHaveAccessibleName("Sign In with " + displayed);
+      await expect(button.locator("img, svg")).toHaveCount(0);
+      await expect(button.locator("[data-oidc-provider-icon]")).toHaveText(
+        "vpn_key",
+      );
+      await page.goto("/web/index.html#/userprofile");
+      await page.reload();
+      const heading = page
+        .locator("[data-oidc-profile]")
+        .getByRole("heading", { level: 2 });
+      await expect(heading).toHaveAccessibleName(displayed);
+      await expect(heading.locator("[data-oidc-profile-name]")).toHaveText(
+        displayed,
+      );
+      await expect(heading.locator("[data-oidc-provider-icon]")).toHaveText(
+        "vpn_key",
+      );
+      await expect(heading.locator("img, svg")).toHaveCount(0);
+      await page.goto(
+        `/web/index.html#/dashboard/users/${userId}/profile?oidc=1`,
+      );
+      const identity = page
+        .getByRole("tabpanel", { name: "OIDC" })
+        .locator(".oidc-admin-provider");
+      await expect(
+        identity.locator("[data-oidc-admin-provider-name]"),
+      ).toHaveText(displayed);
+      await expect(identity.locator("[data-oidc-provider-icon]")).toHaveText(
+        "vpn_key",
+      );
+      await expect(identity.locator("img, svg")).toHaveCount(0);
+    }
+    await checkRedirecting("Other");
+    await setConfigurationValue(page, "Provider", "Keycloak");
+    await showLogin(login);
+    await expect(login.locator("[data-oidc-login]")).toHaveAccessibleName(
+      "Sign In with Keycloak",
+    );
+    await checkRedirecting("Keycloak");
+    await page.goto("/web/index.html#/userprofile");
+    await setConfigurationValue(page, "Enabled", false);
+    await page.reload();
+    const heading = page
+      .locator("[data-oidc-profile]")
+      .getByRole("heading", { level: 2 });
+    await expect(heading).toHaveText("Keycloak");
+    await expect(heading.locator("[data-oidc-provider-icon]")).toHaveAttribute(
+      "data-oidc-provider-icon",
+      "Keycloak",
+    );
+    await page.goto(
+      `/web/index.html#/dashboard/users/${userId}/profile?oidc=1`,
+    );
+    await expect(
+      page
+        .getByRole("tabpanel", { name: "OIDC" })
+        .locator("[data-oidc-admin-provider-name]"),
+    ).toHaveText("Keycloak");
+  } finally {
+    await setConfigurationValue(page, "Enabled", original.Enabled);
+    await setConfigurationValue(page, "ProviderName", original.ProviderName);
+    await setConfigurationValue(page, "Provider", original.Provider);
+    await login.close();
+  }
+});
+
 test("navigates settings tabs by keyboard and reveals invalid fields without losing edits", async ({
   page,
 }) => {
@@ -509,6 +822,7 @@ test("navigates settings tabs by keyboard and reveals invalid fields without los
   await expect(general).toBeFocused();
 
   await page.locator("#ClientId").fill("draft-client");
+  await page.locator("#ProviderName").fill("Draft provider");
   await advanced.click();
   await expect(
     page.locator("#AutomaticLinkingMode"),
@@ -516,15 +830,12 @@ test("navigates settings tabs by keyboard and reveals invalid fields without los
   await expect(
     page.locator("#ProvisioningUsernameMode"),
   ).not.toHaveAccessibleDescription(/currently verified email/);
-  await page.locator("#LoginButtonText").fill("Draft sign-in label");
   await page.locator("#UsernameClaim").fill("");
   await general.click();
   await page.locator("#SaveButton").click();
   await expect(advanced).toHaveAttribute("aria-selected", "true");
   await expect(page.locator("#UsernameClaim")).toBeFocused();
-  await expect(page.locator("#LoginButtonText")).toHaveValue(
-    "Draft sign-in label",
-  );
+  await expect(page.locator("#ProviderName")).toHaveValue("Draft provider");
   await page.locator("#UsernameClaim").fill("preferred_username");
   await page
     .locator("#AutomaticLinkingMode")
@@ -837,8 +1148,7 @@ test("keeps saved configuration visible when an older load finishes late", async
         .dispatchEvent(new Event("pageshow")),
     );
     await loadStarted;
-    await page.getByRole("tab", { name: "Advanced", exact: true }).click();
-    await page.locator("#LoginButtonText").fill("Saved UI label");
+    await page.locator("#ProviderName").fill("Saved provider");
     const saved = page.waitForResponse(
       (response) =>
         response.request().method() === "POST" &&
@@ -854,18 +1164,14 @@ test("keeps saved configuration visible when an older load finishes late", async
     );
     releaseLoad();
     await (await oldLoadFinished).finished();
-    await expect(page.locator("#LoginButtonText")).toHaveValue(
-      "Saved UI label",
-    );
+    await expect(page.locator("#ProviderName")).toHaveValue("Saved provider");
     await expect(page.locator("#SaveButton")).toBeDisabled();
     await page.reload();
-    await expect(page.locator("#LoginButtonText")).toHaveValue(
-      "Saved UI label",
-    );
+    await expect(page.locator("#ProviderName")).toHaveValue("Saved provider");
   } finally {
     releaseLoad();
     await page.unroute(configurationUrl);
-    await setConfigurationValue(page, "LoginButtonText", "Sign In with SSO");
+    await setConfigurationValue(page, "ProviderName", "");
   }
 });
 
@@ -888,16 +1194,13 @@ test("shows configuration save failures and allows retrying the draft", async ({
       : route.continue(),
   );
   try {
-    await page.getByRole("tab", { name: "Advanced", exact: true }).click();
-    await page.locator("#LoginButtonText").fill("Retry UI label");
+    await page.locator("#ProviderName").fill("Retry provider");
     await page.locator("#SaveButton").click();
     await expect(
       page.getByText("Injected save failure", { exact: true }),
     ).toBeVisible();
     await page.getByRole("button", { name: "Got It", exact: true }).click();
-    await expect(page.locator("#LoginButtonText")).toHaveValue(
-      "Retry UI label",
-    );
+    await expect(page.locator("#ProviderName")).toHaveValue("Retry provider");
     await expect(page.locator("#SaveButton")).toBeEnabled();
     await page.unroute(configurationUrl);
     const saved = page.waitForResponse(
@@ -909,12 +1212,10 @@ test("shows configuration save failures and allows retrying the draft", async ({
     expect((await saved).ok()).toBe(true);
     await expect(page.locator("#SaveButton")).toBeDisabled();
     await page.reload();
-    await expect(page.locator("#LoginButtonText")).toHaveValue(
-      "Retry UI label",
-    );
+    await expect(page.locator("#ProviderName")).toHaveValue("Retry provider");
   } finally {
     await page.unroute(configurationUrl);
-    await setConfigurationValue(page, "LoginButtonText", "Sign In with SSO");
+    await setConfigurationValue(page, "ProviderName", "");
   }
 });
 
@@ -1400,6 +1701,12 @@ for (const layout of ["modern", "desktop-legacy"]) {
         panel.getByRole("textbox", { name: "Value", exact: true }),
       ).toHaveClass(/emby-input/);
       const approveButton = panel.getByRole("button", { name: "Approve link" });
+      await expect(approveButton).toBeDisabled();
+      await expect(approveButton).toHaveCSS("opacity", "0.5");
+      await expect(approveButton).toHaveCSS("cursor", "not-allowed");
+      const disabledBackground = await approveButton.evaluate(
+        (element) => getComputedStyle(element).backgroundColor,
+      );
       await expect(
         panel.getByRole("combobox", { name: "Match by" }),
       ).toHaveValue("Subject");
@@ -1415,6 +1722,11 @@ for (const layout of ["modern", "desktop-legacy"]) {
         .getByRole("textbox", { name: "Value", exact: true })
         .fill("invalid-email");
       await expect(approveButton).toBeDisabled();
+      await expect(approveButton).toHaveCSS("opacity", "0.5");
+      await expect(approveButton).toHaveCSS(
+        "background-color",
+        disabledBackground,
+      );
       await panel
         .getByRole("combobox", { name: "Match by" })
         .selectOption("Subject");
@@ -1428,6 +1740,12 @@ for (const layout of ["modern", "desktop-legacy"]) {
         .getByRole("textbox", { name: "Value", exact: true })
         .fill(` ${name}@example.test `);
       await expect(approveButton).toBeEnabled();
+      await expect(approveButton).toHaveCSS("opacity", "1");
+      expect(
+        await approveButton.evaluate(
+          (element) => getComputedStyle(element).backgroundColor,
+        ),
+      ).not.toBe(disabledBackground);
       await expect(
         panel.getByRole("combobox", { name: "Match by" }),
       ).toHaveValue("Email");
@@ -2689,6 +3007,8 @@ test("link endpoints reject anonymous requests and invalid return URLs", async (
     "PartialRevocation",
     "PasswordLoginDisabled",
     "PasswordLoginMode",
+    "Provider",
+    "ProviderName",
     "SoleAdministrator",
     "UnlinkOperation",
     "Version",

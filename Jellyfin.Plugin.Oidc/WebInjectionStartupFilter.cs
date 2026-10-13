@@ -97,7 +97,7 @@ public sealed class WebInjectionStartupFilter : IStartupFilter
                 {
                     html = html.Replace("</head>", "<style id=\"oidc-login-redirect-style\">#loginPage{visibility:hidden}</style></head>", StringComparison.OrdinalIgnoreCase);
                 }
-                var scriptTag = $"<script>window.oidcEnabled={enabled.ToString().ToLowerInvariant()};window.oidcPasswordLoginMode='{(enabled ? configuration.PasswordLoginMode : PasswordLoginMode.AllowForAllUsers)}';window.oidcRedirectSignInPageToProvider={redirectsToProvider.ToString().ToLowerInvariant()};</script><script src=\"{System.Text.Encodings.Web.HtmlEncoder.Default.Encode(context.Request.PathBase.Value ?? string.Empty)}/oidc/web.js?v={typeof(WebInjectionStartupFilter).Assembly.ManifestModule.ModuleVersionId}\"></script>";
+                var scriptTag = $"<script>window.oidcEnabled={enabled.ToString().ToLowerInvariant()};window.oidcProvider={JsonSerializer.Serialize(configuration.Provider.ToString())};window.oidcProviderName={JsonSerializer.Serialize(configuration.ProviderName)};window.oidcPasswordLoginMode='{(enabled ? configuration.PasswordLoginMode : PasswordLoginMode.AllowForAllUsers)}';window.oidcRedirectSignInPageToProvider={redirectsToProvider.ToString().ToLowerInvariant()};</script><script src=\"{System.Text.Encodings.Web.HtmlEncoder.Default.Encode(context.Request.PathBase.Value ?? string.Empty)}/oidc/web.js?v={typeof(WebInjectionStartupFilter).Assembly.ManifestModule.ModuleVersionId}\"></script>";
                 if (!html.Contains(scriptTag, StringComparison.Ordinal))
                 {
                     html = html.Replace("</head>", scriptTag + "</head>", StringComparison.OrdinalIgnoreCase);

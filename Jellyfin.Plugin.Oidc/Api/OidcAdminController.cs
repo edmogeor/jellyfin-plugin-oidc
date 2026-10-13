@@ -140,12 +140,15 @@ public sealed class OidcAdminController(
         var configuration = OidcPlugin.Instance!.Configuration;
         var user = users.GetUserById(userId);
         var link = configuration.IdentityLinks.FirstOrDefault(link => link.UserId == userId);
+        var currentProvider = AdministrationRules.UsesCurrentProvider(configuration, link);
         var oidcAvailable =
             configuration.Enabled && OidcConfigurationValidator.Validate(configuration) is null;
         return new
         {
             UserId = userId,
             Name = user?.Username,
+            Provider = currentProvider ? configuration.Provider.ToString() : nameof(IdentityProviderType.Other),
+            ProviderName = currentProvider ? configuration.ProviderName : string.Empty,
             Linked = link is not null,
             link?.Email,
             link?.Username,

@@ -63,7 +63,7 @@ configuration.update(
         "RequireVerifiedEmail": True,
         "UserGroup": "jellyfin-users",
         "AdministratorGroup": "jellyfin-admins",
-        "LoginButtonText": "Sign In with SSO",
+        "ProviderName": "",
         "PasswordLoginMode": "AllowForAllUsers",
         "RedirectSignInPageToProvider": False,
         "RpInitiatedLogout": False,

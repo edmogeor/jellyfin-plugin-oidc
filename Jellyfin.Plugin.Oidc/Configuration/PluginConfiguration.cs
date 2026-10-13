@@ -2,6 +2,23 @@ using MediaBrowser.Model.Plugins;
 
 namespace Jellyfin.Plugin.Oidc.Configuration;
 
+/// <summary>The configured Identity Provider product, used as display metadata.</summary>
+public enum IdentityProviderType
+{
+    /// <summary>An unspecified or other Identity Provider.</summary>
+    Other,
+    /// <summary>Authentik.</summary>
+    Authentik,
+    /// <summary>Authelia.</summary>
+    Authelia,
+    /// <summary>Keycloak.</summary>
+    Keycloak,
+    /// <summary>Pocket ID.</summary>
+    PocketId,
+    /// <summary>ZITADEL.</summary>
+    Zitadel,
+}
+
 /// <summary>Automatic attachment of an eligible identity to an existing Jellyfin User.</summary>
 public enum AutomaticLinkingMode
 {
@@ -76,6 +93,9 @@ public sealed class PluginConfiguration : BasePluginConfiguration
     /// <summary>Gets or sets a value indicating whether OIDC routes and UI are active.</summary>
     public bool Enabled { get; set; }
 
+    /// <summary>Gets or sets the selected Identity Provider product.</summary>
+    public IdentityProviderType Provider { get; set; } = IdentityProviderType.Other;
+
     /// <summary>Gets or sets the fixed public HTTPS URL of Jellyfin.</summary>
     public string PublicUrl { get; set; } = string.Empty;
 
@@ -115,8 +135,8 @@ public sealed class PluginConfiguration : BasePluginConfiguration
     /// <summary>Gets or sets whether linking and sign-in require a supplied verified email.</summary>
     public bool RequireVerifiedEmail { get; set; } = true;
 
-    /// <summary>Gets or sets the OIDC button label.</summary>
-    public string LoginButtonText { get; set; } = string.Empty;
+    /// <summary>Gets or sets the display name for an Other Identity Provider.</summary>
+    public string ProviderName { get; set; } = string.Empty;
 
     /// <summary>Gets or sets local credential availability.</summary>
     public PasswordLoginMode PasswordLoginMode { get; set; }

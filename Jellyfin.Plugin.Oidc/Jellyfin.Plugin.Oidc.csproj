@@ -20,6 +20,11 @@
     <EmbeddedResource Include="$(IntermediateOutputPath)configPage.html" LogicalName="Jellyfin.Plugin.Oidc.Configuration.configPage.html" />
     <EmbeddedResource Include="Configuration\\Strings\\*.json" />
     <EmbeddedResource Include="$(IntermediateOutputPath)oidc.js" LogicalName="Jellyfin.Plugin.Oidc.Web.oidc.js" />
+    <None Remove="Web/Providers/*.svg" />
+    <EmbeddedResource Include="Web/Providers/*.svg" />
+    <None Include="../LICENSE" Link="LICENSE" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="../NOTICE" Link="NOTICE" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="../licenses/Apache-2.0.txt" Link="Apache-2.0.txt" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
   <Target Name="EmbedEnglishStrings" BeforeTargets="AssignTargetPaths"
           Inputs="Configuration/configPage.html;Configuration/Strings/en-us.json;../scripts/embed-english.mjs"

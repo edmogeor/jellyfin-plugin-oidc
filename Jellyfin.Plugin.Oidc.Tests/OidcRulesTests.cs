@@ -1,6 +1,7 @@
 using System.Security.Claims;
 using System.Text.Json;
 using System.Text.RegularExpressions;
+using System.Xml.Linq;
 using Jellyfin.Plugin.Oidc.Api;
 using Jellyfin.Plugin.Oidc.Configuration;
 using Jellyfin.Plugin.Oidc.Identity;
@@ -248,6 +249,22 @@ public sealed class OidcRulesTests
     }
 
     [Fact]
+    public void Provider_selection_defaults_to_other_for_old_xml_and_round_trips_supported_values()
+    {
+        var serializer = new System.Xml.Serialization.XmlSerializer(typeof(PluginConfiguration));
+        using var oldConfiguration = new StringReader("<PluginConfiguration />");
+        Assert.Equal(IdentityProviderType.Other, ((PluginConfiguration)serializer.Deserialize(oldConfiguration)!).Provider);
+        foreach (var provider in Enum.GetValues<IdentityProviderType>())
+        {
+            using var writer = new StringWriter();
+            serializer.Serialize(writer, new PluginConfiguration { Provider = provider });
+            using var reader = new StringReader(writer.ToString());
+            Assert.Equal(provider, ((PluginConfiguration)serializer.Deserialize(reader)!).Provider);
+        }
+        Assert.NotNull(OidcConfigurationValidator.Validate(new PluginConfiguration { Provider = (IdentityProviderType)99 }));
+    }
+
+    [Fact]
     public void Approvals_suppression_and_outstanding_revocation_round_trip_through_xml()
     {
         var state = new OidcUserAdministration
@@ -300,9 +317,39 @@ public sealed class OidcRulesTests
     }
 
     [Fact]
-    public void Login_button_text_is_empty_by_default()
+    public void Other_provider_name_is_empty_by_default()
     {
-        Assert.Empty(new PluginConfiguration().LoginButtonText);
+        Assert.Empty(new PluginConfiguration().ProviderName);
+    }
+
+    [Fact]
+    public void Legacy_button_text_does_not_become_a_provider_name()
+    {
+        var serializer = new System.Xml.Serialization.XmlSerializer(typeof(PluginConfiguration));
+        using var reader = new StringReader("<PluginConfiguration><LoginButtonText>Old custom label</LoginButtonText></PluginConfiguration>");
+        var configuration = (PluginConfiguration)serializer.Deserialize(reader)!;
+        Assert.Equal(IdentityProviderType.Other, configuration.Provider);
+        Assert.Empty(configuration.ProviderName);
+    }
+
+    [Fact]
+    public void Provider_logos_are_served_as_local_monochrome_svg_resources()
+    {
+        var controller = new OidcController(null!, new EphemeralDataProtectionProvider(), NullLogger<OidcController>.Instance)
+        { ControllerContext = new ControllerContext { HttpContext = new DefaultHttpContext() } };
+        foreach (var provider in Enum.GetValues<IdentityProviderType>().Where(provider => provider != IdentityProviderType.Other))
+        {
+            var result = Assert.IsType<FileStreamResult>(controller.Icon(provider));
+            Assert.Equal("image/svg+xml", result.ContentType);
+            using var stream = result.FileStream;
+            var svg = XDocument.Load(stream);
+            Assert.Equal("currentColor", svg.Root!.Attribute("fill")!.Value);
+            Assert.Null(svg.DocumentType);
+            Assert.DoesNotContain(svg.Descendants(), element => element.Name.LocalName is "script" or "image" or "foreignObject");
+            Assert.DoesNotContain(svg.Descendants().Attributes(), attribute => attribute.Name.LocalName == "href");
+        }
+        Assert.IsType<NotFoundResult>(controller.Icon(IdentityProviderType.Other));
+        Assert.IsType<NotFoundResult>(controller.Icon((IdentityProviderType)99));
     }
 
     [Fact]

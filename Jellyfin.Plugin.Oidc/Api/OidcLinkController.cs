@@ -119,9 +119,12 @@ public sealed class OidcLinkController(
         var configuration = OidcPlugin.Instance!.Configuration;
         var link = configuration.IdentityLinks.FirstOrDefault(link => link.UserId == userId);
         var user = users.GetUserById(userId);
+        var currentProvider = AdministrationRules.UsesCurrentProvider(configuration, link);
         return new
         {
             Name = user?.Username,
+            Provider = currentProvider ? configuration.Provider.ToString() : IdentityProviderType.Other.ToString(),
+            ProviderName = currentProvider ? configuration.ProviderName : string.Empty,
             Linked = link is not null,
             link?.Email,
             link?.Username,
