@@ -14,7 +14,7 @@
   </p>
 </div>
 
-Simple OpenID Connect sign-in for Jellyfin 12+, with one Identity Provider, group-based access, and Jellyfin-controlled permissions and viewing activity.
+Simple OpenID Connect sign-in for Jellyfin 12, with one Identity Provider, group-based access, and Jellyfin-controlled permissions and viewing activity.
 
 <!-- toc -->
 
@@ -48,7 +48,7 @@ Simple OpenID Connect sign-in for Jellyfin 12+, with one Identity Provider, grou
 
 ## Prerequisites
 
-- Jellyfin 12 or later
+- Jellyfin 12 with the tested Jellyfin Web 12.0.0 build. The administrator tab integration depends on Jellyfin Web's internal modules; later Web builds must be verified before upgrading. An incompatible integration preserves Jellyfin's native editor and logs a compatibility warning rather than breaking it.
 - An OIDC service with a configured client ID, client secret, and callback URL. See [Provider Setup](#provider-setup).
 - At least one allowed or administrator group configured in the plugin.
 - For automatic email matching, existing Jellyfin usernames must match verified OIDC email case-insensitively. Optional username matching uses the configured **Username claim** instead. Alternatively, use self-service linking or an administrator approval. Email is optional when **Require verified email** is disabled.
@@ -88,7 +88,8 @@ OIDC sign-in requires an HTTPS public URL. If Jellyfin is behind a reverse proxy
 | Group claim                  | No                         | `groups`            | The top-level claim that lists a user's groups.                                               |
 | Username claim               | Yes                        | `preferred_username` | Top-level string claim for Identity Provider usernames, used for display, username matching, and optional new-user naming. |
 | New-user username            | No                         | Identity Provider username | Name newly provisioned Jellyfin Users from the Username claim (with verified-email fallback) or verified email only. Independent of automatic linking; existing usernames are unchanged. |
-| Automatic linking            | No                         | Match email to Jellyfin username | Choose no automatic linking, verified email-to-username matching, or Identity Provider username-to-username matching. Existing links and explicit approvals take precedence. |
+| Automatic linking            | No                         | No automatic linking | Choose no automatic linking, verified email-to-username matching, or Identity Provider username-to-username matching. Existing links and explicit approvals take precedence. Older saved configurations retain their previous behavior. |
+| Allow self-service linking   | No                         | Off                 | Allow signed-in Jellyfin Users to link or unlink their Provider from their own profile. |
 | Require verified email       | No                         | On                  | Require a supplied email with `email_verified=true` for linking and all Identity Provider sign-ins, including linked users. |
 | Additional requested scopes  | No                         | -                   | Space-separated scopes requested in addition to `openid email profile`.                       |
 | Login button text            | No                         | `Sign In with SSO`  | The text on the Jellyfin sign-in button.                                                      |
@@ -124,9 +125,11 @@ Do not add a scope solely because its name matches the group claim. Some provide
 
 Identity Provider sign-in preserves an existing Jellyfin username even when the verified email changes. It keeps the same Jellyfin User and viewing activity and does not merge users.
 
+SSO respects the sign-in page's **Remember Me** choice and returns to the requested local page. Sign-in updates only the current server's saved credentials, preserving other Jellyfin servers.
+
 ## Link Your Identity Provider
 
-Sign in to Jellyfin, open your own **Profile**, and select **Link account** in the **SSO** card above the password fields. Authenticate with the configured Identity Provider, then return to the profile. Its status shows **Linked as your verified email**, or the Identity Provider username when no email is recorded. Older links without either value show **Linked** until a successful sign-in supplies display metadata. This works in both modern UI and legacy UI. The identity must belong to an allowed or administrator group and supply a verified email unless **Require verified email** is disabled.
+An administrator must first enable **Allow self-service linking**, which is off for new installations. Sign in to Jellyfin, open your own **Profile**, and select **Link account** in the **SSO** card above the password fields. Authenticate with the configured Identity Provider, then return to the profile. Its status shows **Linked as your verified email**, or the Identity Provider username when no email is recorded. Older links without either value show **Linked** until a successful sign-in supplies display metadata. This works in both modern UI and legacy UI. The identity must belong to an allowed or administrator group and supply a verified email unless **Require verified email** is disabled.
 
 Linking preserves your username, permissions, and current Jellyfin session. Under **Disable for linked users only**, it disables local-password sign-in immediately. Future Identity Provider sign-ins update administrator access from group membership and optionally synchronize your profile image.
 
@@ -219,6 +222,8 @@ https://jellyfin.example.com/web/index.html
 ```
 
 If the OIDC service cannot complete this sign-out, Jellyfin returns to its sign-in page.
+
+Direct sign-in redirects use an explicit signed-out page on every local fallback, including missing logout cookies or unsupported Provider logout. Browser sign-out clears only the current server's credentials. If Jellyfin cannot confirm session revocation, the browser still signs out and shows a warning; server-side revocation cannot be guaranteed during a network outage.
 
 ## Development
 

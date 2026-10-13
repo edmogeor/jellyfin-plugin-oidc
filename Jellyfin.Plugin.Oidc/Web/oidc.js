@@ -1,8 +1,13 @@
 (() => {
     const oidcUrl = new URL('.', document.currentScript.src);
     const serverUrl = new URL('../', oidcUrl);
-    const endpoint = () => oidcUrl + 'start?returnUrl=' + encodeURIComponent(location.hash.startsWith('#!') ? location.hash.slice(2) : '/');
-    const isLoginPage = () => location.hash.includes('login');
+    const endpoint = () => {
+        const route = new URL(location.hash.replace(/^#!?/, '') || '/home', location.origin);
+        const destination = route.pathname === '/login' ? route.searchParams.get('url') || '/home' : route.pathname + route.search;
+        const remember = document.querySelector('form.manualLoginForm input[type="checkbox"]')?.checked ?? localStorage.getItem('enableAutoLogin') !== 'false';
+        return oidcUrl + 'start?returnUrl=' + encodeURIComponent(destination) + '&rememberMe=' + remember;
+    };
+    const isLoginPage = () => /^#!?\/login(?:\?|$)/.test(location.hash);
     const hasOidcError = () => location.search.includes('oidcError=1') || location.hash.includes('oidcError=1');
     const isSignedOut = () => location.search.includes('oidcSignedOut=1');
     const loginLabel = () => window.oidcButtonText || 'Sign In with SSO';
@@ -13,14 +18,16 @@
     let redirectingToProvider;
     const display = (elements, value) => elements.filter(Boolean).forEach(element => value ? element.style.setProperty('display', value, 'important') : element.style.removeProperty('display'));
     const localControls = form => [
-        ...form.querySelectorAll(':scope > .inputContainer, :scope > .checkboxContainer, :scope > button[type="submit"]'),
+        ...form.querySelectorAll(':scope > .inputContainer, :scope > button[type="submit"]'),
         form.querySelector('.btnCancel')?.parentElement,
     ];
     const loadStrings = async () => {
         const locale = document.documentElement.lang.toLowerCase();
         for (const value of new Set([locale, locale.split('-')[0], 'en-us'])) {
-            const response = await fetch(oidcUrl + 'strings/' + encodeURIComponent(value));
-            if (response.ok) return response.json();
+            try {
+                const response = await fetch(oidcUrl + 'strings/' + encodeURIComponent(value));
+                if (response.ok) return await response.json();
+            } catch { /* Embedded English remains available when translation requests fail. */ }
         }
         return {};
     };
@@ -68,10 +75,14 @@
         } finally { annotateDialog.disconnect(); }
     };
     const returnToSignIn = session => {
-        const credentials = JSON.parse(localStorage.getItem('jellyfin_credentials') || '{}');
+        const credentials = savedCredentials();
         for (const server of credentials.Servers || []) if (server.AccessToken === session.token) { server.AccessToken = null; server.UserId = null; server.ExchangeToken = null; }
         localStorage.setItem('jellyfin_credentials', JSON.stringify(credentials));
         location.assign(serverUrl + 'web/index.html?oidcSignedOut=1#!/login');
+    };
+    const savedCredentials = () => {
+        try { return JSON.parse(localStorage.getItem('jellyfin_credentials') || '{}') || {}; }
+        catch { return {}; }
     };
     const activeSession = () => {
         const client = window.ApiClient;
@@ -90,6 +101,34 @@
     });
     function requestCurrentUser(token) {
         return fetch(serverUrl + 'Users/Me', { headers: { Authorization: `MediaBrowser Token="${token}"` } });
+    }
+    let nativeLoginReady;
+    let installingSession;
+    document.addEventListener('viewshow', event => {
+        if (event.target.id === 'loginPage') { nativeLoginReady = true; void installSession(); }
+    }, true);
+    async function installSession() {
+        const handoff = window.oidcHandoff;
+        const client = window.ApiClient;
+        if (!handoff || !nativeLoginReady || installingSession
+            || typeof client?.onAuthenticated !== 'function' || !window.Dashboard?.onServerChanged) return;
+        const address = new URL(client.serverAddress(), location.href);
+        if (address.origin !== serverUrl.origin || address.pathname.replace(/\/$/, '') !== serverUrl.pathname.replace(/\/$/, '')) return;
+        installingSession = true;
+        try {
+            const response = await fetch(serverUrl + 'Users/Me', { signal: AbortSignal.timeout(10000), headers: { Authorization: `MediaBrowser Token="${handoff.session.accessToken}"` } });
+            if (!response.ok) throw new Error('Session handoff failed');
+            const user = await response.json();
+            await client.onAuthenticated(client, { User: user, ServerId: handoff.session.user.serverId, AccessToken: handoff.session.accessToken });
+            window.Dashboard.onServerChanged(user.Id, handoff.session.accessToken, client);
+            localStorage.setItem('enableAutoLogin', String(handoff.rememberMe));
+            window.oidcHandoff = null;
+            await window.Dashboard.navigate(handoff.returnUrl);
+        } catch {
+            window.oidcHandoff = null;
+            location.hash = '!/login?oidcError=1';
+            revealLogin();
+        }
     }
     function sameUser(first, second) {
         return first.replaceAll('-', '').toLowerCase() === second.replaceAll('-', '').toLowerCase();
@@ -315,8 +354,8 @@
         button.append(label);
         button.onclick = () => {
             button.disabled = true;
-            button.setAttribute('aria-label', 'Redirecting...');
-            label.textContent = 'Redirecting...';
+            button.setAttribute('aria-label', profileStrings.linkRedirecting);
+            label.textContent = profileStrings.linkRedirecting;
             location.assign(endpoint());
         };
         stack.insertBefore(button, stack.querySelector('.btnQuick'));
@@ -356,36 +395,55 @@
         }
         if (!isLoginPage() || document.querySelector('[data-oidc-error]') || shownError) return;
         shownError = true;
-        const message = linkNotification('We couldn\'t sign you in. Please try again.', true, 3600);
+        const message = linkNotification(profileStrings.signInError, true, 5000);
         message.dataset.oidcError = 'true';
     };
+    let loggingOut;
     const enableLogout = () => addEventListener('click', async event => {
         const menuItem = event.target.closest('[role="menuitem"]');
         const logout = event.target.closest('.btnLogout') || (menuItem?.querySelector('[data-testid="LogoutIcon"]') ? menuItem : null);
         if (!logout || (!window.oidcRpInitiatedLogout && !window.oidcRedirectSignInPageToProvider)) return;
+        const session = activeSession();
+        if (!session) return;
         event.preventDefault(); event.stopImmediatePropagation();
-        const credentials = JSON.parse(localStorage.getItem('jellyfin_credentials') || '{}');
-        const server = credentials.Servers?.[0];
-        if (server?.AccessToken) await fetch(serverUrl + 'Sessions/Logout', { method: 'POST', headers: { Authorization: `MediaBrowser Token="${server.AccessToken}"` } });
-        for (const savedServer of credentials.Servers || []) {
-            savedServer.UserId = null; savedServer.AccessToken = null; savedServer.ExchangeToken = null;
+        if (loggingOut) return;
+        loggingOut = true;
+        let confirmed = false;
+        try {
+            const response = await fetch(serverUrl + 'Sessions/Logout', { method: 'POST', signal: AbortSignal.timeout(10000), headers: { Authorization: `MediaBrowser Token="${session.token}"` } });
+            confirmed = response.ok || response.status === 401;
+        } catch { /* Local sign-out must complete even when the server cannot be reached. */ }
+        finally {
+            const credentials = savedCredentials();
+            for (const server of credentials.Servers || []) if (server.AccessToken === session.token) {
+                server.UserId = null; server.AccessToken = null; server.ExchangeToken = null;
+            }
+            localStorage.setItem('jellyfin_credentials', JSON.stringify(credentials));
+            location.assign(confirmed ? oidcUrl + 'logout' : serverUrl + 'web/index.html?oidcSignedOut=1&oidcLogoutError=1#!/login');
         }
-        localStorage.setItem('jellyfin_credentials', JSON.stringify(credentials));
-        location.assign(oidcUrl + 'logout');
     }, true);
     const redirectToProvider = async () => {
-        if (redirectingToProvider || !isLoginPage() || isSignedOut() || !window.oidcRedirectSignInPageToProvider) return;
+        if (window.oidcHandoff || redirectingToProvider || !isLoginPage() || isSignedOut() || !window.oidcRedirectSignInPageToProvider) return;
         if (hasOidcError()) {
             revealLogin();
             return;
         }
-        const server = JSON.parse(localStorage.getItem('jellyfin_credentials') || '{}').Servers?.[0];
+        const server = (savedCredentials().Servers || []).find(server => {
+            try {
+                const address = new URL(server.ManualAddress || server.LocalAddress || '', location.href);
+                return address.origin === serverUrl.origin && address.pathname.replace(/\/$/, '') === serverUrl.pathname.replace(/\/$/, '');
+            } catch { return false; }
+        });
         if (server?.AccessToken && await requestCurrentUser(server.AccessToken).then(response => response.ok).catch(() => false)) return;
         if (redirectingToProvider) return;
         redirectingToProvider = true;
         location.assign(endpoint());
     };
     const configure = async () => {
+        Object.assign(profileStrings, await loadStrings());
+        const errorMessage = document.querySelector('[data-oidc-error]');
+        if (errorMessage) errorMessage.textContent = profileStrings.signInError;
+        if (new URLSearchParams(location.search).has('oidcLogoutError')) linkNotification(profileStrings.logoutError, true, 10000);
         const response = await fetch(oidcUrl + 'config', { cache: 'no-store' });
         const config = response.ok ? await response.json() : null;
         window.oidcEnabled = !!config;
@@ -418,15 +476,16 @@
             return;
         }
         addLogin();
+        void installSession();
         updateProfile();
         showSignedOut();
         showError();
         void redirectToProvider();
     });
-    addEventListener('pageshow', () => { resetLoginButton(); profileSection?.remove(); profileSection = null; updateProfile(); void redirectToProvider(); });
+    addEventListener('pageshow', () => { redirectingToProvider = false; loggingOut = false; resetLoginButton(); profileSection?.remove(); profileSection = null; void installSession(); updateProfile(); void redirectToProvider(); });
     addEventListener('storage', updateProfile);
     enableLogout();
-    new MutationObserver(() => { addLogin(); updateProfile(); showSignedOut(); showError(); void redirectToProvider(); }).observe(document.documentElement, { childList: true, subtree: true });
+    new MutationObserver(() => { addLogin(); void installSession(); updateProfile(); showSignedOut(); showError(); void redirectToProvider(); }).observe(document.documentElement, { childList: true, subtree: true });
     addLogin();
     document.querySelectorAll('[data-oidc-login]').forEach(updateLoginContainer);
     void redirectToProvider();
@@ -449,6 +508,10 @@
         const Loading = require(84849).A;
         const Toast = require(45228).A;
         const globalize = require(5898).Ay;
+        if (typeof Original !== 'function' || typeof React.createElement !== 'function'
+            || !Tabs || !Tab || !Stack || !Alert || !Input || !Button || !Loading || !Toast || typeof globalize?.translate !== 'function') {
+            throw new Error('Unsupported Jellyfin Web editor modules');
+        }
         const adminStrings = profileStrings;
         const text = key => adminStrings[key];
         const cancelText = () => globalize.translate('ButtonCancel');
@@ -610,7 +673,15 @@
         for (const item of items) {
             const original = item[1]?.[63871];
             if (original && !original.oidcAdmin) {
-                const wrapped = (module, exports, require) => installAdminEditor(module, exports, require, original);
+                const wrapped = (module, exports, require) => {
+                    original(module, exports, require);
+                    const native = module.exports;
+                    try { installAdminEditor(module, exports, require, () => {}); }
+                    catch {
+                        module.exports = native;
+                        console.warn('OIDC administrator integration is incompatible with this Jellyfin Web build. Use the supported Jellyfin Web version.');
+                    }
+                };
                 wrapped.oidcAdmin = true; item[1][63871] = wrapped;
             }
         }

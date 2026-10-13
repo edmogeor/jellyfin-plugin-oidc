@@ -71,15 +71,16 @@ public sealed class OidcPlugin : BasePlugin<PluginConfiguration>, IHasWebPages
         }
 
         ConfigurationGate.Wait();
+        var previousConfiguration = Configuration;
+        var providers = new Dictionary<Guid, string>();
         try
         {
+            providers = _userManager.GetUsers().ToDictionary(user => user.Id, user => user.AuthenticationProviderId);
             // Browser configuration saves must not replace server-owned recovery or session state.
             oidcConfiguration.IdentityLinks = Configuration.IdentityLinks;
             oidcConfiguration.UserAdministration = Configuration.UserAdministration;
             oidcConfiguration.OidcSessions = Configuration.OidcSessions;
             oidcConfiguration.IdentityRevision = Configuration.IdentityRevision + 1;
-            base.UpdateConfiguration(configuration);
-            _optionsCache.TryRemove(OidcOptions.Scheme);
             foreach (var user in _userManager.GetUsers())
             {
                 PasswordLoginEnforcer
@@ -87,6 +88,29 @@ public sealed class OidcPlugin : BasePlugin<PluginConfiguration>, IHasWebPages
                     .GetAwaiter()
                     .GetResult();
             }
+            base.UpdateConfiguration(configuration);
+            _optionsCache.TryRemove(OidcOptions.Scheme);
+        }
+        catch
+        {
+            Configuration = previousConfiguration;
+            _optionsCache.TryRemove(OidcOptions.Scheme);
+            foreach (var (userId, provider) in providers)
+            {
+                try
+                {
+                    var user = _userManager.GetUserById(userId);
+                    if (user is null || user.AuthenticationProviderId == provider) continue;
+                    var policy = _userManager.GetUserDto(user).Policy;
+                    policy.AuthenticationProviderId = provider;
+                    _userManager.UpdatePolicyAsync(userId, policy).GetAwaiter().GetResult();
+                }
+                catch
+                {
+                    _logger.LogWarning("Could not restore local credential availability for Jellyfin User {UserId} after a failed configuration save.", userId);
+                }
+            }
+            throw;
         }
         finally
         {

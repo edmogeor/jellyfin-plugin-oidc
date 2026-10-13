@@ -211,6 +211,99 @@ test("provisions the allowed OIDC test user and starts a Jellyfin session", asyn
   );
 });
 
+test("binds handoffs to the browser and preserves the return route, remember choice, and other servers", async ({
+  browser,
+}) => {
+  const context = await browser.newContext({
+    baseURL: "https://localhost:8443",
+    ignoreHTTPSErrors: true,
+    serviceWorkers: "block",
+  });
+  const page = await context.newPage();
+  await clearJellyfinSession(page);
+  await page.goto("/web/index.html#!/login?url=%2Fuserprofile");
+  await page.getByText("Remember Me", { exact: true }).click();
+  await expect(
+    page.getByRole("checkbox", { name: "Remember Me" }),
+  ).not.toBeChecked();
+  const other = {
+    Id: "other-server",
+    ManualAddress: "https://other.example.test",
+    AccessToken: "other-token",
+    UserId: "other-user",
+    DateLastAccessed: 0,
+  };
+  await page.evaluate((other) => {
+    const credentials = JSON.parse(
+      localStorage.getItem("jellyfin_credentials") || "{}",
+    );
+    credentials.Servers = [...(credentials.Servers || []), other];
+    localStorage.setItem("jellyfin_credentials", JSON.stringify(credentials));
+  }, other);
+  let handoff;
+  await page.route("**/oidc/callback", async (route) => {
+    const response = await route.fetch({ maxRedirects: 0 });
+    const headers = response.headers();
+    handoff = headers.location;
+    delete headers.location;
+    return route.fulfill({
+      response,
+      status: 200,
+      headers: { ...headers, "content-type": "text/plain" },
+      body: "Paused handoff",
+    });
+  });
+  await page
+    .getByRole("button", { name: "Sign In with SSO" })
+    .click({ noWaitAfter: true });
+  await page.locator("#username").fill("user");
+  await page.locator("#password").fill("password");
+  await page.locator("#kc-login").click({ noWaitAfter: true });
+  await expect.poll(() => handoff).toBeTruthy();
+  const outsider = await browser.newContext({ ignoreHTTPSErrors: true });
+  try {
+    const recipient = await outsider.newPage();
+    await recipient.goto(handoff);
+    await expect(recipient).toHaveURL(/oidcError=1/);
+    expect(
+      await recipient.evaluate(() =>
+        (
+          JSON.parse(localStorage.getItem("jellyfin_credentials") || "{}")
+            .Servers || []
+        ).some((server) => !!server.AccessToken),
+      ),
+    ).toBe(false);
+    await page.unroute("**/oidc/callback");
+    const response = await page.goto(handoff);
+    expect(response.headers()["cache-control"]).toContain("no-store");
+    await expect(page).toHaveURL(/#!?\/userprofile/);
+    await expect(page.getByRole("button", { name: "User Menu" })).toBeVisible();
+    const saved = await page.evaluate(() => ({
+      credentials: JSON.parse(localStorage.getItem("jellyfin_credentials")),
+      remember: localStorage.getItem("enableAutoLogin"),
+    }));
+    expect(saved.remember).toBe("false");
+    expect(
+      saved.credentials.Servers.find((server) => server.Id === other.Id),
+    ).toEqual(other);
+    expect(
+      (await page.context().cookies()).some((cookie) =>
+        cookie.name.startsWith("oidc_handoff_"),
+      ),
+    ).toBe(false);
+    await page.reload();
+    await expect(
+      page.getByRole("heading", { name: "Please sign in" }),
+    ).toBeVisible();
+    expect(await page.evaluate(() => !!window.ApiClient?.accessToken())).toBe(
+      false,
+    );
+  } finally {
+    await outsider.close();
+    await context.close();
+  }
+});
+
 test("synchronizes a profile image from the OIDC picture claim", async ({
   browser,
   page,
@@ -1899,6 +1992,44 @@ test("enforces local password policy through Jellyfin authentication", async ({
   }
 });
 
+test("applies globally disabled passwords to newly created native Jellyfin Users", async ({
+  page,
+  request,
+}) => {
+  await signIn(page);
+  const token = await page.evaluate(() => ApiClient.accessToken());
+  const headers = { Authorization: `MediaBrowser Token="${token}"` };
+  const original = await setConfigurationValue(
+    page,
+    "PasswordLoginMode",
+    "DisableForAllUsers",
+  );
+  let created;
+  try {
+    const response = await request.post("/Users/New", {
+      headers,
+      data: { Name: "native-after-global-policy" },
+    });
+    expect(response.ok()).toBe(true);
+    created = await response.json();
+    const user = await (
+      await request.get(`/Users/${created.Id}`, { headers })
+    ).json();
+    expect(user.Policy.AuthenticationProviderId).toBe(
+      "Jellyfin.Plugin.Oidc.Identity.OidcPasswordDisabledProvider",
+    );
+    expect((await authenticatePassword(request, created.Name, "")).ok()).toBe(
+      false,
+    );
+  } finally {
+    await setConfigurationValue(page, "PasswordLoginMode", original);
+    if (created)
+      expect(
+        (await request.delete(`/Users/${created.Id}`, { headers })).ok(),
+      ).toBe(true);
+  }
+});
+
 test("disables local passwords only for linked Jellyfin Users", async ({
   browser,
   request,
@@ -2569,6 +2700,63 @@ test("returns to Jellyfin login when no logout token is available", async ({
 }) => {
   await page.goto("/oidc/logout");
   await expect(page).toHaveURL(/\/web\/index\.html#!\/login/);
+});
+
+test("signs out the active server locally when server logout fails without clearing other servers", async ({
+  browser,
+  page,
+}) => {
+  const admin = await browser.newPage();
+  await signIn(admin);
+  const original = await setConfigurationValue(
+    admin,
+    "RpInitiatedLogout",
+    true,
+  );
+  try {
+    await signIn(page);
+    await page.waitForFunction(() => window.oidcRpInitiatedLogout === true);
+    const activeToken = await page.evaluate(() => ApiClient.accessToken());
+    await page.evaluate(() => {
+      const credentials = JSON.parse(
+        localStorage.getItem("jellyfin_credentials"),
+      );
+      credentials.Servers.unshift({
+        Id: "unrelated-server",
+        ManualAddress: "https://other.example.test",
+        AccessToken: "unrelated-token",
+        UserId: "unrelated-user",
+        DateLastAccessed: 0,
+      });
+      localStorage.setItem("jellyfin_credentials", JSON.stringify(credentials));
+    });
+    let logoutToken;
+    await page.route("**/Sessions/Logout", (route) => {
+      logoutToken = route.request().headers().authorization;
+      return route.abort();
+    });
+    await page.getByRole("button", { name: "User Menu" }).click();
+    await page.getByRole("menuitem", { name: "Sign Out" }).click();
+    await expect(page).toHaveURL(/oidcLogoutError=1/);
+    expect(logoutToken).toBe(`MediaBrowser Token="${activeToken}"`);
+    await expect(
+      page
+        .getByRole("alert")
+        .filter({ hasText: "The server could not confirm sign-out" }),
+    ).toBeVisible();
+    const servers = await page.evaluate(
+      () => JSON.parse(localStorage.getItem("jellyfin_credentials")).Servers,
+    );
+    expect(
+      servers.find((server) => server.Id === "unrelated-server").AccessToken,
+    ).toBe("unrelated-token");
+    expect(servers.some((server) => server.AccessToken === activeToken)).toBe(
+      false,
+    );
+  } finally {
+    await setConfigurationValue(admin, "RpInitiatedLogout", original);
+    await admin.close();
+  }
 });
 
 test("requests Identity Provider logout when RP-initiated logout is enabled", async ({

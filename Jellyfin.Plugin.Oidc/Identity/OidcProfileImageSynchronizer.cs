@@ -52,6 +52,7 @@ public sealed class OidcProfileImageSynchronizer
             // ReSharper disable once ShortLivedHttpClient
             using var client = new HttpClient(handler);
             client.Timeout = TimeSpan.FromSeconds(10);
+            using var deadline = new CancellationTokenSource(TimeSpan.FromSeconds(10));
             using var request = new HttpRequestMessage(HttpMethod.Get, uri);
             if (user.ProfileImage is not null && string.Equals(link.ProfileImageUrl, pictureUrl, StringComparison.Ordinal))
             {
@@ -66,7 +67,7 @@ public sealed class OidcProfileImageSynchronizer
                 }
             }
 
-            using var response = await client.SendAsync(request, HttpCompletionOption.ResponseHeadersRead).ConfigureAwait(false);
+            using var response = await client.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, deadline.Token).ConfigureAwait(false);
             if (response.StatusCode == HttpStatusCode.NotModified)
             {
                 return;
@@ -79,18 +80,8 @@ public sealed class OidcProfileImageSynchronizer
                 return;
             }
 
-            await using var input = await response.Content.ReadAsStreamAsync().ConfigureAwait(false);
-            await using var image = new MemoryStream();
-            var buffer = new byte[81920];
-            for (var read = await input.ReadAsync(buffer).ConfigureAwait(false); read > 0; read = await input.ReadAsync(buffer).ConfigureAwait(false))
-            {
-                if (image.Length + read > MaximumImageBytes)
-                {
-                    return;
-                }
-
-                await image.WriteAsync(buffer.AsMemory(0, read)).ConfigureAwait(false);
-            }
+            await using var image = await ReadImageAsync(response.Content, deadline.Token).ConfigureAwait(false);
+            if (image is null) return;
 
             var userConfigurationDirectoryPath = _serverConfigurationManager.ApplicationPaths.UserConfigurationDirectoryPath;
             var directory = Path.Combine(userConfigurationDirectoryPath, user.Username);
@@ -116,6 +107,27 @@ public sealed class OidcProfileImageSynchronizer
         {
             _logger.LogWarning("OIDC profile image synchronization failed.");
         }
+    }
+
+    internal static async Task<MemoryStream?> ReadImageAsync(HttpContent content, CancellationToken cancellationToken)
+    {
+        await using var input = await content.ReadAsStreamAsync(cancellationToken).ConfigureAwait(false);
+        var image = new MemoryStream();
+        try
+        {
+            var buffer = new byte[81920];
+            for (var read = await input.ReadAsync(buffer, cancellationToken).ConfigureAwait(false); read > 0; read = await input.ReadAsync(buffer, cancellationToken).ConfigureAwait(false))
+            {
+                if (image.Length + read > MaximumImageBytes)
+                {
+                    image.Dispose();
+                    return null;
+                }
+                await image.WriteAsync(buffer.AsMemory(0, read), cancellationToken).ConfigureAwait(false);
+            }
+            return image;
+        }
+        catch { image.Dispose(); throw; }
     }
 
     private static async ValueTask<Stream> ConnectAsync(SocketsHttpConnectionContext context, bool allowIssuerAddress, CancellationToken cancellationToken)

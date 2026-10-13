@@ -2,6 +2,7 @@ using Jellyfin.Plugin.Oidc.Configuration;
 using Jellyfin.Plugin.Oidc.Identity;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.OpenIdConnect;
+using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.Http;
@@ -79,7 +80,7 @@ public sealed class OidcController : ControllerBase
 
     /// <summary>Starts the authorization-code flow.</summary>
     [HttpGet("start")]
-    public IActionResult Start([FromQuery] string? returnUrl = null)
+    public IActionResult Start([FromQuery] string? returnUrl = null, [FromQuery] bool rememberMe = true)
     {
         var configuration = EnabledConfiguration();
         if (configuration is null)
@@ -93,7 +94,7 @@ public sealed class OidcController : ControllerBase
             return BadRequest("OIDC sign-in requires an HTTPS public URL.");
         }
 
-        return Challenge(new AuthenticationProperties { RedirectUri = ReturnUrls.Local(returnUrl) ? returnUrl : "/", Items = { ["oidc_revision"] = configuration.IdentityRevision.ToString(System.Globalization.CultureInfo.InvariantCulture) } }, OidcOptions.Scheme);
+        return Challenge(new AuthenticationProperties { RedirectUri = ReturnUrls.Local(returnUrl) ? returnUrl : "/home", Items = { ["oidc_revision"] = configuration.IdentityRevision.ToString(System.Globalization.CultureInfo.InvariantCulture), ["oidc_remember"] = rememberMe.ToString() } }, OidcOptions.Scheme);
     }
 
     /// <summary>Ends the Identity Provider session after Jellyfin Web has ended its own session.</summary>
@@ -101,9 +102,11 @@ public sealed class OidcController : ControllerBase
     [HttpGet("logout")]
     public async Task<IActionResult> Logout()
     {
-        var protectedIdToken = Request.Cookies[OidcConstants.LogoutCookieName];
+        Response.Headers.CacheControl = "no-store";
+        var cookies = new ChunkingCookieManager();
+        var protectedIdToken = cookies.GetRequestCookie(HttpContext, OidcConstants.LogoutCookieName);
         var configuration = OidcPlugin.Instance?.Configuration;
-        Response.Cookies.Delete(OidcConstants.LogoutCookieName, new CookieOptions
+        cookies.DeleteCookie(HttpContext, OidcConstants.LogoutCookieName, new CookieOptions
         {
             Path = configuration is null ? "/oidc" : PublicUrls.OidcPath(Request, configuration),
         });
@@ -111,7 +114,7 @@ public sealed class OidcController : ControllerBase
             ? OidcConstants.WebIndexPath
             : PublicUrls.LogoutReturnUrl(Request, configuration);
         var redirectsToProvider = configuration is { PasswordLoginMode: PasswordLoginMode.DisableForAllUsers, RedirectSignInPageToProvider: true };
-        var localLogoutPage = redirectsToProvider && configuration?.RpInitiatedLogout == false
+        var localLogoutPage = redirectsToProvider
             ? loginPage + "?oidcSignedOut=1#!/login"
             : loginPage + "#!/login";
         if (configuration is null || !configuration.RpInitiatedLogout || string.IsNullOrEmpty(protectedIdToken))

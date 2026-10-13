@@ -6,6 +6,8 @@ using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Authentication.OpenIdConnect;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
+using Jellyfin.Data.Events.Users;
+using MediaBrowser.Controller.Events;
 
 namespace Jellyfin.Plugin.Oidc;
 
@@ -25,6 +27,9 @@ public sealed class ServiceRegistrator : IPluginServiceRegistrator
         services.AddSingleton<OidcSessionTracker>();
         services.AddSingleton<OidcLinkManager>();
         services.AddSingleton<IAuthenticationProvider, OidcPasswordDisabledProvider>();
+        services.AddSingleton<PasswordLoginPolicy>();
+        services.AddHostedService(provider => provider.GetRequiredService<PasswordLoginPolicy>());
+        services.AddSingleton<IEventConsumer<UserCreatedEventArgs>>(provider => provider.GetRequiredService<PasswordLoginPolicy>());
         services.AddSingleton<IStartupFilter, WebInjectionStartupFilter>();
         services.AddSingleton<IConfigureOptions<OpenIdConnectOptions>, OidcOptions>();
         services.PostConfigure<OpenIdConnectOptions>(OidcOptions.Scheme, options =>

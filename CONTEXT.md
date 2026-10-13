@@ -47,11 +47,11 @@ OIDC is disabled by default. Enabled configuration requires:
 - At least one configured User Group or Administrator Group.
 - An Administrator Group when local password login is disabled for all Jellyfin Users.
 
-The Public Jellyfin URL override is optional. When unset, callback and logout URLs use the browser request origin and path base. OIDC start and callback requests require an effective HTTPS public URL. Use an HTTPS override behind a reverse proxy or when Jellyfin has multiple public addresses.
+The Public Jellyfin URL override is optional. Issuer and public URLs must not contain credentials, queries, or fragments. When unset, callback and logout URLs use the browser request origin and path base. OIDC start and callback requests require an effective HTTPS public URL. Use an HTTPS override behind a reverse proxy or when Jellyfin has multiple public addresses.
 
 The plugin always requests `openid`, `email`, and `profile`. Additional requested scopes are optional and space-separated. Configure them only when the Identity Provider requires a scope to return an otherwise supported claim, such as Authelia's `groups` scope.
 
-Group lists are comma-separated exact values. Administrator Group membership grants access even when the User Group is empty. The default group claim is `groups`; the default login button label is `Sign In with SSO`.
+Group lists are comma-separated exact values; lists containing only commas or whitespace have no configured groups. Administrator Group membership grants access even when the User Group is empty. The Group claim must be non-empty. The default group claim is `groups`; the default login button label is `Sign In with SSO`.
 
 `RequireVerifiedEmail` is enabled by default. Linking and all Identity Provider sign-ins, including those with an existing Identity Link, then require a supplied non-empty email with `email_verified=true`. Disabling it permits email-free identities. Email Match always requires a supplied verified email; provisioning requires either a supplied username claim or a verified email. A previously retained email does not satisfy the requirement for a new authentication response.
 
@@ -69,7 +69,7 @@ Password login modes are:
 - `DisableForLinkedUsersOnly`, local passwords are unavailable for Jellyfin Users with an Identity Link.
 - `DisableForAllUsers`, local passwords are unavailable for every Jellyfin User.
 
-Saving configuration reapplies the selected local-password policy to all Jellyfin Users. The signed-in Jellyfin User's profile hides the complete password form, including save/reset controls, when local-password sign-in is disabled for that user. Unlinked users retain password controls under `DisableForLinkedUsersOnly`; all users lose them under `DisableForAllUsers`. Re-enabling local passwords restores the controls without overriding Jellyfin's own permission-based visibility.
+Saving configuration reapplies the selected local-password policy to all Jellyfin Users before committing the settings, restoring previous authentication providers on failure. Enabled startup reconciles saved policy, and newly created Jellyfin Users receive the global restriction. Native password-authentication endpoints also reject requests while OIDC is enabled with globally disabled passwords, closing creation and reconciliation gaps. Disabled startup preserves host-level emergency recovery. The signed-in Jellyfin User's profile hides the complete password form, including save/reset controls, when local-password sign-in is disabled for that user. Unlinked users retain password controls under `DisableForLinkedUsersOnly`; all users lose them under `DisableForAllUsers`. Re-enabling local passwords restores the controls without overriding Jellyfin's own permission-based visibility.
 
 ## Sign-In Behavior
 
@@ -78,7 +78,9 @@ Saving configuration reapplies the selected local-password policy to all Jellyfi
 3. Without a link, it evaluates Pending Link Requests for that issuer. Subject is exact and case-sensitive. Email requires current `email_verified=true`; email and username comparisons are case-insensitive, without alias normalization. Username approvals record the configured top-level Username claim at approval time; changing that claim requires editing the approval before fulfilment. Ambiguous matching approvals, disabled/deleted targets, and reserved criteria that cannot be fulfilled deny sign-in without fallback provisioning.
 4. Otherwise it applies the configured automatic linking mode. Automatic matching is allowed only for a Jellyfin User without an Identity Link, active approval, or Automatic Reattachment Block. It then provisions a Jellyfin User using the selected new-user username source. An unavailable name or a case-insensitive username collision denies provisioning. The undisclosed random local password and configured password policy are present in the initial database insert.
 5. It creates an Identity Link when needed and synchronizes administrator status from Administrator Group membership.
-6. It creates a single-use, five-minute Jellyfin session handoff ticket and returns only to a local relative route.
+6. It creates a single-use, five-minute Jellyfin session handoff ticket bound to an HttpOnly, Secure browser nonce cookie and returns only to the validated local relative route. Redemption preserves the Remember Me choice and other servers' saved credentials. Credential-bearing index responses are private and non-cacheable.
+
+Failed provisioning removes only the Jellyfin User created by that attempt when its Identity Link cannot be persisted, allowing a retry without a stranded username collision.
 
 An Identity Link is authoritative for returning identities, including identities without email when the verified-email requirement is disabled. Sign-in never renames an existing Jellyfin User, even when the verified email or username claim changes. The plugin never merges users or reassigns media activity. A stale link to a deleted Jellyfin User is removed, then the eligible identity is matched or provisioned again using the same rules.
 
@@ -108,7 +110,7 @@ Fresh explicit linking respects pending reservations and existing links. It cons
 
 In Dashboard > Users > selected Jellyfin User > OIDC, administrators can inspect a link, approve the next eligible sign-in, edit/cancel an approval, unlink, or retry incomplete sign-out. The approval form uses a native select for Subject (`sub`), Email, or Username and one Value input. Exactly one matching criterion is permitted. Subject is a stable provider identity identifier, not a session identifier. Approval is not an immediate Identity Link and does not change password availability. Requests remain pending across restarts until fulfilled, edited, or cancelled, independently of the main automatic linking mode.
 
-The integration extends Jellyfin 12's shared React user editor and reuses its native tabs, inputs, select, buttons, confirmation dialog, alerts, and notifications in modern and legacy UI. Selection uses the existing profile route with `?oidc=1`; native tabs, history, and themes remain owned by Jellyfin. Private, non-cacheable administrator endpoints use Jellyfin's native `RequiresElevation` policy and header-authenticated administrator sessions. Recovery is available with OIDC disabled, invalid settings, or a link from a previous issuer.
+The integration extends the tested Jellyfin Web 12.0.0 shared React user editor and reuses its native tabs, inputs, select, buttons, confirmation dialog, alerts, and notifications in modern and legacy UI. Its internal module IDs are build-specific; later Web builds require verification. Incompatible module APIs preserve the native editor and produce a compatibility warning. Selection uses the existing profile route with `?oidc=1`; native tabs, history, and themes remain owned by Jellyfin. Private, non-cacheable administrator endpoints use Jellyfin's native `RequiresElevation` policy and header-authenticated administrator sessions. Recovery is available with OIDC disabled, invalid settings, or a link from a previous issuer.
 
 Unlink removes Identity Links and pending approvals, persists suppression and the effective password policy, then revokes only positively tracked OIDC authentication records. It preserves the Jellyfin User, username, permissions, administrator status, profile image, activity, local-password sessions, and Quick Connect sessions. Linked-only password restrictions are lifted; no password is generated or revealed. Globally disabled passwords remain disabled.
 
@@ -124,6 +126,8 @@ When local passwords are disabled for all users, choose whether Jellyfin Web red
 
 With RP-initiated logout, a protected ID token redirects to the discovered Identity Provider end-session endpoint with `client_id` and `id_token_hint`. Jellyfin receives the post-logout redirect unless direct sign-in redirects are enabled, in which case the Identity Provider owns the page. Allow `<Public Jellyfin URL>/web/index.html` as a post-logout redirect URI when Jellyfin receives that redirect. Missing tokens, disabled RP logout, or missing end-session endpoints return to Jellyfin login; direct sign-in redirects instead show an OIDC-only signed-out state to prevent a sign-in loop.
 
+Protected logout tokens use chunked HttpOnly cookies to support large ID tokens. Browser logout uses only the active server's token and clears only its credentials, including on network failure. An unconfirmed server logout shows a localized warning on the signed-out page rather than claiming successful server revocation.
+
 ## Security Boundaries
 
 - Only local relative return URLs are accepted. Absolute URLs, protocol-relative URLs, and backslash paths are rejected.
@@ -132,7 +136,7 @@ With RP-initiated logout, a protected ID token redirects to the discovered Ident
 - Client secrets, access tokens, authorization codes, and complete ID tokens must not be logged or sent to browser configuration endpoints.
 - Anonymous browser configuration receives only non-secret login label, password-mode, and logout settings. Self-service status exposes retained email and username only to that Jellyfin User, never issuer or subject. Elevated administrators can inspect selected-user display metadata and pending criteria. Identity values and authentication tokens must not be logged; administration logs contain actor/target user IDs and outcomes only.
 - Provisioned local passwords are random and undisclosed.
-- When profile image synchronization is enabled, the optional `picture` claim must be an HTTPS URL resolving to a public address or the configured Identity Provider host. Its image is downloaded with redirects disabled and synchronized at sign-in.
+- When profile image synchronization is enabled, the optional `picture` claim must be an HTTPS URL resolving to a public address or the configured Identity Provider host. Its image is downloaded with redirects disabled, a five-megabyte limit, and a ten-second deadline covering connection, headers, and body reads, and synchronized at sign-in.
 
 ## Development
 

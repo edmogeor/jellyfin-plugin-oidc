@@ -98,7 +98,8 @@ public sealed class OidcUserProvisioner
     private async Task<(
         User User,
         IdentityLink? Link,
-        OidcUserAdministration? Approval
+        OidcUserAdministration? Approval,
+        bool Created
     )?> ResolveUserAsync(
         ClaimsPrincipal principal,
         OidcIdentity identity,
@@ -222,6 +223,7 @@ public sealed class OidcUserProvisioner
             return null;
         }
 
+        var created = false;
         if (user is null)
         {
             var username =
@@ -254,10 +256,11 @@ public sealed class OidcUserProvisioner
                 return null;
             }
             user = await CreateUserAsync(username, configuration).ConfigureAwait(false);
+            created = true;
             _logger.LogInformation("Provisioned Jellyfin User for an eligible OIDC identity.");
         }
 
-        return (user, link, approval);
+        return (user, link, approval, created);
     }
 
     private async Task<Guid> SynchronizeAndSaveAsync(
@@ -265,11 +268,11 @@ public sealed class OidcUserProvisioner
         ClaimsPrincipal principal,
         OidcIdentity identity,
         string issuer,
-        (User User, IdentityLink? Link, OidcUserAdministration? Approval) resolution
+        (User User, IdentityLink? Link, OidcUserAdministration? Approval, bool Created) resolution
     )
     {
         var configuration = plugin.Configuration;
-        var (user, link, approval) = resolution;
+        var (user, link, approval, created) = resolution;
         var newLink = link is null;
         if (newLink)
         {
@@ -342,7 +345,9 @@ public sealed class OidcUserProvisioner
             {
                 configuration.IdentityLinks.Remove(link);
                 var currentUser = _userManager.GetUserById(link.UserId);
-                if (currentUser is not null)
+                if (created && currentUser is not null)
+                    await _userManager.DeleteUserAsync(currentUser.Id).ConfigureAwait(false);
+                else if (currentUser is not null)
                     await PasswordLoginEnforcer
                         .EnforceAsync(_userManager, currentUser, configuration, _logger)
                         .ConfigureAwait(false);
@@ -559,7 +564,15 @@ public sealed class OidcUserProvisioner
         user.AddDefaultPreferences();
         dbContext.Users.Add(user);
         await dbContext.SaveChangesAsync().ConfigureAwait(false);
-        await _eventManager.PublishAsync(new UserCreatedEventArgs(user)).ConfigureAwait(false);
+        try
+        {
+            await _eventManager.PublishAsync(new UserCreatedEventArgs(user)).ConfigureAwait(false);
+        }
+        catch
+        {
+            await _userManager.DeleteUserAsync(user.Id).ConfigureAwait(false);
+            throw;
+        }
         return user;
     }
 }

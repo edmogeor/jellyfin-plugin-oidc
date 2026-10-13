@@ -758,7 +758,7 @@
         const loadDictionary = async () => {
           for (const locale of locales) {
             const response = await fetch(
-              "/oidc/strings/" + encodeURIComponent(locale),
+              ApiClient.getUrl("oidc/strings/" + encodeURIComponent(locale)),
             );
             if (response.ok) return response.json();
           }
@@ -949,17 +949,18 @@
         const validateGroups = () => {
           const userGroup = document.querySelector("#UserGroup");
           const administratorGroup = page.querySelector("#AdministratorGroup");
+          const hasGroups = (input) => input.value.split(",").some((group) => group.trim());
           userGroup.setCustomValidity(
             !value("Enabled") ||
-              userGroup.value.trim() ||
-              administratorGroup.value.trim()
+              hasGroups(userGroup) ||
+              hasGroups(administratorGroup)
               ? ""
               : translate("groupValidation"),
           );
           administratorGroup.setCustomValidity(
             value("Enabled") &&
               value("PasswordLoginMode") === "DisableForAllUsers" &&
-              !administratorGroup.value.trim()
+              !hasGroups(administratorGroup)
               ? translate("administratorGroupValidation")
               : "",
           );
@@ -971,8 +972,9 @@
             return;
           }
           try {
+            const url = input.value ? new URL(input.value) : null;
             input.setCustomValidity(
-              !input.value || new URL(input.value).protocol === "https:"
+              !url || (url.protocol === "https:" && !url.username && !url.password && !url.search && !url.hash)
                 ? ""
                 : translate("httpsUrlValidation"),
             );
@@ -981,7 +983,7 @@
           }
         };
         const updateValidation = () => {
-          ["IssuerUrl", "ClientId", "ClientSecret", "UsernameClaim"].forEach(
+          ["IssuerUrl", "ClientId", "ClientSecret", "UsernameClaim", "GroupClaim"].forEach(
             (name) => {
               page.querySelector("#" + name).required = value("Enabled");
             },

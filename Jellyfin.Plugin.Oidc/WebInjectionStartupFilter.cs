@@ -21,6 +21,15 @@ public sealed class WebInjectionStartupFilter : IStartupFilter
             app.Use(async (context, nextMiddleware) =>
             {
                 var configuration = OidcPlugin.Instance?.Configuration;
+                if (HttpMethods.IsPost(context.Request.Method)
+                    && configuration is { Enabled: true, PasswordLoginMode: PasswordLoginMode.DisableForAllUsers }
+                    && (context.Request.Path.Value?.EndsWith("/Users/AuthenticateByName", StringComparison.OrdinalIgnoreCase) == true
+                        || (context.Request.Path.Value?.Contains("/Users/", StringComparison.OrdinalIgnoreCase) == true
+                            && context.Request.Path.Value.EndsWith("/Authenticate", StringComparison.OrdinalIgnoreCase))))
+                {
+                    context.Response.StatusCode = StatusCodes.Status403Forbidden;
+                    return;
+                }
                 if (!HttpMethods.IsGet(context.Request.Method)
                     || !IsIndexRequest(context.Request.Path.Value)
                     || configuration is null)
@@ -32,6 +41,7 @@ public sealed class WebInjectionStartupFilter : IStartupFilter
                 var enabled = configuration.Enabled && OidcConfigurationValidator.Validate(configuration) is null;
                 var allPasswordsDisabled = enabled && configuration.PasswordLoginMode == PasswordLoginMode.DisableForAllUsers;
                 var redirectsToProvider = allPasswordsDisabled && configuration.RedirectSignInPageToProvider;
+                context.Response.Headers.CacheControl = "private, no-store";
                 context.Request.Headers.Remove("Accept-Encoding");
                 context.Request.Headers.Remove("Range");
                 context.Request.Headers.Remove("If-Range");
@@ -40,6 +50,7 @@ public sealed class WebInjectionStartupFilter : IStartupFilter
                 context.Response.Body = bufferedBody;
                 await nextMiddleware().ConfigureAwait(false);
                 context.Response.Body = originalBody;
+                context.Response.Headers.CacheControl = "private, no-store";
 
                 if (context.Response.StatusCode != StatusCodes.Status200OK
                     || context.Response.ContentType?.Contains("text/html", StringComparison.OrdinalIgnoreCase) != true)
@@ -60,10 +71,13 @@ public sealed class WebInjectionStartupFilter : IStartupFilter
                     await plugin.ConfigurationGate.WaitAsync().ConfigureAwait(false);
                     try
                     {
-                        if (ReferenceEquals(configuration, plugin.Configuration) && context.RequestServices.GetRequiredService<OidcLoginStore>().TryTake(ticket.ToString(), out var userId, out _))
+                        var ticketValue = ticket.ToString();
+                        if (ReferenceEquals(configuration, plugin.Configuration) && PublicUrls.UsesHttps(context.Request, configuration)
+                            && context.RequestServices.GetRequiredService<OidcLoginStore>().TryTake(ticketValue, context.Request.Cookies[OidcLoginStore.CookieName(ticketValue)], out var userId, out var returnUrl, out var rememberMe))
                         {
                             var session = await context.RequestServices.GetRequiredService<OidcSessionTracker>().CreateAsync(userId).ConfigureAwait(false);
-                            html = html.Replace("</head>", SessionTag(session, PublicUrls.Get(context.Request, configuration)) + "</head>", StringComparison.OrdinalIgnoreCase);
+                            context.Response.Cookies.Delete(OidcLoginStore.CookieName(ticketValue), new CookieOptions { Path = PublicUrls.WebPath(context.Request, configuration), Secure = true });
+                            html = html.Replace("</head>", SessionTag(session, PublicUrls.Get(context.Request, configuration), returnUrl, rememberMe) + "</head>", StringComparison.OrdinalIgnoreCase);
                             created = true;
                         }
                     }
@@ -107,10 +121,32 @@ public sealed class WebInjectionStartupFilter : IStartupFilter
             || string.Equals(path, "/web", StringComparison.OrdinalIgnoreCase);
     }
 
-    private static string SessionTag(AuthenticationResult session, string publicUrl)
+    private static string SessionTag(AuthenticationResult session, string publicUrl, string returnUrl, bool rememberMe)
     {
         var result = JsonSerializer.Serialize(session, JsonSerializerOptions.Web);
         var address = JsonSerializer.Serialize(publicUrl);
-        return $"<script>const oidcSession={result};const oidcUser=oidcSession.user;const oidcServerId=oidcUser.serverId;const oidcPublicUrl={address};localStorage.setItem('_deviceId2',oidcSession.deviceId);oidcUser.enableAutoLogin=true;localStorage.setItem('user-'+oidcUser.id+'-'+oidcServerId,JSON.stringify(oidcUser));localStorage.setItem('jellyfin_credentials',JSON.stringify({{Servers:[{{Id:oidcServerId,ManualAddress:oidcPublicUrl,AccessToken:oidcSession.accessToken,UserId:oidcUser.id,DateLastAccessed:Date.now(),LastConnectionMode:2}}]}}));localStorage.setItem('enableAutoLogin','true');history.replaceState(null,'',oidcPublicUrl+'{OidcConstants.WebIndexPath}');</script>";
+        var route = JsonSerializer.Serialize(ReturnUrls.Local(returnUrl) ? returnUrl : "/home");
+        var remember = rememberMe.ToString().ToLowerInvariant();
+        return $$"""
+            <script>
+            const oidcSession={{result}};
+            const oidcUser=oidcSession.user;
+            const oidcServerId=oidcUser.serverId;
+            const oidcPublicUrl={{address}};
+            window.oidcHandoff={session:oidcSession,rememberMe:{{remember}},returnUrl:{{route}}};
+            localStorage.setItem('_deviceId2',oidcSession.deviceId);
+            oidcUser.enableAutoLogin={{remember}};
+            localStorage.setItem('user-'+oidcUser.id+'-'+oidcServerId,JSON.stringify(oidcUser));
+            let oidcCredentials;
+            try { oidcCredentials=JSON.parse(localStorage.getItem('jellyfin_credentials') || '{}'); } catch { oidcCredentials={}; }
+            const oidcServers=Array.isArray(oidcCredentials.Servers) ? oidcCredentials.Servers : [];
+            const oidcServer=oidcServers.find(server=>server.Id===oidcServerId) || {};
+            Object.assign(oidcServer,{Id:oidcServerId,ManualAddress:oidcPublicUrl,AccessToken:null,UserId:null,DateLastAccessed:Date.now(),LastConnectionMode:2});
+            oidcCredentials.Servers=[oidcServer,...oidcServers.filter(server=>server.Id!==oidcServerId)];
+            localStorage.setItem('jellyfin_credentials',JSON.stringify(oidcCredentials));
+            localStorage.setItem('enableAutoLogin','{{remember}}');
+            history.replaceState(null,'',oidcPublicUrl+'{{OidcConstants.WebIndexPath}}#!'+{{route}});
+            </script>
+            """;
     }
 }

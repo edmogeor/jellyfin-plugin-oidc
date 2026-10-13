@@ -26,6 +26,10 @@ using MediaBrowser.Model.Dto;
 using MediaBrowser.Model.Serialization;
 using MediaBrowser.Model.Users;
 using Microsoft.AspNetCore.Authentication.OpenIdConnect;
+using Microsoft.AspNetCore.Authentication.Cookies;
+using Microsoft.AspNetCore.DataProtection;
+using Microsoft.IdentityModel.Protocols;
+using Microsoft.IdentityModel.Protocols.OpenIdConnect;
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging.Abstractions;
@@ -788,6 +792,104 @@ public sealed class OidcProvisioningTests
         Assert.False(fixture.TokenExists(oidc.Id));
     }
 
+    [Fact]
+    public async Task Failed_provisioning_link_save_removes_only_the_new_user_and_allows_retry()
+    {
+        using var fixture = new ProvisioningFixture();
+        fixture.Configuration.AutomaticLinkingMode = AutomaticLinkingMode.None;
+        var existing = await fixture.SeedUserAsync("existing-user");
+        fixture.FailConfigurationSave = true;
+        await Assert.ThrowsAsync<InvalidOperationException>(() => fixture.SignInAsync("subject"));
+        Assert.Equal(existing.Id, Assert.Single(fixture.Users()).Id);
+        Assert.Empty(fixture.Configuration.IdentityLinks);
+        fixture.FailConfigurationSave = false;
+        Assert.NotNull(await fixture.SignInAsync("subject"));
+        Assert.Equal(2, fixture.Users().Length);
+    }
+
+    [Fact]
+    public async Task Password_policy_enforces_new_native_users_and_reconciles_enabled_startup()
+    {
+        using var fixture = new ProvisioningFixture();
+        fixture.Configuration.PasswordLoginMode = PasswordLoginMode.DisableForAllUsers;
+        var user = await fixture.SeedUserAsync("native-user");
+        var policy = fixture.PasswordPolicy();
+        await policy.OnEvent(new Jellyfin.Data.Events.Users.UserCreatedEventArgs(user));
+        Assert.Equal(typeof(OidcPasswordDisabledProvider).FullName, fixture.Users().Single().AuthenticationProviderId);
+        await fixture.SeedUserAsync("startup-user");
+        await policy.StartAsync(CancellationToken.None);
+        Assert.All(fixture.Users(), item => Assert.Equal(typeof(OidcPasswordDisabledProvider).FullName, item.AuthenticationProviderId));
+        fixture.Configuration.Enabled = false;
+        var recovery = await fixture.SeedUserAsync("recovery-user");
+        await policy.StartAsync(CancellationToken.None);
+        Assert.Equal(ProvisioningFixture.DefaultProvider, fixture.Users().Single(item => item.Id == recovery.Id).AuthenticationProviderId);
+    }
+
+    [Fact]
+    public async Task Failed_policy_update_rolls_back_providers_without_committing_configuration()
+    {
+        using var fixture = new ProvisioningFixture();
+        await fixture.SeedUserAsync("first");
+        await fixture.SeedUserAsync("second");
+        var calls = 0;
+        fixture.BeforePolicyUpdate = () => ++calls == 2 ? throw new InvalidOperationException("Injected policy failure.") : Task.CompletedTask;
+        var replacement = new PluginConfiguration { Enabled = true, IssuerUrl = fixture.Configuration.IssuerUrl, ClientId = "client", ClientSecret = "secret", UserGroup = "users", AdministratorGroup = "admins", PasswordLoginMode = PasswordLoginMode.DisableForAllUsers };
+        Assert.Throws<InvalidOperationException>(() => fixture.Plugin.UpdateConfiguration(replacement));
+        Assert.Same(fixture.Configuration, fixture.Plugin.Configuration);
+        Assert.All(fixture.Users(), item => Assert.Equal(ProvisioningFixture.DefaultProvider, item.AuthenticationProviderId));
+        Assert.Null(fixture.SavedConfiguration);
+    }
+
+    [Theory]
+    [InlineData("/Users/AuthenticateByName")]
+    [InlineData("/jellyfin/Users/AuthenticateByName")]
+    [InlineData("/Users/00000000000000000000000000000000/Authenticate")]
+    public async Task Global_password_policy_rejects_native_authentication_before_provider_reconciliation(string path)
+    {
+        using var fixture = new ProvisioningFixture();
+        fixture.Configuration.PasswordLoginMode = PasswordLoginMode.DisableForAllUsers;
+        using var services = new ServiceCollection().BuildServiceProvider();
+        var builder = new ApplicationBuilder(services);
+        var reachedNative = false;
+        new WebInjectionStartupFilter().Configure(app => app.Run(_ => { reachedNative = true; return Task.CompletedTask; }))(builder);
+        var context = new DefaultHttpContext();
+        context.Request.Method = "POST";
+        context.Request.Path = path;
+        await builder.Build()(context);
+        Assert.Equal(403, context.Response.StatusCode);
+        Assert.False(reachedNative);
+    }
+
+    [Fact]
+    public async Task Direct_login_logout_fallback_handles_missing_invalid_and_chunked_tokens()
+    {
+        using var fixture = new ProvisioningFixture();
+        fixture.Configuration.PasswordLoginMode = PasswordLoginMode.DisableForAllUsers;
+        fixture.Configuration.RedirectSignInPageToProvider = true;
+        fixture.Configuration.RpInitiatedLogout = true;
+        var provider = new EphemeralDataProtectionProvider();
+        var metadata = new OpenIdConnectConfiguration();
+        var options = new OpenIdConnectOptions { ConfigurationManager = new StaticConfigurationManager<OpenIdConnectConfiguration>(metadata) };
+        var monitor = Stub<IOptionsMonitor<OpenIdConnectOptions>>((_, _) => options);
+        var controller = new OidcController(monitor, provider, NullLogger<OidcController>.Instance) { ControllerContext = new ControllerContext { HttpContext = new DefaultHttpContext() } };
+        controller.Request.Scheme = "https";
+        controller.Request.Host = new HostString("jellyfin.example.test");
+        Assert.Contains("oidcSignedOut=1", Assert.IsType<RedirectResult>(await controller.Logout()).Url);
+        controller.Request.Headers.Cookie = OidcConstants.LogoutCookieName + "=invalid";
+        Assert.Contains("oidcSignedOut=1", Assert.IsType<RedirectResult>(await controller.Logout()).Url);
+        var token = new string('x', 8000);
+        var cookies = new ChunkingCookieManager();
+        var cookieContext = new DefaultHttpContext();
+        cookies.AppendResponseCookie(cookieContext, OidcConstants.LogoutCookieName, provider.CreateProtector(OidcConstants.LogoutTokenProtectorPurpose).Protect(token), new CookieOptions { Path = "/oidc" });
+        Assert.True(cookieContext.Response.Headers.SetCookie.Count > 1);
+        controller.Request.Headers.Cookie = string.Join("; ", cookieContext.Response.Headers.SetCookie.Select(value => value!.Split(';')[0]));
+        Assert.Contains("oidcSignedOut=1", Assert.IsType<RedirectResult>(await controller.Logout()).Url);
+        metadata.EndSessionEndpoint = "https://identity.example.test/logout";
+        var url = Assert.IsType<RedirectResult>(await controller.Logout()).Url!;
+        Assert.Equal(token, Microsoft.AspNetCore.WebUtilities.QueryHelpers.ParseQuery(new Uri(url).Query)["id_token_hint"]);
+        Assert.DoesNotContain("post_logout_redirect_uri", url);
+    }
+
     private sealed class ProvisioningFixture : IDisposable, IDbContextFactory<JellyfinDbContext>
     {
         public const string DefaultProvider = "Jellyfin.Server.Implementations.Users.DefaultAuthenticationProvider";
@@ -814,6 +916,7 @@ public sealed class OidcProvisioningTests
                 "GetUserById" => Users().SingleOrDefault(user => user.Id == (Guid)args![0]!),
                 "GetUserDto" => new UserDto { Policy = new UserPolicy { IsAdministrator = ((User)args![0]!).HasPermission(PermissionKind.IsAdministrator), IsDisabled = ((User)args[0]!).HasPermission(PermissionKind.IsDisabled) } },
                 "UpdatePolicyAsync" => UpdatePolicyAsync((Guid)args![0]!, (UserPolicy)args[1]!),
+                "DeleteUserAsync" => DeleteUserAsync((Guid)args![0]!),
                 _ => throw new InvalidOperationException("Unexpected user-manager call: " + method.Name),
             });
             _manager = manager;
@@ -857,6 +960,16 @@ public sealed class OidcProvisioningTests
         public Func<Task>? BeforePolicyUpdate { get; set; }
         public bool FailConfigurationSave { get; set; }
         public bool FailRevocation { get; set; }
+
+        public PasswordLoginPolicy PasswordPolicy() => new(_manager, NullLogger<PasswordLoginPolicy>.Instance);
+
+        private async Task DeleteUserAsync(Guid userId)
+        {
+            await using var context = CreateDbContext();
+            var user = await context.Users.SingleAsync(item => item.Id == userId);
+            context.Users.Remove(user);
+            await context.SaveChangesAsync();
+        }
 
         public async Task<OidcAdminController> AdminAsync()
         {

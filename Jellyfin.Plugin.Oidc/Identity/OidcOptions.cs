@@ -1,6 +1,8 @@
 using System.Security.Claims;
 using Jellyfin.Plugin.Oidc.Configuration;
 using Microsoft.AspNetCore.Authentication.OpenIdConnect;
+using Microsoft.AspNetCore.Authentication.Cookies;
+using System.Security.Cryptography;
 using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.DependencyInjection;
@@ -99,7 +101,7 @@ public sealed class OidcOptions : IConfigureNamedOptions<OpenIdConnectOptions>
             {
                 var completion = transaction is null ? null : context.HttpContext.RequestServices.GetRequiredService<OidcLinkStore>()
                     .Validate(transaction, context.Principal!, configuration);
-                var profileRoute = ReturnUrls.Local(context.Properties.RedirectUri) ? context.Properties.RedirectUri! : "/userprofile";
+                var profileRoute = ReturnUrls.Local(context.ReturnUri) ? context.ReturnUri! : "/userprofile";
                 context.Response.Headers["Referrer-Policy"] = "no-referrer";
                 context.Response.Redirect(PublicUrls.Get(context.Request, configuration) + OidcConstants.WebIndexPath
                     + (completion is null ? "?oidcLinkError=1" : "?oidcLinkTicket=" + Uri.EscapeDataString(completion)) + "#!" + profileRoute);
@@ -109,9 +111,11 @@ public sealed class OidcOptions : IConfigureNamedOptions<OpenIdConnectOptions>
             var provisioner = context.HttpContext.RequestServices.GetRequiredService<OidcUserProvisioner>();
             var revision = context.Properties?.Items.TryGetValue("oidc_revision", out var value) == true && long.TryParse(value, out var parsed) ? parsed : -1;
             var result = await provisioner.ProvisionAsync(context.Principal!, configuration, revision).ConfigureAwait(false);
-            var returnUrl = context.Properties?.RedirectUri;
+            var returnUrl = context.ReturnUri;
+            var browserNonce = Convert.ToHexString(RandomNumberGenerator.GetBytes(32));
+            var rememberMe = context.Properties?.Items.TryGetValue("oidc_remember", out var remember) == true && bool.TryParse(remember, out var parsedRemember) && parsedRemember;
             var ticket = result is null ? null : context.HttpContext.RequestServices.GetRequiredService<OidcLoginStore>()
-                .Create(result.Value, ReturnUrls.Local(returnUrl) ? returnUrl! : "/", revision);
+                .Create(result.Value, ReturnUrls.Local(returnUrl) ? returnUrl! : "/home", browserNonce, rememberMe, revision);
             if (string.IsNullOrEmpty(ticket))
             {
                 context.Response.Redirect(PublicUrls.Get(context.Request, configuration) + OidcConstants.WebIndexPath + "#!/login?oidcError=1");
@@ -119,11 +123,16 @@ public sealed class OidcOptions : IConfigureNamedOptions<OpenIdConnectOptions>
                 return;
             }
 
+            context.Response.Cookies.Append(OidcLoginStore.CookieName(ticket), browserNonce, new CookieOptions
+            {
+                HttpOnly = true, Secure = true, SameSite = SameSiteMode.Lax,
+                Path = PublicUrls.WebPath(context.Request, configuration), MaxAge = TimeSpan.FromMinutes(5),
+            });
             if (context.Properties!.Items.Remove("oidc_id_token", out var idToken) && !string.IsNullOrEmpty(idToken))
             {
                 var protector = context.HttpContext.RequestServices.GetRequiredService<IDataProtectionProvider>()
                     .CreateProtector(OidcConstants.LogoutTokenProtectorPurpose);
-                context.Response.Cookies.Append(OidcConstants.LogoutCookieName, protector.Protect(idToken), new CookieOptions
+                new ChunkingCookieManager().AppendResponseCookie(context.HttpContext, OidcConstants.LogoutCookieName, protector.Protect(idToken), new CookieOptions
                 {
                     HttpOnly = true,
                     Secure = true,
@@ -208,4 +217,8 @@ public static class PublicUrls
     /// <summary>Gets the OIDC cookie path for the public Jellyfin URL.</summary>
     public static string OidcPath(HttpRequest request, PluginConfiguration configuration)
         => new Uri(Get(request, configuration)).AbsolutePath.TrimEnd('/') + "/oidc";
+
+    /// <summary>Gets the browser handoff cookie path.</summary>
+    public static string WebPath(HttpRequest request, PluginConfiguration configuration)
+        => new Uri(Get(request, configuration)).AbsolutePath.TrimEnd('/') + "/web";
 }

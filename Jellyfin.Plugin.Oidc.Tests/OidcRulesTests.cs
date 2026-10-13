@@ -608,19 +608,46 @@ public sealed class OidcRulesTests
     {
         var store = new OidcLoginStore();
         var userId = Guid.NewGuid();
-        var ticket = store.Create(userId, "/items/1");
+        var ticket = store.Create(userId, "/items/1", "browser-nonce", false);
 
         Assert.NotNull(ticket);
-        Assert.True(store.TryTake(ticket, out var returnedUserId, out var returnUrl));
+        Assert.False(store.TryTake(ticket, null, out _, out _, out _));
+        Assert.False(store.TryTake(ticket, "another-browser", out _, out _, out _));
+        Assert.True(store.TryTake(ticket, "browser-nonce", out var returnedUserId, out var returnUrl, out var rememberMe));
         Assert.Equal(userId, returnedUserId);
         Assert.Equal("/items/1", returnUrl);
-        Assert.False(store.TryTake(ticket, out _, out _));
+        Assert.False(rememberMe);
+        Assert.False(store.TryTake(ticket, "browser-nonce", out _, out _, out _));
+    }
+
+    [Theory]
+    [InlineData("PublicUrl", "https://jellyfin.example.test/base?query=1")]
+    [InlineData("PublicUrl", "https://jellyfin.example.test/base#fragment")]
+    [InlineData("PublicUrl", "https://user:password@jellyfin.example.test")]
+    [InlineData("IssuerUrl", "https://identity.example.test/#fragment")]
+    [InlineData("UserGroup", ", ,")]
+    [InlineData("GroupClaim", " ")]
+    public void Enabled_configuration_rejects_unusable_urls_groups_and_claims(string field, string value)
+    {
+        var configuration = new PluginConfiguration { Enabled = true, IssuerUrl = "https://identity.example.test", ClientId = "client", ClientSecret = "secret", UserGroup = "users" };
+        typeof(PluginConfiguration).GetProperty(field)!.SetValue(configuration, value);
+        Assert.NotNull(OidcConfigurationValidator.Validate(configuration));
+    }
+
+    [Fact]
+    public void Globally_disabled_passwords_require_an_actual_administrator_group_and_valid_mode()
+    {
+        var configuration = new PluginConfiguration { Enabled = true, IssuerUrl = "https://identity.example.test", ClientId = "client", ClientSecret = "secret", UserGroup = "users", AdministratorGroup = ", ,", PasswordLoginMode = PasswordLoginMode.DisableForAllUsers };
+        Assert.Contains("Administrator Group", OidcConfigurationValidator.Validate(configuration));
+        configuration.Enabled = false;
+        configuration.PasswordLoginMode = (PasswordLoginMode)99;
+        Assert.NotNull(OidcConfigurationValidator.Validate(configuration));
     }
 
     [Fact]
     public void Unknown_login_ticket_returns_safe_defaults()
     {
-        Assert.False(new OidcLoginStore().TryTake("missing", out var userId, out var returnUrl));
+        Assert.False(new OidcLoginStore().TryTake("missing", "nonce", out var userId, out var returnUrl, out _));
         Assert.Equal(Guid.Empty, userId);
         Assert.Equal("/", returnUrl);
     }
@@ -632,9 +659,9 @@ public sealed class OidcRulesTests
 
         for (var index = 0; index < 1024; index++)
         {
-            Assert.NotNull(store.Create(Guid.NewGuid(), "/"));
+            Assert.NotNull(store.Create(Guid.NewGuid(), "/", "nonce"));
         }
 
-        Assert.Null(store.Create(Guid.NewGuid(), "/"));
+        Assert.Null(store.Create(Guid.NewGuid(), "/", "nonce"));
     }
 }

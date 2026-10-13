@@ -10,8 +10,9 @@ public sealed class OidcLoginStore
     private readonly Dictionary<string, Login> _logins = [];
 
     /// <summary>Creates an expiring login ticket for a Jellyfin User.</summary>
-    public string? Create(Guid userId, string returnUrl, long? revision = null)
+    public string? Create(Guid userId, string returnUrl, string browserNonce, bool rememberMe = true, long? revision = null)
     {
+        ArgumentException.ThrowIfNullOrEmpty(browserNonce);
         lock (_gate)
         {
             var now = DateTimeOffset.UtcNow;
@@ -25,29 +26,37 @@ public sealed class OidcLoginStore
             }
 
             var ticket = Convert.ToHexString(RandomNumberGenerator.GetBytes(32));
-            _logins[ticket] = new Login(userId, returnUrl, now.AddMinutes(5), revision);
+            _logins[ticket] = new Login(userId, returnUrl, OidcSessionTracker.Fingerprint(browserNonce), rememberMe, now.AddMinutes(5), revision);
             return ticket;
         }
     }
 
     /// <summary>Consumes a valid login ticket.</summary>
-    public bool TryTake(string ticket, out Guid userId, out string returnUrl)
+    public bool TryTake(string ticket, string? browserNonce, out Guid userId, out string returnUrl, out bool rememberMe)
     {
         userId = Guid.Empty;
         returnUrl = "/";
+        rememberMe = false;
         lock (_gate)
         {
-            if (!_logins.Remove(ticket, out var login) || login.ExpiresAt < DateTimeOffset.UtcNow
+            if (string.IsNullOrEmpty(browserNonce) || !_logins.TryGetValue(ticket, out var login)
+                || login.BrowserFingerprint != OidcSessionTracker.Fingerprint(browserNonce)
+                || login.ExpiresAt < DateTimeOffset.UtcNow
                 || (login.Revision.HasValue && login.Revision != OidcPlugin.Instance?.Configuration.IdentityRevision))
             {
                 return false;
             }
 
+            _logins.Remove(ticket);
             userId = login.UserId;
             returnUrl = login.ReturnUrl;
+            rememberMe = login.RememberMe;
             return true;
         }
     }
 
-    private sealed record Login(Guid UserId, string ReturnUrl, DateTimeOffset ExpiresAt, long? Revision);
+    /// <summary>Gets the browser-binding cookie name for an individual handoff.</summary>
+    public static string CookieName(string ticket) => "oidc_handoff_" + ticket;
+
+    private sealed record Login(Guid UserId, string ReturnUrl, string BrowserFingerprint, bool RememberMe, DateTimeOffset ExpiresAt, long? Revision);
 }
