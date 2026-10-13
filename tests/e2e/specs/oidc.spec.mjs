@@ -874,12 +874,27 @@ test("localizes the OIDC configuration page", async ({ page }) => {
     "/web/index.html#/configurationpage?name=OIDC%20Authentication",
   );
 
-  await expect(page.getByRole("heading", { name: "Verbindung" })).toBeVisible();
+  await expect(
+    page.getByRole("heading", { name: "Anbieter-Verbindung" }),
+  ).toBeVisible();
   await expect(page.locator('label[for="IssuerUrl"]')).toHaveText(
     "Issuer-URL *",
   );
   await expect(
     page.getByText("Zugelassene Gruppen", { exact: true }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("tab", { name: "Allgemein", exact: true }),
+  ).toHaveAttribute("aria-selected", "true");
+  await page.getByRole("tab", { name: "Erweitert", exact: true }).click();
+  await expect(page.locator('label[for="UsernameClaim"]')).toHaveText(
+    "Benutzernamen-Claim des Anbieters",
+  );
+  await expect(
+    page.getByText("RP-initiierte Abmeldung aktivieren", { exact: true }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("button", { name: "Änderungen speichern", exact: true }),
   ).toBeVisible();
 });
 

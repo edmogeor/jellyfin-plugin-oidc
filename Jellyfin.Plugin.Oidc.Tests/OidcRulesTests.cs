@@ -15,7 +15,7 @@ namespace Jellyfin.Plugin.Oidc.Tests;
 public sealed class OidcRulesTests
 {
     [Fact]
-    public void Configuration_strings_fall_back_to_english_and_preserve_translated_values_and_placeholders()
+    public void Configuration_strings_have_matching_keys_and_preserve_translated_values_and_placeholders()
     {
         var assembly = typeof(PluginConfiguration).Assembly;
         using var englishStream = assembly.GetManifestResourceStream(
@@ -40,7 +40,7 @@ public sealed class OidcRulesTests
             using var stream = assembly.GetManifestResourceStream(resourceName);
             Assert.NotNull(stream);
             var keys = GetJsonKeys(stream);
-            Assert.All(keys, key => Assert.Contains(key, expectedKeys));
+            Assert.Equal(expectedKeys, keys);
             stream.Position = 0;
             var translated = JsonSerializer.Deserialize<Dictionary<string, string>>(stream)!;
             var locale = resourceName["Jellyfin.Plugin.Oidc.Configuration.Strings.".Length..^5];
@@ -52,8 +52,6 @@ public sealed class OidcRulesTests
             var response = Assert.IsType<JsonResult>(controller.Strings(locale));
             var dictionary = Assert.IsType<Dictionary<string, string>>(response.Value);
             Assert.Equal(expectedKeys, dictionary.Keys.Order().ToArray());
-            foreach (var key in expectedKeys.Except(keys))
-                Assert.Equal(english[key], dictionary[key]);
             foreach (var entry in translated)
             {
                 Assert.False(string.IsNullOrWhiteSpace(entry.Value));
