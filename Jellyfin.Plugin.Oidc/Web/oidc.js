@@ -60,11 +60,9 @@
     }
     const statusIconStyle = { fontSize: '1.1em', verticalAlign: 'middle', marginInlineEnd: '0.3em' };
     function identityStatus(state) {
-        return {
-            text: state.Linked ? linkedIdentityText(state) : state.Request ? profileStrings.adminPending : profileStrings.linkNotLinked,
-            icon: state.Linked ? 'check' : state.Request ? 'schedule' : 'link_off',
-            color: state.Linked ? 'var(--jf-palette-success-main, inherit)' : undefined,
-        };
+        if (state.Linked) return { text: linkedIdentityText(state), icon: 'check', color: 'var(--jf-palette-success-main, inherit)' };
+        if (state.Request) return { text: profileStrings.adminPending, icon: 'schedule' };
+        return { text: profileStrings.linkNotLinked, icon: 'link_off' };
     }
     function approvalCriterion(request) {
         if (request.Subject) return 'Subject';
@@ -94,11 +92,14 @@
         } finally { annotateDialog.disconnect(); }
     };
     const returnToSignIn = session => {
-        const credentials = savedCredentials();
-        for (const server of credentials.Servers || []) if (server.AccessToken === session.token) { server.AccessToken = null; server.UserId = null; server.ExchangeToken = null; }
-        localStorage.setItem('jellyfin_credentials', JSON.stringify(credentials));
+        clearSessionCredentials(session.token);
         location.assign(serverUrl + 'web/index.html?oidcSignedOut=1#!/login');
     };
+    function clearSessionCredentials(token) {
+        const credentials = savedCredentials();
+        for (const server of credentials.Servers || []) if (server.AccessToken === token) { server.AccessToken = null; server.UserId = null; server.ExchangeToken = null; }
+        localStorage.setItem('jellyfin_credentials', JSON.stringify(credentials));
+    }
     const savedCredentials = () => {
         try { return JSON.parse(localStorage.getItem('jellyfin_credentials') || '{}') || {}; }
         catch { return {}; }
@@ -106,10 +107,13 @@
     const activeSession = () => {
         const client = window.ApiClient;
         if (!client?.accessToken() || !client.getCurrentUserId()) return null;
-        const address = new URL(client.serverAddress(), location.href);
-        if (address.origin !== serverUrl.origin || address.pathname.replace(/\/$/, '') !== serverUrl.pathname.replace(/\/$/, '')) return null;
+        if (!isCurrentServer(client.serverAddress())) return null;
         return { userId: client.getCurrentUserId(), token: client.accessToken() };
     };
+    function isCurrentServer(value) {
+        const address = new URL(value, location.href);
+        return address.origin === serverUrl.origin && address.pathname.replace(/\/$/, '') === serverUrl.pathname.replace(/\/$/, '');
+    }
     const profileRoute = () => {
         const route = location.hash.replace(/^#!?/, '');
         const url = new URL(route, location.origin);
@@ -132,8 +136,7 @@
         const client = window.ApiClient;
         if (!handoff || !nativeLoginReady || installingSession
             || typeof client?.onAuthenticated !== 'function' || !window.Dashboard?.onServerChanged) return;
-        const address = new URL(client.serverAddress(), location.href);
-        if (address.origin !== serverUrl.origin || address.pathname.replace(/\/$/, '') !== serverUrl.pathname.replace(/\/$/, '')) return;
+        if (!isCurrentServer(client.serverAddress())) return;
         installingSession = true;
         window.Dashboard.showLoadingMsg();
         try {
@@ -445,11 +448,7 @@
             confirmed = response.ok || response.status === 401;
         } catch { /* Local sign-out must complete even when the server cannot be reached. */ }
         finally {
-            const credentials = savedCredentials();
-            for (const server of credentials.Servers || []) if (server.AccessToken === session.token) {
-                server.UserId = null; server.AccessToken = null; server.ExchangeToken = null;
-            }
-            localStorage.setItem('jellyfin_credentials', JSON.stringify(credentials));
+            clearSessionCredentials(session.token);
             location.assign(confirmed ? oidcUrl + 'logout' : serverUrl + 'web/index.html?oidcSignedOut=1&oidcLogoutError=1#!/login');
         }
     }, true);
@@ -461,8 +460,7 @@
         }
         const server = (savedCredentials().Servers || []).find(server => {
             try {
-                const address = new URL(server.ManualAddress || server.LocalAddress || '', location.href);
-                return address.origin === serverUrl.origin && address.pathname.replace(/\/$/, '') === serverUrl.pathname.replace(/\/$/, '');
+                return isCurrentServer(server.ManualAddress || server.LocalAddress || '');
             } catch { return false; }
         });
         if (server?.AccessToken && await requestCurrentUser(server.AccessToken).then(response => response.ok).catch(() => false)) return;
@@ -536,11 +534,15 @@
         adminEditor.tab?.remove(); adminEditor.panel?.remove();
         adminEditor.page.removeAttribute('data-oidc-admin-selected');
         adminEditor.page.querySelectorAll('.oidc-admin-native-hidden').forEach(element => element.classList.remove('oidc-admin-native-hidden'));
-        for (const tab of adminEditor.nativeSelection) {
+        restoreNativeTabs(adminEditor);
+        adminEditor = null;
+    }
+    function restoreNativeTabs(editor) {
+        for (const tab of editor.nativeSelection) {
             const selected = tab.classList.contains('Mui-selected');
             tab.setAttribute('aria-selected', String(selected)); tab.tabIndex = selected ? 0 : -1;
         }
-        adminEditor = null;
+        editor.nativeSelection.clear();
     }
     function updateAdminEditor() {
         const route = adminRoute();
@@ -587,11 +589,8 @@
             }
             if (!editor.panel?.isConnected) mountAdminPanel(editor, tabBar.parentElement);
         } else {
-            for (const tab of editor.nativeSelection) {
-                const selected = tab.classList.contains('Mui-selected');
-                tab.setAttribute('aria-selected', String(selected)); tab.tabIndex = selected ? 0 : -1;
-            }
-            editor.nativeSelection.clear(); editor.panel?.remove(); editor.panel = null;
+            restoreNativeTabs(editor);
+            editor.panel?.remove(); editor.panel = null;
         }
         let afterTabs = false;
         for (const child of tabBar.parentElement.children) {

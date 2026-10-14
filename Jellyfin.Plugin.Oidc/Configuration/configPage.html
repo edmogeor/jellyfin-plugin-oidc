@@ -748,9 +748,7 @@
       <script>
         (() => {
           const locale = document.documentElement.lang.toLowerCase();
-          const locales = [locale, locale.split("-")[0], "en-us"].filter(
-            (value, index, values) => values.indexOf(value) === index,
-          );
+          const locales = new Set([locale, locale.split("-")[0], "en-us"]);
           let dictionary;
           const englishStrings = /* @english-strings */ {};
           const loadDictionary = async () => {
@@ -813,17 +811,23 @@
           tabs.forEach((tab, index) => {
             tab.addEventListener("click", () => selectTab(tab));
             tab.addEventListener("keydown", (event) => {
-              const next =
-                event.key === "Home"
-                  ? 0
-                  : event.key === "End"
-                    ? tabs.length - 1
-                    : event.key === "ArrowRight"
-                      ? (index + 1) % tabs.length
-                      : event.key === "ArrowLeft"
-                        ? (index + tabs.length - 1) % tabs.length
-                        : null;
-              if (next === null) return;
+              let next;
+              switch (event.key) {
+                case "Home":
+                  next = 0;
+                  break;
+                case "End":
+                  next = tabs.length - 1;
+                  break;
+                case "ArrowRight":
+                  next = (index + 1) % tabs.length;
+                  break;
+                case "ArrowLeft":
+                  next = (index + tabs.length - 1) % tabs.length;
+                  break;
+                default:
+                  return;
+              }
               event.preventDefault();
               selectTab(tabs[next]);
               tabs[next].focus();
@@ -1100,16 +1104,11 @@
             }
             save();
           });
-          fields.forEach((name) =>
-            page
-              .querySelector("#" + name)
-              .addEventListener("input", updateSaveButton),
-          );
-          fields.forEach((name) =>
-            page
-              .querySelector("#" + name)
-              .addEventListener("change", updateSaveButton),
-          );
+          fields.forEach((name) => {
+            const input = page.querySelector("#" + name);
+            input.addEventListener("input", updateSaveButton);
+            input.addEventListener("change", updateSaveButton);
+          });
           form.addEventListener("input", updateValidation);
           form.addEventListener("change", () => {
             updatePolicies();
