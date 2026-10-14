@@ -1,5 +1,6 @@
 using System.Security.Claims;
 using System.Security.Cryptography;
+using System.Text.Json;
 using Jellyfin.Plugin.Oidc.Configuration;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Authentication.OpenIdConnect;
@@ -209,24 +210,18 @@ public sealed class OidcOptions(ILogger<OidcOptions> logger)
         options.Events.OnRemoteFailure = context =>
         {
             logger.LogWarning("OIDC remote authentication failed.");
+            var destination = "?oidcError=1#!/login";
             if (context.Properties?.Items.ContainsKey("oidc_link") == true)
             {
                 var profileRoute = ReturnUrls.Local(context.Properties.RedirectUri)
                     ? context.Properties.RedirectUri!
                     : "/userprofile";
-                context.Response.Redirect(
-                    PublicUrls.Get(context.Request, configuration)
-                        + OidcConstants.WebIndexPath
-                        + "?oidcLinkError=1#!"
-                        + profileRoute
-                );
-                context.HandleResponse();
-                return Task.CompletedTask;
+                destination = "?oidcLinkError=1#!" + profileRoute;
             }
             context.Response.Redirect(
                 PublicUrls.Get(context.Request, configuration)
                     + OidcConstants.WebIndexPath
-                    + "?oidcError=1#!/login"
+                    + destination
             );
             context.HandleResponse();
             return Task.CompletedTask;
@@ -234,7 +229,7 @@ public sealed class OidcOptions(ILogger<OidcOptions> logger)
     }
 
     private static void CopyUserInfoClaim(
-        System.Text.Json.JsonElement userInfo,
+        JsonElement userInfo,
         ClaimsIdentity identity,
         string claimType
     )
@@ -249,15 +244,12 @@ public sealed class OidcOptions(ILogger<OidcOptions> logger)
             identity.RemoveClaim(claim);
         }
 
+        var isString = value.ValueKind == JsonValueKind.String;
         identity.AddClaim(
             new Claim(
                 claimType,
-                value.ValueKind == System.Text.Json.JsonValueKind.String
-                    ? value.GetString()!
-                    : value.GetRawText(),
-                value.ValueKind == System.Text.Json.JsonValueKind.String
-                    ? ClaimValueTypes.String
-                    : "JSON"
+                isString ? value.GetString()! : value.GetRawText(),
+                isString ? ClaimValueTypes.String : "JSON"
             )
         );
     }

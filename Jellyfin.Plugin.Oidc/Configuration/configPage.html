@@ -13,12 +13,9 @@
     >
       <style>
         #OidcConfigPage .content-primary {
-          max-width: 80rem;
-          margin: 0 2rem;
+          margin: 0;
+          padding-inline: 1em;
           padding-bottom: 3rem;
-        }
-        #OidcConfigPage #OidcConfigForm {
-          max-width: none;
         }
         #OidcConfigPage [hidden] {
           display: none !important;
@@ -237,10 +234,6 @@
           transform: none;
         }
         @media (max-width: 640px) {
-          #OidcConfigPage .content-primary {
-            margin-left: 1rem;
-            margin-right: 1rem;
-          }
           #OidcConfigPage .verticalSection {
             padding: 1.25rem;
           }
@@ -250,7 +243,7 @@
           }
         }
       </style>
-      <div data-role="content" class="content-primary">
+      <div data-role="content" class="content-primary readOnlyContent">
         <h1 class="sectionTitle" data-i18n="pageTitle">{{pageTitle}}</h1>
         <p class="fieldDescription oidc-intro" data-i18n="pageIntro">
           {{pageIntro}}
@@ -495,9 +488,6 @@
                   aria-hidden="true"
                   >arrow_drop_down</span
                 >
-                <div class="fieldDescription" data-i18n="passwordLoginModeHelp">
-                  {{passwordLoginModeHelp}}
-                </div>
               </div>
             </div>
           </div>
@@ -857,21 +847,13 @@
             "SynchronizeProfileImages",
             "RpInitiatedLogout",
           ];
-          const checkboxes = [
-            "Enabled",
-            "RequireVerifiedEmail",
-            "AllowSelfServiceLinking",
-            "RedirectSignInPageToProvider",
-            "SynchronizeProfileImages",
-            "RpInitiatedLogout",
-          ];
           let savedConfiguration;
           let configurationLoad = 0;
           let saving = false;
-          const value = (name) =>
-            page.querySelector("#" + name)[
-              checkboxes.includes(name) ? "checked" : "value"
-            ];
+          const value = (name) => {
+            const input = page.querySelector("#" + name);
+            return input.type === "checkbox" ? input.checked : input.value;
+          };
           const currentConfiguration = () =>
             Object.fromEntries(fields.map((name) => [name, value(name)]));
           const hasChanges = () =>
@@ -925,9 +907,9 @@
                   fields.map((name) => [name, config[name]]),
                 );
                 fields.forEach((name) => {
-                  page.querySelector("#" + name)[
-                    checkboxes.includes(name) ? "checked" : "value"
-                  ] = savedConfiguration[name];
+                  const input = page.querySelector("#" + name);
+                  input[input.type === "checkbox" ? "checked" : "value"] =
+                    savedConfiguration[name];
                 });
                 updatePolicies();
                 updateValidation();
@@ -1042,9 +1024,7 @@
             Dashboard.showLoadingMsg();
             ApiClient.getPluginConfiguration(pluginId)
               .then((config) => {
-                fields.forEach((name) => {
-                  config[name] = submittedConfiguration[name];
-                });
+                Object.assign(config, submittedConfiguration);
                 return ApiClient.updatePluginConfiguration(pluginId, config);
               })
               .then((result) => {

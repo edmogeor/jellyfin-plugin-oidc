@@ -71,11 +71,6 @@ public sealed class OidcProfileImageSynchronizer(
             using var response = await client
                 .SendAsync(request, HttpCompletionOption.ResponseHeadersRead, deadline.Token)
                 .ConfigureAwait(false);
-            if (response.StatusCode == HttpStatusCode.NotModified)
-            {
-                return;
-            }
-
             if (
                 !response.IsSuccessStatusCode
                 || response.Content.Headers.ContentLength > MaximumImageBytes
@@ -142,10 +137,9 @@ public sealed class OidcProfileImageSynchronizer(
         try
         {
             var buffer = new byte[81920];
-            for (
-                var read = await input.ReadAsync(buffer, cancellationToken).ConfigureAwait(false);
-                read > 0;
-                read = await input.ReadAsync(buffer, cancellationToken).ConfigureAwait(false)
+            int read;
+            while (
+                (read = await input.ReadAsync(buffer, cancellationToken).ConfigureAwait(false)) > 0
             )
             {
                 if (image.Length + read > MaximumImageBytes)

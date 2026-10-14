@@ -51,7 +51,6 @@
   "allowForAllUsers": "Toestaan voor alle gebruikers",
   "disableForLinkedUsersOnly": "Alleen uitschakelen voor gekoppelde gebruikers",
   "disableForAllUsers": "Uitschakelen voor alle gebruikers",
-  "passwordLoginModeHelp": "Wordt bij het opslaan toegepast op alle Jellyfin-gebruikers.",
   "synchronizeProfileImagesLabel": "Profielfoto's synchroniseren",
   "synchronizeProfileImagesHelp": "Gebruik de picture-claim van de provider bij het aanmelden.",
   "rpInitiatedLogoutLabel": "RP-geïnitieerde afmelding inschakelen",

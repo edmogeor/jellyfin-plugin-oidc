@@ -88,7 +88,7 @@ public sealed class OidcAdminController(
                     )
                 )
                     return Conflict();
-                await PersistAsync(state, () => state.Request = approval).ConfigureAwait(false);
+                await SaveRequestAsync(state, approval).ConfigureAwait(false);
                 return Ok(StatusValue(userId, state));
             }
         );
@@ -102,7 +102,7 @@ public sealed class OidcAdminController(
             async state =>
             {
                 if (state.Request is not null)
-                    await PersistAsync(state, () => state.Request = null).ConfigureAwait(false);
+                    await SaveRequestAsync(state, null).ConfigureAwait(false);
                 return Ok(StatusValue(userId, state));
             }
         );
@@ -147,7 +147,9 @@ public sealed class OidcAdminController(
         {
             UserId = userId,
             Name = user?.Username,
-            Provider = currentProvider ? configuration.Provider.ToString() : nameof(IdentityProviderType.Other),
+            Provider = currentProvider
+                ? configuration.Provider.ToString()
+                : nameof(IdentityProviderType.Other),
             ProviderName = currentProvider ? configuration.ProviderName : string.Empty,
             Linked = link is not null,
             link?.Email,
@@ -238,16 +240,15 @@ public sealed class OidcAdminController(
         }
     }
 
-    private async Task PersistAsync(OidcUserAdministration state, Action change)
+    private async Task SaveRequestAsync(OidcUserAdministration state, PendingLinkRequest? request)
     {
         var plugin = OidcPlugin.Instance!;
         var oldVersion = state.Version;
         var oldRequest = state.Request;
-        var oldBlock = state.AutomaticReattachmentBlocked;
         var oldRevision = plugin.Configuration.IdentityRevision;
         try
         {
-            change();
+            state.Request = request;
             state.Version = Guid.NewGuid();
             plugin.Configuration.IdentityRevision++;
             var user = users.GetUserById(state.UserId);
@@ -261,7 +262,6 @@ public sealed class OidcAdminController(
         {
             state.Version = oldVersion;
             state.Request = oldRequest;
-            state.AutomaticReattachmentBlocked = oldBlock;
             plugin.Configuration.IdentityRevision = oldRevision;
             throw;
         }

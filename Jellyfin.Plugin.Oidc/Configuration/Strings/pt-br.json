@@ -51,7 +51,6 @@
   "allowForAllUsers": "Permitir para todos os usuários",
   "disableForLinkedUsersOnly": "Desativar apenas para usuários vinculados",
   "disableForAllUsers": "Desativar para todos os usuários",
-  "passwordLoginModeHelp": "Aplicado a todos os usuários Jellyfin ao salvar.",
   "synchronizeProfileImagesLabel": "Sincronizar imagens de perfil",
   "synchronizeProfileImagesHelp": "Usa o claim picture do provedor ao entrar.",
   "rpInitiatedLogoutLabel": "Ativar logout iniciado por RP",

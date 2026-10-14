@@ -51,7 +51,6 @@
   "allowForAllUsers": "Autoriser pour tous les utilisateurs",
   "disableForLinkedUsersOnly": "Désactiver uniquement pour les utilisateurs liés",
   "disableForAllUsers": "Désactiver pour tous les utilisateurs",
-  "passwordLoginModeHelp": "Appliqué à tous les utilisateurs Jellyfin lors de l’enregistrement.",
   "synchronizeProfileImagesLabel": "Synchroniser les images de profil",
   "synchronizeProfileImagesHelp": "Utilise le claim picture du fournisseur à la connexion.",
   "rpInitiatedLogoutLabel": "Activer la déconnexion initiée par le RP",

@@ -51,7 +51,6 @@
   "allowForAllUsers": "Salli kaikille käyttäjille",
   "disableForLinkedUsersOnly": "Poista käytöstä vain linkitetyille käyttäjille",
   "disableForAllUsers": "Poista käytöstä kaikille käyttäjille",
-  "passwordLoginModeHelp": "Koskee kaikkia Jellyfin-käyttäjiä tallennettaessa.",
   "synchronizeProfileImagesLabel": "Synkronoi profiilikuvat",
   "synchronizeProfileImagesHelp": "Käytä tarjoajan picture-claimia kirjautuessa.",
   "rpInitiatedLogoutLabel": "Ota RP:n käynnistämä uloskirjautuminen käyttöön",

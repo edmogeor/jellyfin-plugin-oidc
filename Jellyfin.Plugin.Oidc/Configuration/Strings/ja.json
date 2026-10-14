@@ -51,7 +51,6 @@
   "allowForAllUsers": "すべてのユーザーに許可",
   "disableForLinkedUsersOnly": "リンク済みユーザーにのみ無効化",
   "disableForAllUsers": "すべてのユーザーに無効化",
-  "passwordLoginModeHelp": "保存時にすべての Jellyfin ユーザーに適用されます。",
   "synchronizeProfileImagesLabel": "プロフィール画像を同期",
   "synchronizeProfileImagesHelp": "サインイン時にプロバイダーの picture クレームを使用します。",
   "rpInitiatedLogoutLabel": "RP 起点のログアウトを有効にする",

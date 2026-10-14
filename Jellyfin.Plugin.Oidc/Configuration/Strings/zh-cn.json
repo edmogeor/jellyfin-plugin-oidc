@@ -51,7 +51,6 @@
   "allowForAllUsers": "允许所有用户",
   "disableForLinkedUsersOnly": "仅为已关联用户禁用",
   "disableForAllUsers": "为所有用户禁用",
-  "passwordLoginModeHelp": "保存时应用于所有 Jellyfin 用户。",
   "synchronizeProfileImagesLabel": "同步个人资料图片",
   "synchronizeProfileImagesHelp": "登录时使用提供方的 picture 声明。",
   "rpInitiatedLogoutLabel": "启用 RP 发起的注销",

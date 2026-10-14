@@ -122,8 +122,8 @@
     const linkRequest = (session, path, options = {}) => fetch(oidcUrl + path, {
         ...options, cache: 'no-store', headers: { Authorization: `MediaBrowser Token="${session.token}"`, 'Content-Type': 'application/json' },
     });
-    function requestCurrentUser(token) {
-        return fetch(serverUrl + 'Users/Me', { headers: { Authorization: `MediaBrowser Token="${token}"` } });
+    function requestCurrentUser(token, signal) {
+        return fetch(serverUrl + 'Users/Me', { signal, headers: { Authorization: `MediaBrowser Token="${token}"` } });
     }
     let nativeLoginReady;
     let installingSession;
@@ -140,7 +140,7 @@
         installingSession = true;
         window.Dashboard.showLoadingMsg();
         try {
-            const response = await fetch(serverUrl + 'Users/Me', { signal: AbortSignal.timeout(10000), headers: { Authorization: `MediaBrowser Token="${handoff.session.accessToken}"` } });
+            const response = await requestCurrentUser(handoff.session.accessToken, AbortSignal.timeout(10000));
             if (!response.ok) throw new Error('Session handoff failed');
             const user = await response.json();
             await client.onAuthenticated(client, { User: user, ServerId: handoff.session.user.serverId, AccessToken: handoff.session.accessToken });
@@ -265,7 +265,9 @@
                 if (!state.PartialRevocation && !await confirmUnlink(state, true)) return;
                 if (!current()) return;
                 button.disabled = true;
-                const response = await linkRequest(session, state.PartialRevocation ? 'link/retry-sign-out' : 'link?version=' + state.Version, { method: state.PartialRevocation ? 'POST' : 'DELETE', ...(state.PartialRevocation ? { body: JSON.stringify({ Operation: state.UnlinkOperation }) } : {}) });
+                const response = state.PartialRevocation
+                    ? await linkRequest(session, 'link/retry-sign-out', { method: 'POST', body: JSON.stringify({ Operation: state.UnlinkOperation }) })
+                    : await linkRequest(session, 'link?version=' + state.Version, { method: 'DELETE' });
                 const me = await requestCurrentUser(session.token);
                 if (me.status === 401) { if (current()) returnToSignIn(session); return; }
                 if (!current()) return;
@@ -697,7 +699,7 @@
                 matchBy = select.value; input.type = matchBy === 'Email' ? 'email' : 'text'; input.maxLength = matchBy === 'Email' ? 320 : 1024;
                 help.textContent = profileStrings['admin' + matchBy + 'Help']; validate();
             };
-            input.type = matchBy === 'Email' ? 'email' : 'text'; input.value = value;
+            input.value = value;
             input.oninput = validate; select.onchange = update; update();
             form.append(selectContainer, inputContainer, help, message(profileStrings.adminApprovalHelp), cancel, submit);
             form.onsubmit = event => { event.preventDefault(); validate(); if (!submit.disabled) void mutate('/link-request', 'PUT', { Version: state.Version, [matchBy]: value }); };

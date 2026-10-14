@@ -24,10 +24,11 @@ public static class IdentityClaims
     )
     {
         identity = null;
-        var subject = ClaimValue(principal, "sub");
+        var subject = principal.FindFirst("sub")?.Value;
         var email =
-            bool.TryParse(ClaimValue(principal, "email_verified"), out var verified) && verified
-                ? ClaimValue(principal, "email")
+            bool.TryParse(principal.FindFirst("email_verified")?.Value, out var verified)
+            && verified
+                ? principal.FindFirst("email")?.Value
                 : null;
         if (
             string.IsNullOrWhiteSpace(subject)
@@ -79,9 +80,6 @@ public static class IdentityClaims
         );
         return true;
     }
-
-    private static string? ClaimValue(ClaimsPrincipal principal, string type) =>
-        principal.FindFirst(type)?.Value;
 
     private static IEnumerable<string> Groups(string value)
     {

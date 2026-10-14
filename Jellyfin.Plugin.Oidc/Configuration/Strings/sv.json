@@ -51,7 +51,6 @@
   "allowForAllUsers": "Tillåt för alla användare",
   "disableForLinkedUsersOnly": "Inaktivera endast för länkade användare",
   "disableForAllUsers": "Inaktivera för alla användare",
-  "passwordLoginModeHelp": "Tillämpas på alla Jellyfin-användare när du sparar.",
   "synchronizeProfileImagesLabel": "Synkronisera profilbilder",
   "synchronizeProfileImagesHelp": "Använd leverantörens picture-claim vid inloggning.",
   "rpInitiatedLogoutLabel": "Aktivera RP-initierad utloggning",

@@ -123,19 +123,19 @@ public sealed class OidcLinkController(
         return new
         {
             Name = user?.Username,
-            Provider = currentProvider ? configuration.Provider.ToString() : IdentityProviderType.Other.ToString(),
+            Provider = currentProvider
+                ? configuration.Provider.ToString()
+                : nameof(IdentityProviderType.Other),
             ProviderName = currentProvider ? configuration.ProviderName : string.Empty,
             Linked = link is not null,
             link?.Email,
             link?.Username,
             CanLink = EnabledConfiguration() is not null && link is null,
             CanUnlink = configuration.AllowSelfServiceLinking && link is not null,
-            PasswordLoginDisabled = configuration.PasswordLoginMode
-                == PasswordLoginMode.DisableForAllUsers
-                || (
-                    configuration.PasswordLoginMode == PasswordLoginMode.DisableForLinkedUsersOnly
-                    && link is not null
-                ),
+            PasswordLoginDisabled = PasswordLoginEnforcer.IsDisabled(
+                configuration,
+                link is not null
+            ),
             PasswordLoginMode = configuration.PasswordLoginMode.ToString(),
             state.Version,
             state.AutomaticReattachmentBlocked,

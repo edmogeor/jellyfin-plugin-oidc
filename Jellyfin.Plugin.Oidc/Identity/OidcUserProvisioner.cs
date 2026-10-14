@@ -15,33 +15,15 @@ using Microsoft.Extensions.Logging;
 namespace Jellyfin.Plugin.Oidc.Identity;
 
 /// <summary>Matches, provisions, and synchronizes Jellyfin Users after token validation.</summary>
-public sealed class OidcUserProvisioner
+public sealed class OidcUserProvisioner(
+    IUserManager userManager,
+    ICryptoProvider cryptoProvider,
+    OidcProfileImageSynchronizer profileImageSynchronizer,
+    ILogger<OidcUserProvisioner> logger,
+    IDbContextFactory<JellyfinDbContext> dbContextFactory,
+    IEventManager eventManager
+)
 {
-    private readonly ICryptoProvider _cryptoProvider;
-    private readonly ILogger<OidcUserProvisioner> _logger;
-    private readonly IDbContextFactory<JellyfinDbContext> _dbContextFactory;
-    private readonly IEventManager _eventManager;
-    private readonly OidcProfileImageSynchronizer _profileImageSynchronizer;
-    private readonly IUserManager _userManager;
-
-    /// <summary>Initializes a new instance of the <see cref="OidcUserProvisioner"/> class.</summary>
-    public OidcUserProvisioner(
-        IUserManager userManager,
-        ICryptoProvider cryptoProvider,
-        OidcProfileImageSynchronizer profileImageSynchronizer,
-        ILogger<OidcUserProvisioner> logger,
-        IDbContextFactory<JellyfinDbContext> dbContextFactory,
-        IEventManager eventManager
-    )
-    {
-        _userManager = userManager;
-        _cryptoProvider = cryptoProvider;
-        _profileImageSynchronizer = profileImageSynchronizer;
-        _logger = logger;
-        _dbContextFactory = dbContextFactory;
-        _eventManager = eventManager;
-    }
-
     /// <summary>Returns the eligible Jellyfin User ID, or <see langword="null"/> when denied.</summary>
     public async Task<Guid?> ProvisionAsync(
         ClaimsPrincipal principal,
@@ -66,7 +48,7 @@ public sealed class OidcUserProvisioner
                 || !IdentityClaims.TryCreate(principal, configuration, out var identity)
             )
             {
-                _logger.LogWarning(
+                logger.LogWarning(
                     "OIDC sign-in denied because configuration changed or required identity claims or allowed groups were absent."
                 );
                 return null;
@@ -111,7 +93,7 @@ public sealed class OidcUserProvisioner
             item.Subject == identity.Subject
             && (item.Issuer == issuer || string.IsNullOrEmpty(item.Issuer))
         );
-        var user = link is null ? null : _userManager.GetUserById(link.UserId);
+        var user = link is null ? null : userManager.GetUserById(link.UserId);
         if (link is not null && user is null)
         {
             configuration.IdentityLinks.Remove(link);
@@ -150,10 +132,10 @@ public sealed class OidcUserProvisioner
             )
                 return null;
             approval = reservations[0];
-            user = _userManager.GetUserById(approval.UserId);
+            user = userManager.GetUserById(approval.UserId);
             if (
                 user is null
-                || _userManager.GetUserDto(user).Policy.IsDisabled
+                || userManager.GetUserDto(user).Policy.IsDisabled
                 || configuration.IdentityLinks.Any(item => item.UserId == user.Id)
             )
                 return null;
@@ -165,7 +147,7 @@ public sealed class OidcUserProvisioner
             && string.IsNullOrEmpty(identity.Username)
         )
         {
-            _logger.LogWarning(
+            logger.LogWarning(
                 "OIDC sign-in denied because an unlinked identity requires a username or verified email for provisioning."
             );
             return null;
@@ -179,7 +161,7 @@ public sealed class OidcUserProvisioner
                 AutomaticLinkingMode.UsernameToUsername => identity.Username,
                 _ => string.Empty,
             };
-            var matches = _userManager
+            var matches = userManager
                 .GetUsers()
                 .Where(candidate =>
                     !string.IsNullOrEmpty(matchingValue)
@@ -192,7 +174,7 @@ public sealed class OidcUserProvisioner
                 .ToList();
             if (matches.Count > 1)
             {
-                _logger.LogWarning(
+                logger.LogWarning(
                     "OIDC sign-in denied because automatic matching found multiple Jellyfin Users."
                 );
                 return null;
@@ -209,7 +191,7 @@ public sealed class OidcUserProvisioner
             if (administration?.AutomaticReattachmentBlocked != true)
                 user = matched;
         }
-        if (user is not null && _userManager.GetUserDto(user).Policy.IsDisabled)
+        if (user is not null && userManager.GetUserDto(user).Policy.IsDisabled)
             return null;
         if (
             link is null
@@ -217,7 +199,7 @@ public sealed class OidcUserProvisioner
             && configuration.IdentityLinks.Any(item => item.UserId == user.Id)
         )
         {
-            _logger.LogWarning(
+            logger.LogWarning(
                 "OIDC sign-in denied because the matched Jellyfin User already has an Identity Link."
             );
             return null;
@@ -233,13 +215,13 @@ public sealed class OidcUserProvisioner
                     : identity.Username;
             if (string.IsNullOrEmpty(username))
             {
-                _logger.LogWarning(
+                logger.LogWarning(
                     "OIDC provisioning denied because the selected username source was unavailable."
                 );
                 return null;
             }
             if (
-                _userManager
+                userManager
                     .GetUsers()
                     .Any(candidate =>
                         string.Equals(
@@ -250,14 +232,14 @@ public sealed class OidcUserProvisioner
                     )
             )
             {
-                _logger.LogWarning(
+                logger.LogWarning(
                     "OIDC provisioning denied because the requested username is already used by a Jellyfin User."
                 );
                 return null;
             }
             user = await CreateUserAsync(username, configuration).ConfigureAwait(false);
             created = true;
-            _logger.LogInformation("Provisioned Jellyfin User for an eligible OIDC identity.");
+            logger.LogInformation("Provisioned Jellyfin User for an eligible OIDC identity.");
         }
 
         return (user, link, approval, created);
@@ -293,20 +275,20 @@ public sealed class OidcUserProvisioner
         var oldUsername = link.Username;
         try
         {
-            var policy = _userManager.GetUserDto(user).Policy;
+            var policy = userManager.GetUserDto(user).Policy;
             if (policy.IsAdministrator != identity.IsAdministrator)
             {
                 policy.IsAdministrator = identity.IsAdministrator;
-                await _userManager.UpdatePolicyAsync(user.Id, policy).ConfigureAwait(false);
-                _logger.LogInformation(
+                await userManager.UpdatePolicyAsync(user.Id, policy).ConfigureAwait(false);
+                logger.LogInformation(
                     "Synchronized Jellyfin administrator status from OIDC group membership."
                 );
             }
 
             await PasswordLoginEnforcer
-                .EnforceAsync(_userManager, user, configuration, _logger)
+                .EnforceAsync(userManager, user, configuration, logger)
                 .ConfigureAwait(false);
-            user = _userManager.GetUserById(user.Id);
+            user = userManager.GetUserById(user.Id);
             if (user is null)
             {
                 throw new InvalidOperationException(
@@ -316,7 +298,7 @@ public sealed class OidcUserProvisioner
 
             if (configuration.SynchronizeProfileImages)
             {
-                await _profileImageSynchronizer
+                await profileImageSynchronizer
                     .SynchronizeAsync(user, link, principal.FindFirst("picture")?.Value, issuer)
                     .ConfigureAwait(false);
             }
@@ -344,12 +326,12 @@ public sealed class OidcUserProvisioner
             if (newLink)
             {
                 configuration.IdentityLinks.Remove(link);
-                var currentUser = _userManager.GetUserById(link.UserId);
+                var currentUser = userManager.GetUserById(link.UserId);
                 if (created && currentUser is not null)
-                    await _userManager.DeleteUserAsync(currentUser.Id).ConfigureAwait(false);
+                    await userManager.DeleteUserAsync(currentUser.Id).ConfigureAwait(false);
                 else if (currentUser is not null)
                     await PasswordLoginEnforcer
-                        .EnforceAsync(_userManager, currentUser, configuration, _logger)
+                        .EnforceAsync(userManager, currentUser, configuration, logger)
                         .ConfigureAwait(false);
             }
             throw;
@@ -375,14 +357,14 @@ public sealed class OidcUserProvisioner
         try
         {
             var configuration = plugin.Configuration;
-            var user = _userManager.GetUserById(userId);
+            var user = userManager.GetUserById(userId);
             if (
                 !ReferenceEquals(configuration, authenticatedConfiguration)
                 || !configuration.Enabled
                 || !configuration.AllowSelfServiceLinking
                 || (expectedRevision.HasValue && expectedRevision != configuration.IdentityRevision)
                 || user is null
-                || _userManager.GetUserDto(user).Policy.IsDisabled
+                || userManager.GetUserDto(user).Policy.IsDisabled
                 || !IdentityClaims.TryCreate(principal, configuration, out var identity)
             )
             {
@@ -459,7 +441,7 @@ public sealed class OidcUserProvisioner
             try
             {
                 await PasswordLoginEnforcer
-                    .EnforceAsync(_userManager, user, configuration, _logger)
+                    .EnforceAsync(userManager, user, configuration, logger)
                     .ConfigureAwait(false);
                 link.Issuer = issuer;
                 UpdateLinkMetadata(link, identity);
@@ -482,11 +464,11 @@ public sealed class OidcUserProvisioner
                 if (existing is null)
                 {
                     configuration.IdentityLinks.Remove(link);
-                    var currentUser = _userManager.GetUserById(userId);
+                    var currentUser = userManager.GetUserById(userId);
                     if (currentUser is not null)
                     {
                         await PasswordLoginEnforcer
-                            .EnforceAsync(_userManager, currentUser, configuration, _logger)
+                            .EnforceAsync(userManager, currentUser, configuration, logger)
                             .ConfigureAwait(false);
                     }
                 }
@@ -513,8 +495,8 @@ public sealed class OidcUserProvisioner
 
     private void EnsureUserAvailable(Guid userId)
     {
-        var user = _userManager.GetUserById(userId);
-        if (user is null || _userManager.GetUserDto(user).Policy.IsDisabled)
+        var user = userManager.GetUserById(userId);
+        if (user is null || userManager.GetUserDto(user).Policy.IsDisabled)
         {
             throw new InvalidOperationException("The target Jellyfin User is unavailable.");
         }
@@ -536,10 +518,10 @@ public sealed class OidcUserProvisioner
             );
         }
 
-        var password = _cryptoProvider
+        var password = cryptoProvider
             .CreatePasswordHash(Convert.ToBase64String(RandomNumberGenerator.GetBytes(64)))
             .ToString();
-        await using var dbContext = await _dbContextFactory
+        await using var dbContext = await dbContextFactory
             .CreateDbContextAsync()
             .ConfigureAwait(false);
         var user = new User(
@@ -566,11 +548,11 @@ public sealed class OidcUserProvisioner
         await dbContext.SaveChangesAsync().ConfigureAwait(false);
         try
         {
-            await _eventManager.PublishAsync(new UserCreatedEventArgs(user)).ConfigureAwait(false);
+            await eventManager.PublishAsync(new UserCreatedEventArgs(user)).ConfigureAwait(false);
         }
         catch
         {
-            await _userManager.DeleteUserAsync(user.Id).ConfigureAwait(false);
+            await userManager.DeleteUserAsync(user.Id).ConfigureAwait(false);
             throw;
         }
         return user;

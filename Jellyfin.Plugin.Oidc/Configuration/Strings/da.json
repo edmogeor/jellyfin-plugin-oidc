@@ -51,7 +51,6 @@
   "allowForAllUsers": "Tillad for alle brugere",
   "disableForLinkedUsersOnly": "Deaktiver kun for tilknyttede brugere",
   "disableForAllUsers": "Deaktiver for alle brugere",
-  "passwordLoginModeHelp": "Anvendes på alle Jellyfin-brugere, når der gemmes.",
   "synchronizeProfileImagesLabel": "Synkroniser profilbilleder",
   "synchronizeProfileImagesHelp": "Brug udbyderens picture-claim ved login.",
   "rpInitiatedLogoutLabel": "Aktivér RP-initieret logout",
