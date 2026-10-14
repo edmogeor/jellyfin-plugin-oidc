@@ -9,6 +9,14 @@
     "owner": "jellyfin",
     "versions": [
       {
+        "changelog": "### Changed\n\n- Align the OIDC configuration page width and spacing with Jellyfin's native settings layout, and remove redundant password-policy help text.\n- Simplify OIDC sign-in, linking, logout, and profile-image flows, share browser session helpers and local-password policy checks, and streamline service constructors.\n\n",
+        "checksum": "1abb1cbaf110514a2c0e085b53b2c4c4",
+        "sourceUrl": "https://github.com/edmogeor/jellyfin-plugin-oidc/releases/download/v0.3.3.0/oidc-authentication_0.3.3.0.zip",
+        "targetAbi": "12.0.0.0",
+        "timestamp": "2026-10-14T19:25:27Z",
+        "version": "0.3.3.0"
+      },
+      {
         "changelog": "### Changed\n\n- Replace build-specific webpack hooks with page IDs and semantic controls for the administrator OIDC tab, preserving approvals, unlinking, recovery, and native navigation.\n- Anchor the Provider profile card to existing read-only content rather than padding classes.\n\n### Fixed\n\n- Load settings when returning to the configuration page without a browser refresh, and prevent detached pages from updating the current form.\n- Center the sign-in icon and label using a full-width flex layout.\n- Restore native tabs' accessible selection state when leaving OIDC and keep the selected OIDC tab visible on narrow screens.\n- Wait for the login view before displaying sign-in errors so notifications survive initial page rendering.\n\n",
         "checksum": "ecf98ff7b96eed4f578e353e8b04ce1a",
         "sourceUrl": "https://github.com/edmogeor/jellyfin-plugin-oidc/releases/download/v0.3.2.0/oidc-authentication_0.3.2.0.zip",
@@ -239,14 +247,6 @@
         "targetAbi": "12.0.0.0",
         "timestamp": "2026-09-16T17:50:49Z",
         "version": "0.1.7.0"
-      },
-      {
-        "changelog": "\n- Apply saved OIDC settings without restarting Jellyfin.\n\n",
-        "checksum": "cfdf5e8c8e4c542ce2c004429666d535",
-        "sourceUrl": "https://github.com/edmogeor/jellyfin-plugin-oidc/releases/download/v0.1.6.0/oidc-authentication_0.1.6.0.zip",
-        "targetAbi": "12.0.0.0",
-        "timestamp": "2026-09-16T16:37:21Z",
-        "version": "0.1.6.0"
       }
     ]
   }
