@@ -95,6 +95,7 @@
   "adminApprove": "Koppelen bij volgende aanmelding",
   "adminEdit": "Goedkeuring bewerken",
   "adminCancelRequest": "Goedkeuring intrekken",
+  "adminCancel": "Annuleren",
   "adminSave": "Koppeling goedkeuren",
   "adminUnlink": "Account ontkoppelen",
   "adminRetrySignOut": "Afmelden opnieuw proberen",

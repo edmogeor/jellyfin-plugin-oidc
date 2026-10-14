@@ -95,6 +95,7 @@
   "adminApprove": "Tilknyt ved næste login",
   "adminEdit": "Rediger godkendelse",
   "adminCancelRequest": "Annuller godkendelse",
+  "adminCancel": "Annuller",
   "adminSave": "Godkend tilknytning",
   "adminUnlink": "Fjern tilknytning",
   "adminRetrySignOut": "Prøv log ud igen",

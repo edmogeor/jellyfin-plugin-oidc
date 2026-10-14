@@ -95,6 +95,7 @@
   "adminApprove": "Bei nächster Anmeldung verknüpfen",
   "adminEdit": "Genehmigung bearbeiten",
   "adminCancelRequest": "Genehmigung aufheben",
+  "adminCancel": "Abbrechen",
   "adminSave": "Verknüpfung genehmigen",
   "adminUnlink": "Verknüpfung entfernen",
   "adminRetrySignOut": "Abmeldung erneut versuchen",

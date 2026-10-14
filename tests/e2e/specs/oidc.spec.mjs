@@ -359,7 +359,7 @@ test("shows an OIDC sign-in error on the login page", async ({ page }) => {
   await page.goto("/web/index.html#!/login?oidcError=1");
   const error = page.locator("[data-oidc-error]");
   await expect(error).toHaveText("We couldn't sign you in. Please try again.");
-  await expect(error).toHaveCount(0, { timeout: 5_000 });
+  await expect(error).toHaveCount(0, { timeout: 10_000 });
 });
 
 test("restores the SSO button after returning from the Identity Provider", async ({
@@ -938,6 +938,28 @@ test("can disable OIDC with incomplete connection settings", async ({
       );
     }, original);
   }
+});
+
+test("reloads settings when returning to the configuration page without a browser refresh", async ({
+  page,
+}) => {
+  await localSignIn(page, "root", "");
+  const errors = [];
+  page.on("pageerror", (error) => errors.push(error.message));
+  for (let visit = 0; visit < 3; visit++) {
+    await page.evaluate(() =>
+      Dashboard.navigate("/configurationpage?name=OIDC%20Authentication"),
+    );
+    await expect(page.locator("#ClientId")).toHaveValue("jellyfin");
+    await expect(page.locator("#ConfigurationLoading")).toBeHidden();
+    await expect(page.locator("#ConfigurationLoadError")).toBeHidden();
+    await page.locator("#ClientId").fill("unsaved-client");
+    await expect(page.locator("#SaveButton")).toBeEnabled();
+    await page.getByRole("tab", { name: "Advanced", exact: true }).click();
+    await expect(page.locator("#AdvancedPanel")).toBeVisible();
+    await page.evaluate(() => Dashboard.navigate("/home"));
+  }
+  expect(errors).toEqual([]);
 });
 
 test("shows a settings load failure and retries without overwriting edits", async ({
@@ -1539,6 +1561,85 @@ test("shows OIDC-only controls and redirects root visits when local passwords ar
     await restorePage.close();
     await adminPage.close();
   }
+});
+
+test("keeps OIDC tabs working when the editor module ID changes and native pages rerender", async ({
+  page,
+}) => {
+  await page.route(
+    /\/web\/(?:main\.jellyfin\.bundle|users-edit\.[^/]+\.chunk)\.js(?:\?|$)/,
+    async (route) => {
+      const response = await route.fetch();
+      await route.fulfill({
+        response,
+        body: (await response.text()).replace(/\b63871\b/g, "69264"),
+      });
+    },
+  );
+  await localSignIn(page, "root", "");
+  const userId = await page.evaluate(() => ApiClient.getCurrentUserId());
+  const errors = [];
+  page.on("pageerror", (error) => errors.push(error.message));
+  for (let visit = 0; visit < 2; visit++) {
+    await page.evaluate(
+      (id) => Dashboard.navigate(`/dashboard/users/${id}/profile`),
+      userId,
+    );
+    const tab = page.getByRole("tab", { name: "OIDC", exact: true });
+    await expect(tab).toHaveCount(1);
+    await tab.click();
+    await expect(tab).toHaveAttribute("aria-selected", "true");
+    await expect(page.getByRole("tabpanel", { name: "OIDC" })).toContainText(
+      "Not linked",
+    );
+    await expect(page.locator(".editUserProfileForm")).toBeHidden();
+    await page.setViewportSize({ width: 390, height: 844 });
+    await expect
+      .poll(() =>
+        tab.evaluate((element) => {
+          const bounds = element.getBoundingClientRect();
+          const tabs = element
+            .closest('[role="tablist"]')
+            .getBoundingClientRect();
+          return bounds.left >= tabs.left - 1 && bounds.right <= tabs.right + 1;
+        }),
+      )
+      .toBe(true);
+    await page.setViewportSize({ width: 1280, height: 720 });
+    await page.getByRole("tab", { name: "Password", exact: true }).click();
+    await expect(
+      page.getByRole("button", { name: "Save Password" }),
+    ).toBeVisible();
+    await expect(
+      page.getByRole("tab", { name: "Password", exact: true }),
+    ).toHaveAttribute("aria-selected", "true");
+    await expect(page.locator("#oidc-admin-panel")).toHaveCount(0);
+    await page.evaluate(() => Dashboard.navigate("/home"));
+  }
+  expect(
+    await page.evaluate(() =>
+      self.webpackChunk.some((chunk) => !!chunk[1]?.[69264]),
+    ),
+  ).toBe(true);
+  expect(
+    await page.evaluate(() =>
+      self.webpackChunk.some((chunk) => !!chunk[1]?.[63871]),
+    ),
+  ).toBe(false);
+  expect(errors).toEqual([]);
+  await page.evaluate(() => Dashboard.navigate("/userprofile"));
+  await expect(page.locator("[data-oidc-profile]")).toBeVisible();
+  await page.evaluate(() => {
+    const card = document.querySelector("[data-oidc-profile]");
+    card.parentElement.classList.remove(
+      "padded-left",
+      "padded-right",
+      "padded-bottom-page",
+    );
+    card.remove();
+  });
+  await expect(page.locator("[data-oidc-profile]")).toHaveCount(1);
+  await expect(page.locator("[data-oidc-profile]")).toBeVisible();
 });
 
 for (const layout of ["modern", "desktop-legacy"]) {

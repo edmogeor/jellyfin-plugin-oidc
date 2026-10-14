@@ -95,6 +95,7 @@
   "adminApprove": "Powiąż przy następnym logowaniu",
   "adminEdit": "Edytuj zgodę",
   "adminCancelRequest": "Cofnij zgodę",
+  "adminCancel": "Anuluj",
   "adminSave": "Zatwierdź powiązanie",
   "adminUnlink": "Odłącz konto",
   "adminRetrySignOut": "Ponów wylogowanie",

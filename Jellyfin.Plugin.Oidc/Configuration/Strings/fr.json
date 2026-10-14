@@ -95,6 +95,7 @@
   "adminApprove": "Associer à la prochaine connexion",
   "adminEdit": "Modifier l’autorisation",
   "adminCancelRequest": "Annuler l’autorisation",
+  "adminCancel": "Annuler",
   "adminSave": "Autoriser l’association",
   "adminUnlink": "Dissocier le compte",
   "adminRetrySignOut": "Réessayer la déconnexion",

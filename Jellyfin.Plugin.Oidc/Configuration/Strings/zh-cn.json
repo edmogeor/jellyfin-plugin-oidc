@@ -95,6 +95,7 @@
   "adminApprove": "下次登录时关联",
   "adminEdit": "编辑批准",
   "adminCancelRequest": "取消批准",
+  "adminCancel": "取消",
   "adminSave": "批准关联",
   "adminUnlink": "解除账户关联",
   "adminRetrySignOut": "重试退出登录",

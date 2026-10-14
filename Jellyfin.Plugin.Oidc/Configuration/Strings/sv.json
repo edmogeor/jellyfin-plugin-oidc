@@ -95,6 +95,7 @@
   "adminApprove": "Länka vid nästa inloggning",
   "adminEdit": "Redigera godkännande",
   "adminCancelRequest": "Återkalla godkännande",
+  "adminCancel": "Avbryt",
   "adminSave": "Godkänn länkning",
   "adminUnlink": "Ta bort kontolänk",
   "adminRetrySignOut": "Försök logga ut igen",

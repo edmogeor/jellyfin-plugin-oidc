@@ -95,6 +95,7 @@
   "adminApprove": "Linkitä seuraavalla kirjautumisella",
   "adminEdit": "Muokkaa hyväksyntää",
   "adminCancelRequest": "Peru hyväksyntä",
+  "adminCancel": "Peruuta",
   "adminSave": "Hyväksy linkitys",
   "adminUnlink": "Poista tilin linkitys",
   "adminRetrySignOut": "Yritä uloskirjautumista uudelleen",

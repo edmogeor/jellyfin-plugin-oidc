@@ -95,6 +95,7 @@
   "adminApprove": "다음 로그인 시 연결",
   "adminEdit": "승인 수정",
   "adminCancelRequest": "승인 취소",
+  "adminCancel": "취소",
   "adminSave": "연결 승인",
   "adminUnlink": "계정 연결 해제",
   "adminRetrySignOut": "로그아웃 재시도",

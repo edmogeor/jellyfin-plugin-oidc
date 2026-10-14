@@ -95,6 +95,7 @@
   "adminApprove": "Привязать при следующем входе",
   "adminEdit": "Изменить одобрение",
   "adminCancelRequest": "Отменить одобрение",
+  "adminCancel": "Отмена",
   "adminSave": "Одобрить привязку",
   "adminUnlink": "Отвязать учётную запись",
   "adminRetrySignOut": "Повторить выход",

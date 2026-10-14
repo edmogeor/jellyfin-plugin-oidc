@@ -36,7 +36,7 @@
     };
     const profileStrings = /* @english-strings */ {};
     const uiStyle = document.createElement('style');
-    uiStyle.textContent = '.formDialogHeader.justify-content-center > .formDialogHeaderTitle { margin-inline: 0; } #oidc-admin-panel .emby-button .material-icons { font-size: 1.2em; margin-inline-end: 0.4em; } #oidc-admin-panel button:disabled, #oidc-admin-panel button:disabled:hover { background: var(--jf-palette-action-disabledBackground); color: var(--jf-palette-text-disabled); opacity: 0.5; cursor: not-allowed; box-shadow: none; transform: none; } .oidc-login-content { display: inline-flex; align-items: center; justify-content: center; gap: 0.5em; max-width: 100%; } [data-oidc-login-label], [data-oidc-profile-name], [data-oidc-admin-provider-name] { min-width: 0; overflow-wrap: anywhere; } .oidc-provider-icon { display: inline-block; width: 1.25em; height: 1.25em; flex-shrink: 0; color: inherit; } .oidc-provider-icon:not(.material-icons) { background-color: currentColor; } .oidc-provider-icon.material-icons { font-size: 1.25em; width: 1em; height: 1em; line-height: 1; } .oidc-admin-status-line { display: flex; align-items: center; flex-wrap: wrap; gap: 0.75em; } .oidc-admin-provider { display: inline-flex; align-items: center; gap: 0.5em; min-width: 0; max-width: 100%; padding-inline-end: 0.75em; border-inline-end: 1px solid var(--jf-palette-divider); color: var(--jf-palette-text-primary, inherit); }';
+    uiStyle.textContent = '.formDialogHeader.justify-content-center > .formDialogHeaderTitle { margin-inline: 0; } #oidc-admin-panel .emby-button .material-icons { font-size: 1.2em; margin-inline-end: 0.4em; } #oidc-admin-panel button:disabled, #oidc-admin-panel button:disabled:hover { background: var(--jf-palette-action-disabledBackground); color: var(--jf-palette-text-disabled); opacity: 0.5; cursor: not-allowed; box-shadow: none; transform: none; } .oidc-login-content { display: flex; align-items: center; justify-content: center; gap: 0.5em; max-width: 100%; } [data-oidc-login-label], [data-oidc-profile-name], [data-oidc-admin-provider-name] { min-width: 0; overflow-wrap: anywhere; } .oidc-provider-icon { display: inline-block; width: 1.25em; height: 1.25em; flex-shrink: 0; color: inherit; } .oidc-provider-icon:not(.material-icons) { background-color: currentColor; } .oidc-provider-icon.material-icons { font-size: 1.25em; width: 1em; height: 1em; line-height: 1; } .oidc-admin-status-line { display: flex; align-items: center; flex-wrap: wrap; gap: 0.75em; } .oidc-admin-provider { display: inline-flex; align-items: center; gap: 0.5em; min-width: 0; max-width: 100%; padding-inline-end: 0.75em; border-inline-end: 1px solid var(--jf-palette-divider); color: var(--jf-palette-text-primary, inherit); }';
     document.head.append(uiStyle);
     function updateLoginPresentation(button) {
         const text = loginLabel();
@@ -124,7 +124,7 @@
     let nativeLoginReady;
     let installingSession;
     document.addEventListener('viewshow', event => {
-        if (event.target.id === 'loginPage') { nativeLoginReady = true; void installSession(); }
+        if (event.target.id === 'loginPage') { nativeLoginReady = true; void installSession(); queueMicrotask(showError); }
         if (window.oidcHandoff) queueMicrotask(() => { if (window.oidcHandoff) window.Dashboard?.showLoadingMsg(); });
     }, true);
     async function installSession() {
@@ -184,7 +184,7 @@
         const session = activeSession();
         const route = profileRoute();
         const requestedUser = route?.searchParams.get('userId');
-        const content = document.querySelector('#userProfilePage .padded-left.padded-right.padded-bottom-page');
+        const content = document.querySelector('#userProfilePage .readOnlyContent')?.parentElement;
         if (!session || !route || !content || (requestedUser && !sameUser(requestedUser, session.userId))) {
             profileSection?.remove(); profileSection = null;
             restoreProfilePasswords();
@@ -424,7 +424,7 @@
             shownError = false;
             return;
         }
-        if (!isLoginPage() || document.querySelector('[data-oidc-error]') || shownError) return;
+        if (!nativeLoginReady || !isLoginPage() || document.querySelector('[data-oidc-error]') || shownError) return;
         shownError = true;
         const message = linkNotification(profileStrings.signInError, true, 5000);
         message.dataset.oidcError = 'true';
@@ -525,206 +525,222 @@
     void redirectToProvider();
     void configure();
 
-    // Jellyfin 12 has no dashboard tab-extension hook. Wrap its existing editor at chunk registration,
-    // keeping the native React tree, theme, router, Tabs/Tab, inputs, buttons, dialog, and Toast.
-    // These module IDs are verified against the pinned Jellyfin 12 test image.
-    const installAdminEditor = (module, exports, require, originalFactory) => {
-        originalFactory(module, exports, require);
-        const Original = module.exports.Component;
-        const React = require(63696);
-        const h = React.createElement;
-        const Tabs = require(26445).A;
-        const Tab = require(4994).A;
-        const Stack = require(70140).A;
-        const Alert = require(47891).A;
-        const Input = require(42301).A;
-        const Button = require(50723).A;
-        const Loading = require(84849).A;
-        const Toast = require(45228).A;
-        const globalize = require(5898).Ay;
-        if (typeof Original !== 'function' || typeof React.createElement !== 'function'
-            || !Tabs || !Tab || !Stack || !Alert || !Input || !Button || !Loading || !Toast || typeof globalize?.translate !== 'function') {
-            throw new Error('Unsupported Jellyfin Web editor modules');
+    let adminEditor;
+    const adminRoute = () => {
+        const route = new URL(location.hash.replace(/^#!?/, ''), location.origin);
+        const match = route.pathname.match(/^\/dashboard\/users\/([a-f\d-]+)\/[^/]+$/i);
+        return match ? { userId: match[1], selected: route.searchParams.get('oidc') === '1' } : null;
+    };
+    function clearAdminEditor() {
+        if (!adminEditor) return;
+        adminEditor.tab?.remove(); adminEditor.panel?.remove();
+        adminEditor.page.removeAttribute('data-oidc-admin-selected');
+        adminEditor.page.querySelectorAll('.oidc-admin-native-hidden').forEach(element => element.classList.remove('oidc-admin-native-hidden'));
+        for (const tab of adminEditor.nativeSelection) {
+            const selected = tab.classList.contains('Mui-selected');
+            tab.setAttribute('aria-selected', String(selected)); tab.tabIndex = selected ? 0 : -1;
         }
-        const adminStrings = profileStrings;
-        const text = key => adminStrings[key];
-        const cancelText = () => globalize.translate('ButtonCancel');
-        const Panel = ({ userId, session }) => {
-            const [state, setState] = React.useState(null);
-            const [error, setError] = React.useState('');
-            const [busy, setBusy] = React.useState(false);
-            const [editing, setEditing] = React.useState(false);
-            const [matchBy, setMatchBy] = React.useState('Subject');
-            const [value, setValue] = React.useState('');
-            const [valueValid, setValueValid] = React.useState(false);
-            const [toast, setToast] = React.useState('');
-            const selectContainer = React.useRef(null);
-            const alive = React.useRef(true);
-            React.useEffect(() => {
-                const input = document.getElementById('oidc-admin-value');
-                setValueValid(!!value.trim() && !!input?.validity.valid && input.value.length <= input.maxLength);
-            }, [editing, matchBy, value]);
-            React.useEffect(() => {
-                const container = selectContainer.current;
-                if (!container) return;
-                let select = container.querySelector('select');
-                if (!select) {
-                    // Jellyfin's customized built-in uses the legacy registration API, as its native SelectElement does.
-                    select = document.createElement('select', 'emby-select');
-                    select.id = 'oidc-admin-match-by'; select.setAttribute('label', text('adminMatchBy'));
-                    for (const kind of ['Subject', 'Email', 'Username']) {
-                        const option = document.createElement('option'); option.value = kind; option.textContent = text('admin' + kind); select.append(option);
-                    }
-                    container.append(select);
+        adminEditor = null;
+    }
+    function updateAdminEditor() {
+        const route = adminRoute();
+        const session = activeSession();
+        const page = document.getElementById('usersEditPage');
+        const tabs = page?.querySelector('[role="tablist"]');
+        if (!route || !session || !tabs) { clearAdminEditor(); return; }
+        if (!adminEditor || adminEditor.page !== page || adminEditor.tabs !== tabs
+            || adminEditor.userId !== route.userId || adminEditor.session.token !== session.token) {
+            clearAdminEditor();
+            const editor = { page, tabs, userId: route.userId, session, nativeSelection: new Set() };
+            adminEditor = editor;
+            void requestCurrentUser(session.token).then(response => response.ok ? response.json() : null).then(user => {
+                if (adminEditor !== editor || activeSession()?.token !== session.token) return;
+                editor.allowed = user?.Policy?.IsAdministrator === true;
+                updateAdminEditor();
+            }).catch(() => {});
+        }
+        const editor = adminEditor;
+        if (!editor.allowed) return;
+        const selectionChanged = editor.selected !== route.selected;
+        editor.selected = route.selected;
+        let tabBar = tabs;
+        while (tabBar.parentElement && !tabBar.parentElement.querySelector(':scope > h1')) tabBar = tabBar.parentElement;
+        if (!tabBar.parentElement || !page.contains(tabBar)) return;
+        if (!editor.tab?.isConnected) {
+            const nativeTab = tabs.querySelector('[role="tab"]');
+            if (!nativeTab) return;
+            const tab = nativeTab.cloneNode(false);
+            tab.id = 'oidc-admin-tab'; tab.textContent = 'OIDC'; tab.type = 'button';
+            tab.removeAttribute('aria-labelledby'); tab.setAttribute('aria-controls', 'oidc-admin-panel');
+            tab.onclick = event => { event.stopPropagation(); location.hash = '/dashboard/users/' + route.userId + '/profile?oidc=1'; };
+            editor.tab = tab; tabs.append(tab);
+        }
+        page.toggleAttribute('data-oidc-admin-selected', route.selected);
+        editor.tab.setAttribute('aria-selected', String(route.selected));
+        editor.tab.tabIndex = route.selected ? 0 : -1;
+        editor.tab.classList.toggle('Mui-selected', route.selected);
+        const nativeTabs = [...tabs.querySelectorAll('[role="tab"]')].filter(tab => tab !== editor.tab);
+        if (route.selected) {
+            for (const tab of nativeTabs) {
+                editor.nativeSelection.add(tab);
+                tab.setAttribute('aria-selected', 'false'); tab.tabIndex = -1;
+            }
+            if (!editor.panel?.isConnected) mountAdminPanel(editor, tabBar.parentElement);
+        } else {
+            for (const tab of editor.nativeSelection) {
+                const selected = tab.classList.contains('Mui-selected');
+                tab.setAttribute('aria-selected', String(selected)); tab.tabIndex = selected ? 0 : -1;
+            }
+            editor.nativeSelection.clear(); editor.panel?.remove(); editor.panel = null;
+        }
+        let afterTabs = false;
+        for (const child of tabBar.parentElement.children) {
+            if (child === tabBar) afterTabs = true;
+            else if (afterTabs && child !== editor.panel) child.classList.toggle('oidc-admin-native-hidden', route.selected);
+        }
+        if (selectionChanged) revealAdminTab();
+    }
+    function revealAdminTab() {
+        if (!adminEditor?.selected || !adminEditor.tab?.isConnected) return;
+        const { tabs, tab } = adminEditor;
+        tabs.scrollLeft = Math.max(0, tab.offsetLeft + tab.offsetWidth - tabs.clientWidth);
+    }
+    function mountAdminPanel(editor, content) {
+        const { userId, session } = editor;
+        const panel = document.createElement('section'); editor.panel = panel;
+        panel.id = 'oidc-admin-panel'; panel.className = 'readOnlyContent'; panel.dataset.oidcAdmin = userId;
+        panel.setAttribute('role', 'tabpanel'); panel.setAttribute('aria-labelledby', 'oidc-admin-tab');
+        content.append(panel);
+        const current = () => adminEditor === editor && editor.panel === panel && panel.isConnected
+            && activeSession()?.token === session.token && adminRoute()?.selected;
+        const path = 'admin/users/' + encodeURIComponent(userId);
+        let state, error = '', busy = false, editing = false, matchBy = 'Subject', value = '';
+        const node = (tag, text = '', className = '') => {
+            const element = document.createElement(tag); element.textContent = text; element.className = className; return element;
+        };
+        const message = (text, alert = false) => {
+            const element = node('p', text, 'fieldDescription'); if (alert) element.setAttribute('role', 'alert'); return element;
+        };
+        const button = (key, onClick, icon = '', className = 'raised') => {
+            const element = node('button', '', 'emby-button ' + className); element.type = 'button'; element.setAttribute('is', 'emby-button');
+            element.style.alignSelf = 'flex-start'; element.disabled = busy;
+            if (icon) { const glyph = node('span', icon, 'material-icons'); glyph.setAttribute('aria-hidden', 'true'); element.append(glyph); }
+            element.append(node('span', profileStrings[key])); element.onclick = onClick; return element;
+        };
+        const setBusy = value => {
+            busy = value; panel.setAttribute('aria-busy', String(busy));
+            if (busy) panel.querySelectorAll('button, input, select').forEach(element => { element.disabled = true; });
+        };
+        async function load() {
+            setBusy(true); error = ''; state = null; editing = false; render();
+            try {
+                Object.assign(profileStrings, await loadStrings());
+                if (!current()) return;
+                const response = await linkRequest(session, path);
+                if (!response.ok) throw new Error('Link status unavailable');
+                const result = await response.json();
+                if (current()) state = result;
+            } catch { if (current()) error = profileStrings.linkStatusError; }
+            finally { if (current()) { setBusy(false); render(); } }
+        }
+        async function mutate(suffix, method, data) {
+            if (!current() || busy) return;
+            setBusy(true); error = '';
+            try {
+                const response = await linkRequest(session, path + suffix, { method, ...(data ? { body: JSON.stringify(data) } : {}) });
+                if (suffix.startsWith('/link?') || suffix === '/retry-sign-out') {
+                    const me = await requestCurrentUser(session.token);
+                    if (me.status === 401) { if (current()) returnToSignIn(session); return; }
                 }
-                select.value = matchBy; select.disabled = busy;
-                const change = () => setMatchBy(select.value);
-                select.addEventListener('change', change);
-                return () => select.removeEventListener('change', change);
-            }, [editing, matchBy, busy]);
-            const current = () => alive.current && activeSession()?.token === session.token;
-            const path = 'admin/users/' + encodeURIComponent(userId);
-            const load = async () => {
-                setBusy(true); setError(''); setState(null); setEditing(false);
-                try {
-                    Object.assign(adminStrings, await loadStrings());
-                    const response = await linkRequest(session, path);
-                    if (!response.ok) throw new Error();
-                    const value = await response.json();
-                    if (current()) setState(value);
-                } catch { if (current()) setError(text('linkStatusError')); }
-                finally { if (current()) setBusy(false); }
+                if (!current()) return;
+                if (!response.ok) { error = profileStrings[response.status === 409 ? 'adminConflict' : 'adminError']; return; }
+                const result = await response.json();
+                if (!current()) return;
+                state = result; editing = false;
+                let outcome = 'adminSignedOut';
+                if (suffix === '/link-request') outcome = 'adminApproved';
+                else if (suffix.startsWith('/link-request?')) outcome = 'adminCancelled';
+                else if (suffix.startsWith('/link?')) outcome = 'adminUnlinked';
+                linkNotification(profileStrings[result.PartialRevocation && outcome === 'adminSignedOut' ? 'adminPartial' : outcome]);
+            } catch { if (current()) error = profileStrings.adminError; }
+            finally { if (current()) { setBusy(false); render(); } }
+        }
+        function approve() {
+            matchBy = state.Request ? approvalCriterion(state.Request) : 'Subject';
+            value = state.Request?.Subject || state.Request?.Email || state.Request?.Username || '';
+            editing = true; render(); panel.querySelector('#oidc-admin-value').focus();
+        }
+        async function unlink() {
+            try { if (!await confirmUnlink(state, sameUser(userId, session.userId))) return; }
+            catch { return; }
+            if (!current()) return;
+            await mutate('/link?version=' + state.Version, 'DELETE');
+            if (current()) (panel.querySelector(':scope > button:not(:disabled)') || editor.tab).focus();
+        }
+        function approvalForm() {
+            const form = node('form');
+            const selectContainer = node('div', '', 'selectContainer');
+            const select = document.createElement('select', 'emby-select');
+            select.id = 'oidc-admin-match-by'; select.setAttribute('label', profileStrings.adminMatchBy);
+            for (const kind of ['Subject', 'Email', 'Username']) {
+                const option = node('option', profileStrings['admin' + kind]); option.value = kind; select.append(option);
+            }
+            select.value = matchBy; select.disabled = busy; selectContainer.append(select);
+            const inputContainer = node('div', '', 'inputContainer');
+            const label = node('label', profileStrings.adminValue, 'inputLabel'); label.htmlFor = 'oidc-admin-value';
+            const input = node('input', '', 'emby-input'); input.id = 'oidc-admin-value'; input.required = true; input.disabled = busy;
+            input.setAttribute('aria-describedby', 'oidc-admin-match-help'); inputContainer.append(label, input);
+            const help = message(''); help.id = 'oidc-admin-match-help';
+            const cancel = button('adminCancel', () => { editing = false; render(); });
+            const submit = button('adminSave', null, '', 'raised button-submit'); submit.type = 'submit';
+            const validate = () => { value = input.value; submit.disabled = busy || !value.trim() || !input.validity.valid || value.length > input.maxLength; };
+            const update = () => {
+                matchBy = select.value; input.type = matchBy === 'Email' ? 'email' : 'text'; input.maxLength = matchBy === 'Email' ? 320 : 1024;
+                help.textContent = profileStrings['admin' + matchBy + 'Help']; validate();
             };
-            React.useEffect(() => { alive.current = true; void load(); return () => { alive.current = false; }; }, []);
-            const mutate = async (suffix, method, data) => {
-                if (!current() || busy) return;
-                setBusy(true); setError('');
-                try {
-                    const response = await linkRequest(session, path + suffix, { method, ...(data ? { body: JSON.stringify(data) } : {}) });
-                    if (suffix.startsWith('/link?') || suffix === '/retry-sign-out') {
-                        const me = await requestCurrentUser(session.token);
-                        if (me.status === 401) {
-                            returnToSignIn(session); return;
-                        }
-                    }
-                    if (!response.ok) { if (current()) setError(text(response.status === 409 ? 'adminConflict' : 'adminError')); return; }
-                    const value = await response.json();
-                    if (current()) {
-                        setState(value); setEditing(false);
-                        let outcome = 'adminSignedOut';
-                        if (suffix === '/link-request') outcome = 'adminApproved';
-                        else if (suffix.startsWith('/link-request?')) outcome = 'adminCancelled';
-                        else if (suffix.startsWith('/link?')) outcome = 'adminUnlinked';
-                        setToast(text(value.PartialRevocation && outcome === 'adminSignedOut' ? 'adminPartial' : outcome));
-                    }
-                } catch { if (current()) setError(text('adminError')); }
-                finally { if (current()) setBusy(false); }
-            };
-            const button = (key, onClick, props = {}) => h(Button, { key, type: 'button', className: 'raised', title: text(key), iconPos: 'LEFT', style: { alignSelf: 'flex-start' }, disabled: busy, onClick, ...props });
-            const approval = () => {
-                if (state.Request) setMatchBy(approvalCriterion(state.Request));
-                else setMatchBy('Subject');
-                setValue(state.Request?.Subject || state.Request?.Email || state.Request?.Username || '');
-                setEditing(true);
-            };
-            const unlink = async () => {
-                try { if (!await confirmUnlink(state, sameUser(userId, session.userId))) return; }
-                catch { return; }
-                if (current()) {
-                    await mutate('/link?version=' + state.Version, 'DELETE');
-                    requestAnimationFrame(() => {
-                        if (current()) (document.querySelector('#oidc-admin-panel > button:not(:disabled)') || document.getElementById('oidc-admin-tab'))?.focus();
-                    });
-                }
-            };
+            input.type = matchBy === 'Email' ? 'email' : 'text'; input.value = value;
+            input.oninput = validate; select.onchange = update; update();
+            form.append(selectContainer, inputContainer, help, message(profileStrings.adminApprovalHelp), cancel, submit);
+            form.onsubmit = event => { event.preventDefault(); validate(); if (!submit.disabled) void mutate('/link-request', 'PUT', { Version: state.Version, [matchBy]: value }); };
+            return form;
+        }
+        function render() {
             const children = [];
-            if (error) children.push(h(Alert, { key: 'error', severity: 'error' }, error), button('linkRetry', load));
-            if (!state && busy) children.push(h(Loading, { key: 'loading' }));
+            if (error) children.push(message(error, true), button('linkRetry', load));
+            if (!state && busy) { const checking = message(profileStrings.linkChecking); checking.setAttribute('role', 'status'); children.push(checking); }
             if (state) {
                 const status = identityStatus(state);
-                children.push(h('div', { key: 'status', className: 'oidc-admin-status-line' },
-                    h('span', { className: 'oidc-admin-provider' },
-                        h('span', { 'aria-hidden': 'true', 'data-oidc-provider-icon': '', ref: element => { if (element) updateProviderIcon(element, state.Provider); } }),
-                        h('span', { 'data-oidc-admin-provider-name': 'true' }, providerName(state.Provider, state.ProviderName))),
-                    h('p', { className: 'listItemBodyText secondaryText', role: 'status', style: { margin: 0, minWidth: 0, overflowWrap: 'anywhere', whiteSpace: 'normal', color: status.color } },
-                        h('span', { className: 'material-icons', 'aria-hidden': 'true', style: statusIconStyle }, status.icon),
-                        h('span', { 'data-oidc-status-text': 'true' }, status.text))));
-                if (!state.OidcAvailable) children.push(h(Alert, { key: 'disabled', severity: 'warning' }, text('adminDisabled')));
-                if (state.AutomaticReattachmentBlocked) children.push(h('p', { key: 'block', className: 'fieldDescription' }, text('adminBlocked')));
-                if (state.PartialRevocation) children.push(h(Alert, { key: 'partial', severity: 'warning' }, text('adminPartial')), button('adminRetrySignOut', () => mutate('/retry-sign-out', 'POST', { Operation: state.UnlinkOperation }), { icon: 'refresh' }));
-                if (state.Request && !editing) children.push(h('p', { key: 'criteria' }, text('admin' + approvalCriterion(state.Request)) + ': ' + (state.Request.Subject || state.Request.Username || state.Request.Email)), h('p', { key: 'approval-help', className: 'fieldDescription' }, text('adminApprovalHelp')));
-                if (editing) children.push(h('form', { key: 'form', onSubmit: event => { event.preventDefault(); if (valueValid) void mutate('/link-request', 'PUT', { Version: state.Version, [matchBy]: value }); } },
-                    h('div', { className: 'selectContainer', ref: selectContainer }),
-                    h('div', { className: 'inputContainer' }, h(Input, { id: 'oidc-admin-value', label: text('adminValue'), type: matchBy === 'Email' ? 'email' : 'text', value, required: true, maxLength: matchBy === 'Email' ? 320 : 1024, disabled: busy, 'aria-describedby': 'oidc-admin-match-help', onChange: event => setValue(event.target.value) })),
-                    h('p', { id: 'oidc-admin-match-help', className: 'fieldDescription' }, text('admin' + matchBy + 'Help')),
-                    h('p', { className: 'fieldDescription' }, text('adminApprovalHelp')),
-                    h(Button, { type: 'button', className: 'raised', title: cancelText(), disabled: busy, onClick: () => setEditing(false) }),
-                    h(Button, { type: 'submit', className: 'raised button-submit', title: text('adminSave'), disabled: busy || !valueValid })));
-                else if (state.Linked) children.push(button('adminUnlink', () => { void unlink(); }, { className: 'raised button-delete', icon: 'link_off' }));
+                const line = node('div', '', 'oidc-admin-status-line');
+                const provider = node('span', '', 'oidc-admin-provider');
+                const providerIcon = node('span'); providerIcon.dataset.oidcProviderIcon = ''; providerIcon.setAttribute('aria-hidden', 'true'); updateProviderIcon(providerIcon, state.Provider);
+                const name = node('span', providerName(state.Provider, state.ProviderName)); name.dataset.oidcAdminProviderName = 'true'; provider.append(providerIcon, name);
+                const identity = node('p', '', 'listItemBodyText secondaryText'); identity.setAttribute('role', 'status');
+                Object.assign(identity.style, { margin: '0', minWidth: '0', overflowWrap: 'anywhere', whiteSpace: 'normal', color: status.color || '' });
+                const icon = node('span', status.icon, 'material-icons'); icon.setAttribute('aria-hidden', 'true'); Object.assign(icon.style, statusIconStyle);
+                const label = node('span', status.text); label.dataset.oidcStatusText = 'true'; identity.append(icon, label); line.append(provider, identity); children.push(line);
+                if (!state.OidcAvailable) children.push(message(profileStrings.adminDisabled, true));
+                if (state.AutomaticReattachmentBlocked) children.push(message(profileStrings.adminBlocked));
+                if (state.PartialRevocation) children.push(message(profileStrings.adminPartial, true), button('adminRetrySignOut', () => mutate('/retry-sign-out', 'POST', { Operation: state.UnlinkOperation }), 'refresh'));
+                if (state.Request && !editing) children.push(message(profileStrings['admin' + approvalCriterion(state.Request)] + ': ' + (state.Request.Subject || state.Request.Username || state.Request.Email)), message(profileStrings.adminApprovalHelp));
+                if (editing) children.push(approvalForm());
+                else if (state.Linked) children.push(button('adminUnlink', unlink, 'link_off', 'raised button-delete'));
                 else {
-                    children.push(button(state.Request ? 'adminEdit' : 'adminApprove', approval, { icon: state.Request ? 'edit' : 'link', disabled: busy || !state.CanCreateRequest }));
+                    const approval = button(state.Request ? 'adminEdit' : 'adminApprove', approve, state.Request ? 'edit' : 'link');
+                    approval.disabled = busy || !state.CanCreateRequest; children.push(approval);
                     if (state.Request) children.push(button('adminCancelRequest', () => mutate('/link-request?version=' + state.Version, 'DELETE')));
                 }
             }
-            children.push(h(Toast, { key: 'toast', open: !!toast, message: toast, autoHideDuration: 5000, onClose: () => setToast('') }));
-            return h(Stack, { className: 'readOnlyContent', spacing: 2, sx: { overflowWrap: 'anywhere', minWidth: 0 }, role: 'tabpanel', id: 'oidc-admin-panel', 'aria-labelledby': 'oidc-admin-tab', 'aria-busy': busy, 'data-oidc-admin': userId }, ...children);
-        };
-        const Editor = () => {
-            const session = activeSession();
-            const [admin, setAdmin] = React.useState(false);
-            const [, refresh] = React.useState(0);
-            React.useEffect(() => { const update = () => refresh(value => value + 1); addEventListener('hashchange', update); return () => removeEventListener('hashchange', update); }, []);
-            React.useEffect(() => {
-                let active = true; setAdmin(false);
-                if (session) void requestCurrentUser(session.token).then(response => response.ok ? response.json() : null).then(user => { if (active) setAdmin(user?.Policy?.IsAdministrator === true); }).catch(() => {});
-                return () => { active = false; };
-            }, [session?.token]);
-            const tree = Original();
-            const route = new URL(location.hash.replace(/^#!?/, ''), location.origin);
-            const match = route.pathname.match(/^\/dashboard\/users\/([a-f\d-]+)\/[^/]+$/i);
-            if (!admin || !session || !match) return tree;
-            const userId = match[1];
-            const selected = route.searchParams.get('oidc') === '1';
-            const extend = element => {
-                if (!React.isValidElement(element)) return element;
-                const children = React.Children.toArray(element.props.children);
-                const tabsIndex = children.findIndex(child => child.type === Tabs);
-                if (tabsIndex < 0) return React.cloneElement(element, {}, ...children.map(extend));
-                const tabs = children[tabsIndex];
-                const choose = (event, value) => {
-                    if (value === 'oidc') location.hash = '/dashboard/users/' + userId + '/profile?oidc=1';
-                    else tabs.props.onChange(event, value);
-                };
-                const nativeTabs = React.Children.toArray(tabs.props.children);
-                const extendedTabs = React.cloneElement(tabs, { value: selected ? 'oidc' : tabs.props.value, onChange: choose, variant: 'scrollable', scrollButtons: 'auto', allowScrollButtonsMobile: true },
-                    ...nativeTabs, h(Tab, { key: 'oidc', label: 'OIDC', value: 'oidc', id: 'oidc-admin-tab', 'aria-controls': 'oidc-admin-panel' }));
-                return React.cloneElement(element, {}, ...children.slice(0, tabsIndex), extendedTabs,
-                    ...(selected ? [h(Panel, { key: userId + session.token, userId, session })] : children.slice(tabsIndex + 1)));
-            };
-            return extend(tree);
-        };
-        module.exports = { ...module.exports, Component: Editor };
-        require.r(module.exports);
-    };
-    const chunks = self.webpackChunk = self.webpackChunk || [];
-    const wrapPush = push => function (...items) {
-        for (const item of items) {
-            const original = item[1]?.[63871];
-            if (original && !original.oidcAdmin) {
-                const wrapped = (module, exports, require) => {
-                    original(module, exports, require);
-                    const native = module.exports;
-                    try { installAdminEditor(module, exports, require, () => {}); }
-                    catch {
-                        module.exports = native;
-                        console.warn('OIDC administrator integration is incompatible with this Jellyfin Web build. Use the supported Jellyfin Web version.');
-                    }
-                };
-                wrapped.oidcAdmin = true; item[1][63871] = wrapped;
-            }
+            panel.replaceChildren(...children);
         }
-        return push.apply(this, items);
-    };
-    let push = wrapPush(chunks.push);
-    Object.defineProperty(chunks, 'push', { configurable: true, get: () => push, set: value => { push = wrapPush(value); } });
+        void load();
+    }
+    const adminStyle = document.createElement('style');
+    adminStyle.textContent = '#oidc-admin-panel { display: flex; flex-direction: column; gap: 1rem; min-width: 0; overflow-wrap: anywhere; } #oidc-admin-panel p { margin-block: 0; } #oidc-admin-panel form { width: 100%; } #oidc-admin-panel form .inputContainer, #oidc-admin-panel form .selectContainer { margin-bottom: 1rem; } #oidc-admin-panel form button + button { margin-inline-start: 0.5rem; } #usersEditPage .oidc-admin-native-hidden { display: none !important; } #usersEditPage [role="tablist"] { overflow-x: auto; scrollbar-width: thin; } #usersEditPage [role="tab"] { flex-shrink: 0; } #oidc-admin-tab[aria-selected="true"] { border-bottom: 2px solid var(--jf-palette-primary-main); } #usersEditPage[data-oidc-admin-selected] .MuiTabs-indicator { visibility: hidden; } #usersEditPage[data-oidc-admin-selected] [role="tab"]:not(#oidc-admin-tab) { color: var(--jf-palette-text-secondary); } #oidc-admin-tab:focus-visible { outline: 2px solid var(--jf-palette-primary-main); outline-offset: -2px; }';
+    document.head.append(adminStyle);
+    addEventListener('hashchange', updateAdminEditor);
+    addEventListener('pageshow', updateAdminEditor);
+    addEventListener('resize', revealAdminTab);
+    addEventListener('oidcconfigurationchange', () => { clearAdminEditor(); updateAdminEditor(); });
+    new MutationObserver(updateAdminEditor).observe(document.documentElement, { childList: true, subtree: true });
+    updateAdminEditor();
 })();

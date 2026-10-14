@@ -746,389 +746,404 @@
         </form>
       </div>
       <script>
-        const locale = document.documentElement.lang.toLowerCase();
-        const locales = [locale, locale.split("-")[0], "en-us"].filter(
-          (value, index, values) => values.indexOf(value) === index,
-        );
-        let dictionary;
-        const englishStrings = /* @english-strings */ {};
-        const loadDictionary = async () => {
-          for (const locale of locales) {
-            const response = await fetch(
-              ApiClient.getUrl("oidc/strings/" + encodeURIComponent(locale)),
-            );
-            if (response.ok) return response.json();
-          }
-
-          throw new Error(
-            "No OIDC configuration translation dictionary is available.",
+        (() => {
+          const locale = document.documentElement.lang.toLowerCase();
+          const locales = [locale, locale.split("-")[0], "en-us"].filter(
+            (value, index, values) => values.indexOf(value) === index,
           );
-        };
-        const translate = (key, ...values) =>
-          (dictionary || englishStrings)[key].replace(
-            /\{(\d+)\}/g,
-            (_, index) => values[index],
-          );
-        const page = document.querySelector("#OidcConfigPage");
-        const localize = () => {
-          document.title = translate("pageTitle");
-          page.querySelectorAll("[data-i18n]").forEach((element) => {
-            element.textContent = translate(element.dataset.i18n);
-          });
-          page
-            .querySelectorAll("[data-i18n-placeholder]")
-            .forEach((element) => {
-              element.placeholder = translate(element.dataset.i18nPlaceholder);
-            });
-          page.querySelectorAll("[data-i18n-aria-label]").forEach((element) => {
-            element.setAttribute(
-              "aria-label",
-              translate(element.dataset.i18nAriaLabel),
-            );
-          });
-          page.querySelectorAll("[data-i18n-label]").forEach((element) => {
-            const text = translate(element.dataset.i18nLabel);
-            element.setAttribute("label", text);
-            if (element.labelElement) element.labelElement.textContent = text;
-          });
-          updatePolicies();
-        };
-        const tabs = [...page.querySelectorAll('[role="tab"]')];
-        const selectTab = (tab) => {
-          tabs.forEach((item) => {
-            const selected = item === tab;
-            item.setAttribute("aria-selected", selected);
-            item.tabIndex = selected ? 0 : -1;
-            page.querySelector(
-              "#" + item.getAttribute("aria-controls"),
-            ).hidden = !selected;
-          });
-        };
-        tabs.forEach((tab, index) => {
-          tab.addEventListener("click", () => selectTab(tab));
-          tab.addEventListener("keydown", (event) => {
-            const next =
-              event.key === "Home"
-                ? 0
-                : event.key === "End"
-                  ? tabs.length - 1
-                  : event.key === "ArrowRight"
-                    ? (index + 1) % tabs.length
-                    : event.key === "ArrowLeft"
-                      ? (index + tabs.length - 1) % tabs.length
-                      : null;
-            if (next === null) return;
-            event.preventDefault();
-            selectTab(tabs[next]);
-            tabs[next].focus();
-          });
-        });
-
-        const pluginId = "4c5b9b96-80cd-4c3d-9e3d-23fa4ebf6ce4";
-        const fields = [
-          "Enabled",
-          "Provider",
-          "ProviderName",
-          "PublicUrl",
-          "IssuerUrl",
-          "ClientId",
-          "ClientSecret",
-          "RequireVerifiedEmail",
-          "UserGroup",
-          "AdministratorGroup",
-          "GroupClaim",
-          "UsernameClaim",
-          "ProvisioningUsernameMode",
-          "AutomaticLinkingMode",
-          "AllowSelfServiceLinking",
-          "AdditionalScopes",
-          "PasswordLoginMode",
-          "RedirectSignInPageToProvider",
-          "SynchronizeProfileImages",
-          "RpInitiatedLogout",
-        ];
-        const checkboxes = [
-          "Enabled",
-          "RequireVerifiedEmail",
-          "AllowSelfServiceLinking",
-          "RedirectSignInPageToProvider",
-          "SynchronizeProfileImages",
-          "RpInitiatedLogout",
-        ];
-        let savedConfiguration;
-        let configurationLoad = 0;
-        let saving = false;
-        const value = (name) =>
-          document.querySelector("#" + name)[
-            checkboxes.includes(name) ? "checked" : "value"
-          ];
-        const currentConfiguration = () =>
-          Object.fromEntries(fields.map((name) => [name, value(name)]));
-        const hasChanges = () =>
-          savedConfiguration &&
-          fields.some((name) => value(name) !== savedConfiguration[name]);
-        const updateSaveButton = () => {
-          document.querySelector("#SaveButton").disabled =
-            saving || !hasChanges();
-        };
-        const updatePolicies = () => {
-          page.querySelector("#ProviderNameContainer").hidden =
-            value("Provider") !== "Other";
-          const redirectsAvailable =
-            value("PasswordLoginMode") === "DisableForAllUsers";
-          page.querySelector("#RedirectSignInPageToProviderContainer").hidden =
-            !redirectsAvailable;
-          page.querySelector("#ProvisioningUsernameModeHelp").textContent =
-            translate(
-              value("ProvisioningUsernameMode") === "VerifiedEmail"
-                ? "provisioningEmailHelp"
-                : "provisioningUsernameHelp",
-            );
-          page.querySelector("#UsernameMatchingHelp").hidden =
-            value("AutomaticLinkingMode") !== "UsernameToUsername";
-          page
-            .querySelector("#AutomaticLinkingMode")
-            .setAttribute(
-              "aria-describedby",
-              "AutomaticLinkingModeHelp" +
-                (value("AutomaticLinkingMode") === "UsernameToUsername"
-                  ? " UsernameMatchingHelp"
-                  : ""),
-            );
-        };
-        const loadConfiguration = () => {
-          const load = ++configurationLoad;
-          page.querySelector("#ConfigurationLoading").hidden =
-            !!savedConfiguration;
-          page.querySelector("#ConfigurationLoadError").hidden = true;
-          return ApiClient.getPluginConfiguration(pluginId)
-            .then((config) => {
-              if (load !== configurationLoad || saving || hasChanges()) return;
-              savedConfiguration = Object.fromEntries(
-                fields.map((name) => [name, config[name]]),
+          let dictionary;
+          const englishStrings = /* @english-strings */ {};
+          const loadDictionary = async () => {
+            for (const locale of locales) {
+              const response = await fetch(
+                ApiClient.getUrl("oidc/strings/" + encodeURIComponent(locale)),
               );
-              fields.forEach((name) => {
-                document.querySelector("#" + name)[
-                  checkboxes.includes(name) ? "checked" : "value"
-                ] = savedConfiguration[name];
-              });
-              updatePolicies();
-              updateValidation();
-              updateSaveButton();
-            })
-            .catch(() => {
-              if (load === configurationLoad)
-                page.querySelector("#ConfigurationLoadError").hidden = false;
-            })
-            .finally(() => {
-              if (load === configurationLoad)
-                page.querySelector("#ConfigurationLoading").hidden = true;
-            });
-        };
-        page.addEventListener("pageshow", () => {
-          if (dictionary) localize();
-          else initializeTranslations();
-          loadConfiguration();
-        });
-        const form = document.querySelector("#OidcConfigForm");
-        const validateGroups = () => {
-          const userGroup = document.querySelector("#UserGroup");
-          const administratorGroup = page.querySelector("#AdministratorGroup");
-          const hasGroups = (input) =>
-            input.value.split(",").some((group) => group.trim());
-          userGroup.setCustomValidity(
-            !value("Enabled") ||
-              hasGroups(userGroup) ||
-              hasGroups(administratorGroup)
-              ? ""
-              : translate("groupValidation"),
-          );
-          administratorGroup.setCustomValidity(
-            value("Enabled") &&
-              value("PasswordLoginMode") === "DisableForAllUsers" &&
-              !hasGroups(administratorGroup)
-              ? translate("administratorGroupValidation")
-              : "",
-          );
-        };
-        const validateHttpsUrl = (name) => {
-          const input = document.querySelector("#" + name);
-          if (!value("Enabled")) {
-            input.setCustomValidity("");
-            return;
-          }
-          try {
-            const url = input.value ? new URL(input.value) : null;
-            input.setCustomValidity(
-              !url ||
-                (url.protocol === "https:" &&
-                  !url.username &&
-                  !url.password &&
-                  !url.search &&
-                  !url.hash)
-                ? ""
-                : translate("httpsUrlValidation"),
+              if (response.ok) return response.json();
+            }
+
+            throw new Error(
+              "No OIDC configuration translation dictionary is available.",
             );
-          } catch {
-            input.setCustomValidity(translate("httpsUrlValidation"));
-          }
-        };
-        const updateValidation = () => {
-          [
+          };
+          const translate = (key, ...values) =>
+            (dictionary || englishStrings)[key].replace(
+              /\{(\d+)\}/g,
+              (_, index) => values[index],
+            );
+          const page = document.querySelector("#OidcConfigPage");
+          const localize = () => {
+            if (!page.isConnected) return;
+            document.title = translate("pageTitle");
+            page.querySelectorAll("[data-i18n]").forEach((element) => {
+              element.textContent = translate(element.dataset.i18n);
+            });
+            page
+              .querySelectorAll("[data-i18n-placeholder]")
+              .forEach((element) => {
+                element.placeholder = translate(
+                  element.dataset.i18nPlaceholder,
+                );
+              });
+            page
+              .querySelectorAll("[data-i18n-aria-label]")
+              .forEach((element) => {
+                element.setAttribute(
+                  "aria-label",
+                  translate(element.dataset.i18nAriaLabel),
+                );
+              });
+            page.querySelectorAll("[data-i18n-label]").forEach((element) => {
+              const text = translate(element.dataset.i18nLabel);
+              element.setAttribute("label", text);
+              if (element.labelElement) element.labelElement.textContent = text;
+            });
+            updatePolicies();
+          };
+          const tabs = [...page.querySelectorAll('[role="tab"]')];
+          const selectTab = (tab) => {
+            tabs.forEach((item) => {
+              const selected = item === tab;
+              item.setAttribute("aria-selected", selected);
+              item.tabIndex = selected ? 0 : -1;
+              page.querySelector(
+                "#" + item.getAttribute("aria-controls"),
+              ).hidden = !selected;
+            });
+          };
+          tabs.forEach((tab, index) => {
+            tab.addEventListener("click", () => selectTab(tab));
+            tab.addEventListener("keydown", (event) => {
+              const next =
+                event.key === "Home"
+                  ? 0
+                  : event.key === "End"
+                    ? tabs.length - 1
+                    : event.key === "ArrowRight"
+                      ? (index + 1) % tabs.length
+                      : event.key === "ArrowLeft"
+                        ? (index + tabs.length - 1) % tabs.length
+                        : null;
+              if (next === null) return;
+              event.preventDefault();
+              selectTab(tabs[next]);
+              tabs[next].focus();
+            });
+          });
+
+          const pluginId = "4c5b9b96-80cd-4c3d-9e3d-23fa4ebf6ce4";
+          const fields = [
+            "Enabled",
+            "Provider",
+            "ProviderName",
+            "PublicUrl",
             "IssuerUrl",
             "ClientId",
             "ClientSecret",
-            "UsernameClaim",
+            "RequireVerifiedEmail",
+            "UserGroup",
+            "AdministratorGroup",
             "GroupClaim",
-          ].forEach((name) => {
-            page.querySelector("#" + name).required = value("Enabled");
-          });
-          ["PublicUrl", "IssuerUrl"].forEach(validateHttpsUrl);
-          validateGroups();
-        };
-        const clientSecret = document.querySelector("#ClientSecret");
-        const clientSecretToggle = document.querySelector(
-          "#ClientSecretToggle",
-        );
-        const updateClientSecretToggle = () => {
-          const visible = clientSecret.type === "text";
-          const text = translate(
-            visible ? "hideClientSecret" : "showClientSecret",
-          );
-          const label =
-            text + " " + translate("clientSecretLabel").replace(/\s*\*$/, "");
-          clientSecretToggle.setAttribute("aria-label", label);
-          clientSecretToggle.title = label;
-          clientSecretToggle.setAttribute("aria-pressed", visible);
-          clientSecretToggle.querySelector(".material-icons").textContent =
-            visible ? "visibility_off" : "visibility";
-        };
-        clientSecretToggle.addEventListener("click", () => {
-          clientSecret.type =
-            clientSecret.type === "password" ? "text" : "password";
-          updateClientSecretToggle();
-        });
-        const save = () => {
-          if (saving || !hasChanges()) return;
-          const submittedConfiguration = currentConfiguration();
-          const reload = [
-            "Enabled",
+            "UsernameClaim",
+            "ProvisioningUsernameMode",
+            "AutomaticLinkingMode",
+            "AllowSelfServiceLinking",
+            "AdditionalScopes",
             "PasswordLoginMode",
             "RedirectSignInPageToProvider",
-          ].some(
-            (name) => submittedConfiguration[name] !== savedConfiguration[name],
-          );
-          ++configurationLoad;
-          saving = true;
-          updateSaveButton();
-          Dashboard.showLoadingMsg();
-          ApiClient.getPluginConfiguration(pluginId)
-            .then((config) => {
-              fields.forEach((name) => {
-                config[name] = submittedConfiguration[name];
+            "SynchronizeProfileImages",
+            "RpInitiatedLogout",
+          ];
+          const checkboxes = [
+            "Enabled",
+            "RequireVerifiedEmail",
+            "AllowSelfServiceLinking",
+            "RedirectSignInPageToProvider",
+            "SynchronizeProfileImages",
+            "RpInitiatedLogout",
+          ];
+          let savedConfiguration;
+          let configurationLoad = 0;
+          let saving = false;
+          const value = (name) =>
+            page.querySelector("#" + name)[
+              checkboxes.includes(name) ? "checked" : "value"
+            ];
+          const currentConfiguration = () =>
+            Object.fromEntries(fields.map((name) => [name, value(name)]));
+          const hasChanges = () =>
+            savedConfiguration &&
+            fields.some((name) => value(name) !== savedConfiguration[name]);
+          const updateSaveButton = () => {
+            page.querySelector("#SaveButton").disabled =
+              saving || !hasChanges();
+          };
+          const updatePolicies = () => {
+            page.querySelector("#ProviderNameContainer").hidden =
+              value("Provider") !== "Other";
+            const redirectsAvailable =
+              value("PasswordLoginMode") === "DisableForAllUsers";
+            page.querySelector(
+              "#RedirectSignInPageToProviderContainer",
+            ).hidden = !redirectsAvailable;
+            page.querySelector("#ProvisioningUsernameModeHelp").textContent =
+              translate(
+                value("ProvisioningUsernameMode") === "VerifiedEmail"
+                  ? "provisioningEmailHelp"
+                  : "provisioningUsernameHelp",
+              );
+            page.querySelector("#UsernameMatchingHelp").hidden =
+              value("AutomaticLinkingMode") !== "UsernameToUsername";
+            page
+              .querySelector("#AutomaticLinkingMode")
+              .setAttribute(
+                "aria-describedby",
+                "AutomaticLinkingModeHelp" +
+                  (value("AutomaticLinkingMode") === "UsernameToUsername"
+                    ? " UsernameMatchingHelp"
+                    : ""),
+              );
+          };
+          const loadConfiguration = () => {
+            const load = ++configurationLoad;
+            page.querySelector("#ConfigurationLoading").hidden =
+              !!savedConfiguration;
+            page.querySelector("#ConfigurationLoadError").hidden = true;
+            return ApiClient.getPluginConfiguration(pluginId)
+              .then((config) => {
+                if (
+                  !page.isConnected ||
+                  load !== configurationLoad ||
+                  saving ||
+                  hasChanges()
+                )
+                  return;
+                savedConfiguration = Object.fromEntries(
+                  fields.map((name) => [name, config[name]]),
+                );
+                fields.forEach((name) => {
+                  page.querySelector("#" + name)[
+                    checkboxes.includes(name) ? "checked" : "value"
+                  ] = savedConfiguration[name];
+                });
+                updatePolicies();
+                updateValidation();
+                updateSaveButton();
+              })
+              .catch(() => {
+                if (load === configurationLoad)
+                  page.querySelector("#ConfigurationLoadError").hidden = false;
+              })
+              .finally(() => {
+                if (load === configurationLoad)
+                  page.querySelector("#ConfigurationLoading").hidden = true;
               });
-              return ApiClient.updatePluginConfiguration(pluginId, config);
-            })
-            .then((result) => {
-              savedConfiguration = submittedConfiguration;
-              return Promise.resolve(
-                Dashboard.processPluginConfigurationUpdateResult(result),
-              ).then(() =>
-                reload
-                  ? location.reload()
-                  : dispatchEvent(new Event("oidcconfigurationchange")),
-              );
-            })
-            .catch((error) => Dashboard.processErrorResponse(error))
-            .finally(() => {
-              saving = false;
-              updateSaveButton();
-            });
-        };
-        form.addEventListener("submit", (event) => {
-          event.preventDefault();
-          if (!savedConfiguration || saving) return;
-          updateValidation();
-          if (value("Enabled")) {
-            const invalid = [...form.querySelectorAll("input, select")].find(
-              (input) => !input.validity.valid,
+          };
+          page.addEventListener("pageshow", () => {
+            if (dictionary) localize();
+            else initializeTranslations();
+            loadConfiguration();
+          });
+          const form = page.querySelector("#OidcConfigForm");
+          const validateGroups = () => {
+            const userGroup = page.querySelector("#UserGroup");
+            const administratorGroup = page.querySelector(
+              "#AdministratorGroup",
             );
-            if (invalid) {
-              selectTab(
-                tabs[
-                  invalid.closest('[role="tabpanel"]').id === "AdvancedPanel"
-                    ? 1
-                    : 0
-                ],
-              );
-              invalid.focus();
-              invalid.reportValidity();
+            const hasGroups = (input) =>
+              input.value.split(",").some((group) => group.trim());
+            userGroup.setCustomValidity(
+              !value("Enabled") ||
+                hasGroups(userGroup) ||
+                hasGroups(administratorGroup)
+                ? ""
+                : translate("groupValidation"),
+            );
+            administratorGroup.setCustomValidity(
+              value("Enabled") &&
+                value("PasswordLoginMode") === "DisableForAllUsers" &&
+                !hasGroups(administratorGroup)
+                ? translate("administratorGroupValidation")
+                : "",
+            );
+          };
+          const validateHttpsUrl = (name) => {
+            const input = page.querySelector("#" + name);
+            if (!value("Enabled")) {
+              input.setCustomValidity("");
               return;
             }
-          }
-          const mode = value("PasswordLoginMode");
-          if (
-            mode !== savedConfiguration.PasswordLoginMode &&
-            mode !== "AllowForAllUsers"
-          ) {
-            const users =
-              mode === "DisableForAllUsers"
-                ? translate("allJellyfinUsers")
-                : translate("linkedJellyfinUsers");
-            Dashboard.confirm(
-              translate("localPasswordWarning", users),
-              translate("localPasswordWarningTitle"),
-              (confirmed) => {
-                if (confirmed) save();
-              },
-            );
-            return;
-          }
-          save();
-        });
-        fields.forEach((name) =>
-          document
-            .querySelector("#" + name)
-            .addEventListener("input", updateSaveButton),
-        );
-        fields.forEach((name) =>
-          document
-            .querySelector("#" + name)
-            .addEventListener("change", updateSaveButton),
-        );
-        form.addEventListener("input", updateValidation);
-        form.addEventListener("change", () => {
-          updatePolicies();
-          updateValidation();
-        });
-        page
-          .querySelector("#ConfigurationRetry")
-          .addEventListener("click", loadConfiguration);
-        fields.forEach((name) => {
-          const input = page.querySelector("#" + name);
-          const description = input
-            .closest(".inputContainer, .selectContainer, .checkboxContainer")
-            .querySelector(".fieldDescription");
-          if (!description) return;
-          description.id = name + "Help";
-          input.setAttribute("aria-describedby", description.id);
-        });
-        let translationLoad;
-        const initializeTranslations = () => {
-          if (dictionary || translationLoad) return;
-          translationLoad = loadDictionary()
-            .then((strings) => {
-              dictionary = strings;
-              localize();
-              updateClientSecretToggle();
-            })
-            .catch(() => {
-              translationLoad = null;
-              if (page.isConnected) setTimeout(initializeTranslations, 1000);
+            try {
+              const url = input.value ? new URL(input.value) : null;
+              input.setCustomValidity(
+                !url ||
+                  (url.protocol === "https:" &&
+                    !url.username &&
+                    !url.password &&
+                    !url.search &&
+                    !url.hash)
+                  ? ""
+                  : translate("httpsUrlValidation"),
+              );
+            } catch {
+              input.setCustomValidity(translate("httpsUrlValidation"));
+            }
+          };
+          const updateValidation = () => {
+            [
+              "IssuerUrl",
+              "ClientId",
+              "ClientSecret",
+              "UsernameClaim",
+              "GroupClaim",
+            ].forEach((name) => {
+              page.querySelector("#" + name).required = value("Enabled");
             });
-        };
-        loadConfiguration();
-        initializeTranslations();
+            ["PublicUrl", "IssuerUrl"].forEach(validateHttpsUrl);
+            validateGroups();
+          };
+          const clientSecret = page.querySelector("#ClientSecret");
+          const clientSecretToggle = page.querySelector("#ClientSecretToggle");
+          const updateClientSecretToggle = () => {
+            const visible = clientSecret.type === "text";
+            const text = translate(
+              visible ? "hideClientSecret" : "showClientSecret",
+            );
+            const label =
+              text + " " + translate("clientSecretLabel").replace(/\s*\*$/, "");
+            clientSecretToggle.setAttribute("aria-label", label);
+            clientSecretToggle.title = label;
+            clientSecretToggle.setAttribute("aria-pressed", visible);
+            clientSecretToggle.querySelector(".material-icons").textContent =
+              visible ? "visibility_off" : "visibility";
+          };
+          clientSecretToggle.addEventListener("click", () => {
+            clientSecret.type =
+              clientSecret.type === "password" ? "text" : "password";
+            updateClientSecretToggle();
+          });
+          const save = () => {
+            if (saving || !hasChanges()) return;
+            const submittedConfiguration = currentConfiguration();
+            const reload = [
+              "Enabled",
+              "PasswordLoginMode",
+              "RedirectSignInPageToProvider",
+            ].some(
+              (name) =>
+                submittedConfiguration[name] !== savedConfiguration[name],
+            );
+            ++configurationLoad;
+            saving = true;
+            updateSaveButton();
+            Dashboard.showLoadingMsg();
+            ApiClient.getPluginConfiguration(pluginId)
+              .then((config) => {
+                fields.forEach((name) => {
+                  config[name] = submittedConfiguration[name];
+                });
+                return ApiClient.updatePluginConfiguration(pluginId, config);
+              })
+              .then((result) => {
+                savedConfiguration = submittedConfiguration;
+                return Promise.resolve(
+                  Dashboard.processPluginConfigurationUpdateResult(result),
+                ).then(() =>
+                  reload
+                    ? location.reload()
+                    : dispatchEvent(new Event("oidcconfigurationchange")),
+                );
+              })
+              .catch((error) => Dashboard.processErrorResponse(error))
+              .finally(() => {
+                saving = false;
+                updateSaveButton();
+              });
+          };
+          form.addEventListener("submit", (event) => {
+            event.preventDefault();
+            if (!savedConfiguration || saving) return;
+            updateValidation();
+            if (value("Enabled")) {
+              const invalid = [...form.querySelectorAll("input, select")].find(
+                (input) => !input.validity.valid,
+              );
+              if (invalid) {
+                selectTab(
+                  tabs[
+                    invalid.closest('[role="tabpanel"]').id === "AdvancedPanel"
+                      ? 1
+                      : 0
+                  ],
+                );
+                invalid.focus();
+                invalid.reportValidity();
+                return;
+              }
+            }
+            const mode = value("PasswordLoginMode");
+            if (
+              mode !== savedConfiguration.PasswordLoginMode &&
+              mode !== "AllowForAllUsers"
+            ) {
+              const users =
+                mode === "DisableForAllUsers"
+                  ? translate("allJellyfinUsers")
+                  : translate("linkedJellyfinUsers");
+              Dashboard.confirm(
+                translate("localPasswordWarning", users),
+                translate("localPasswordWarningTitle"),
+                (confirmed) => {
+                  if (confirmed) save();
+                },
+              );
+              return;
+            }
+            save();
+          });
+          fields.forEach((name) =>
+            page
+              .querySelector("#" + name)
+              .addEventListener("input", updateSaveButton),
+          );
+          fields.forEach((name) =>
+            page
+              .querySelector("#" + name)
+              .addEventListener("change", updateSaveButton),
+          );
+          form.addEventListener("input", updateValidation);
+          form.addEventListener("change", () => {
+            updatePolicies();
+            updateValidation();
+          });
+          page
+            .querySelector("#ConfigurationRetry")
+            .addEventListener("click", loadConfiguration);
+          fields.forEach((name) => {
+            const input = page.querySelector("#" + name);
+            const description = input
+              .closest(".inputContainer, .selectContainer, .checkboxContainer")
+              .querySelector(".fieldDescription");
+            if (!description) return;
+            description.id = name + "Help";
+            input.setAttribute("aria-describedby", description.id);
+          });
+          let translationLoad;
+          const initializeTranslations = () => {
+            if (dictionary || translationLoad) return;
+            translationLoad = loadDictionary()
+              .then((strings) => {
+                dictionary = strings;
+                localize();
+                updateClientSecretToggle();
+              })
+              .catch(() => {
+                translationLoad = null;
+                if (page.isConnected) setTimeout(initializeTranslations, 1000);
+              });
+          };
+          loadConfiguration();
+          initializeTranslations();
+        })();
       </script>
     </div>
   </body>

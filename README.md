@@ -48,7 +48,7 @@ Simple OpenID Connect sign-in for Jellyfin 12, with one Identity Provider, group
 
 ## Prerequisites
 
-- Jellyfin 12 with the tested Jellyfin Web 12.0.0 build. The administrator tab integration depends on Jellyfin Web's internal modules; later Web builds must be verified before upgrading. An incompatible integration preserves Jellyfin's native editor and logs a compatibility warning rather than breaking it.
+- Jellyfin 12 with the tested Jellyfin Web 12.0.0 markup. The administrator tab and profile card use page IDs and semantic controls, without depending on webpack module IDs. Later Web builds with markup changes must be verified before upgrading.
 - An OIDC service with a configured client ID, client secret, and callback URL. See [Provider Setup](#provider-setup).
 - At least one allowed or administrator group configured in the plugin.
 - For automatic email matching, existing Jellyfin usernames must match verified OIDC email case-insensitively. Optional username matching uses the configured **Username claim** instead. Alternatively, use self-service linking or an administrator approval. Email is optional when **Require verified email** is disabled.
@@ -76,27 +76,27 @@ OIDC sign-in requires an HTTPS public URL. If Jellyfin is behind a reverse proxy
 
 ## Configuration
 
-| Setting                      | Required                   | Default             | Description                                                                                   |
-| ---------------------------- | -------------------------- | ------------------- | --------------------------------------------------------------------------------------------- |
-| Enable OIDC                  | Yes                        | Off                 | Lets users who meet your group rules sign in.                                                 |
-| Provider                     | No                         | Other               | Select Authentik, Authelia, Keycloak, Pocket ID, ZITADEL, or Other. Determines the sign-in button's provider name and icon. |
-| Public Jellyfin URL override | No                         | Browser HTTPS address | The public HTTPS address to use for callbacks and sign-out.                                 |
-| Issuer URL                   | Yes                        | -                   | The HTTPS address of your OIDC service.                                                       |
-| Client ID                    | Yes                        | -                   | The client ID from your OIDC service.                                                         |
-| Client secret                | Yes                        | -                   | The client secret from your OIDC service.                                                     |
-| Allowed groups               | At least one group setting | -                   | Comma-separated groups that can sign in. New Jellyfin users can be created for their members. |
-| Administrator groups         | At least one group setting | -                   | Comma-separated groups that can sign in as Jellyfin administrators.                           |
-| Group claim                  | No                         | `groups`            | The top-level claim that lists a user's groups.                                               |
-| Username claim               | Yes                        | `preferred_username` | Top-level string claim for Identity Provider usernames, used for display, username matching, and optional new-user naming. |
-| New-user username            | No                         | Identity Provider username | Name newly provisioned Jellyfin Users from the Username claim (with verified-email fallback) or verified email only. Independent of automatic linking; existing usernames are unchanged. |
-| Automatic linking            | No                         | No automatic linking | Choose no automatic linking, verified email-to-username matching, or Identity Provider username-to-username matching. Existing links and explicit approvals take precedence. Older saved configurations retain their previous behavior. |
-| Allow self-service linking   | No                         | Off                 | Allow signed-in Jellyfin Users to link or unlink their Provider from their own profile. |
-| Require verified email       | No                         | On                  | Require a supplied email with `email_verified=true` for linking and all Identity Provider sign-ins, including linked users. |
-| Additional requested scopes  | No                         | -                   | Space-separated scopes requested in addition to `openid email profile`.                       |
-| Provider name                | No, shown for Other        | `SSO`               | Name shown in `Sign In with <Provider Name>` when Other is selected. Other uses a key icon; named providers use their bundled monochrome logos. |
-| Password login mode          | No                         | Allow for all users | Choose who can use local passwords.                                                           |
-| Redirect sign-in page to provider | No                    | Off                 | Directly redirect to the Identity Provider when passwords are disabled for all users.          |
-| RP-Initiated Logout          | No                         | Off                 | Also sign out from your OIDC service when it supports this.                                   |
+| Setting                           | Required                   | Default                    | Description                                                                                                                                                                                                                             |
+| --------------------------------- | -------------------------- | -------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Enable OIDC                       | Yes                        | Off                        | Lets users who meet your group rules sign in.                                                                                                                                                                                           |
+| Provider                          | No                         | Other                      | Select Authentik, Authelia, Keycloak, Pocket ID, ZITADEL, or Other. Determines the sign-in button's provider name and icon.                                                                                                             |
+| Public Jellyfin URL override      | No                         | Browser HTTPS address      | The public HTTPS address to use for callbacks and sign-out.                                                                                                                                                                             |
+| Issuer URL                        | Yes                        | -                          | The HTTPS address of your OIDC service.                                                                                                                                                                                                 |
+| Client ID                         | Yes                        | -                          | The client ID from your OIDC service.                                                                                                                                                                                                   |
+| Client secret                     | Yes                        | -                          | The client secret from your OIDC service.                                                                                                                                                                                               |
+| Allowed groups                    | At least one group setting | -                          | Comma-separated groups that can sign in. New Jellyfin users can be created for their members.                                                                                                                                           |
+| Administrator groups              | At least one group setting | -                          | Comma-separated groups that can sign in as Jellyfin administrators.                                                                                                                                                                     |
+| Group claim                       | No                         | `groups`                   | The top-level claim that lists a user's groups.                                                                                                                                                                                         |
+| Username claim                    | Yes                        | `preferred_username`       | Top-level string claim for Identity Provider usernames, used for display, username matching, and optional new-user naming.                                                                                                              |
+| New-user username                 | No                         | Identity Provider username | Name newly provisioned Jellyfin Users from the Username claim (with verified-email fallback) or verified email only. Independent of automatic linking; existing usernames are unchanged.                                                |
+| Automatic linking                 | No                         | No automatic linking       | Choose no automatic linking, verified email-to-username matching, or Identity Provider username-to-username matching. Existing links and explicit approvals take precedence. Older saved configurations retain their previous behavior. |
+| Allow self-service linking        | No                         | Off                        | Allow signed-in Jellyfin Users to link or unlink their Provider from their own profile.                                                                                                                                                 |
+| Require verified email            | No                         | On                         | Require a supplied email with `email_verified=true` for linking and all Identity Provider sign-ins, including linked users.                                                                                                             |
+| Additional requested scopes       | No                         | -                          | Space-separated scopes requested in addition to `openid email profile`.                                                                                                                                                                 |
+| Provider name                     | No, shown for Other        | `SSO`                      | Name shown in `Sign In with <Provider Name>` when Other is selected. Other uses a key icon; named providers use their bundled monochrome logos.                                                                                         |
+| Password login mode               | No                         | Allow for all users        | Choose who can use local passwords.                                                                                                                                                                                                     |
+| Redirect sign-in page to provider | No                         | Off                        | Directly redirect to the Identity Provider when passwords are disabled for all users.                                                                                                                                                   |
+| RP-Initiated Logout               | No                         | Off                        | Also sign out from your OIDC service when it supports this.                                                                                                                                                                             |
 
 The plugin supports one OIDC service and simple, top-level profile and group data. If your groups are nested, map them to a top-level claim in your OIDC service. You cannot set endpoint URLs by hand.
 
@@ -104,13 +104,13 @@ The plugin supports one OIDC service and simple, top-level profile and group dat
 
 The plugin needs a confidential authorization-code client with the callback URL from the quick start. It requires top-level `sub` and a top-level group claim containing strings or a JSON string array. By default, `email` and `email_verified=true` are also required. Supply the configured top-level username claim, normally `preferred_username`, to name newly provisioned Jellyfin Users.
 
-| Provider          | Setup                                                                                                                                                                                      |
-| ----------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| Keycloak          | Add a Group Membership protocol mapper that emits a flat `groups` claim to the ID token or UserInfo endpoint. Disable full group paths unless those paths are the configured group values. |
-| Authentik         | Ensure the configured provider returns `groups`, and map a verified source attribute to `email_verified`.                                                                                  |
-| Authelia          | Set **Additional requested scopes** to `groups`. Configure the client to return the standard email claims and use `groups` as the group claim.                                             |
-| ZITADEL           | Use an Action to project eligible project roles into a top-level flat string-array claim such as `groups`, then configure that claim here. The nested ZITADEL roles claim is unsupported.  |
-| Pocket ID         | Configure a flat group claim and verified email claims, then test sign-in before disabling local passwords.                                                                                |
+| Provider  | Setup                                                                                                                                                                                      |
+| --------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Keycloak  | Add a Group Membership protocol mapper that emits a flat `groups` claim to the ID token or UserInfo endpoint. Disable full group paths unless those paths are the configured group values. |
+| Authentik | Ensure the configured provider returns `groups`, and map a verified source attribute to `email_verified`.                                                                                  |
+| Authelia  | Set **Additional requested scopes** to `groups`. Configure the client to return the standard email claims and use `groups` as the group claim.                                             |
+| ZITADEL   | Use an Action to project eligible project roles into a top-level flat string-array claim such as `groups`, then configure that claim here. The nested ZITADEL roles claim is unsupported.  |
+| Pocket ID | Configure a flat group claim and verified email claims, then test sign-in before disabling local passwords.                                                                                |
 
 Do not add a scope solely because its name matches the group claim. Some providers expose groups without a scope, and some reject undeclared scopes.
 
@@ -164,11 +164,11 @@ Link inspection, unlinking, and **Retry sign-out** remain available when OIDC is
 
 ## Password Login
 
-| Mode                          | Behavior                                                                         |
-| ----------------------------- | -------------------------------------------------------------------------------- |
-| Allow for all users           | Local passwords remain available.                                                |
+| Mode                          | Behavior                                                                  |
+| ----------------------------- | ------------------------------------------------------------------------- |
+| Allow for all users           | Local passwords remain available.                                         |
 | Disable for linked users only | Local passwords are unavailable for Jellyfin Users with an Identity Link. |
-| Disable for all users         | Local passwords are unavailable for every Jellyfin User.                         |
+| Disable for all users         | Local passwords are unavailable for every Jellyfin User.                  |
 
 When local passwords are disabled for all users, **Redirect sign-in page to provider** is available. Off keeps the Jellyfin sign-in URL and shows only the OIDC sign-in button. On redirects directly to the Identity Provider and provides an OIDC-only signed-out page.
 
@@ -205,13 +205,13 @@ This plugin provides custom CSS overrides to keep OIDC-only sign-in visually con
 ### Abyss
 
 ```css
-@import url('https://cdn.jsdelivr.net/gh/edmogeor/jellyfin-plugin-oidc@main/assets/abyss-oidc.css');
+@import url("https://cdn.jsdelivr.net/gh/edmogeor/jellyfin-plugin-oidc@main/assets/abyss-oidc.css");
 ```
 
 ### ElegantFin
 
 ```css
-@import url('https://cdn.jsdelivr.net/gh/edmogeor/jellyfin-plugin-oidc@main/assets/elegantfin-oidc.css');
+@import url("https://cdn.jsdelivr.net/gh/edmogeor/jellyfin-plugin-oidc@main/assets/elegantfin-oidc.css");
 ```
 
 ## Logout

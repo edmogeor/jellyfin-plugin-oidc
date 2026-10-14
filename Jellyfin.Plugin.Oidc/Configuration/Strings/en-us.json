@@ -95,6 +95,7 @@
   "adminApprove": "Link on next sign-in",
   "adminEdit": "Edit approval",
   "adminCancelRequest": "Cancel approval",
+  "adminCancel": "Cancel",
   "adminSave": "Approve link",
   "adminUnlink": "Unlink account",
   "adminRetrySignOut": "Retry sign-out",

@@ -95,6 +95,7 @@
   "adminApprove": "Collega al prossimo accesso",
   "adminEdit": "Modifica approvazione",
   "adminCancelRequest": "Annulla approvazione",
+  "adminCancel": "Annulla",
   "adminSave": "Approva collegamento",
   "adminUnlink": "Scollega account",
   "adminRetrySignOut": "Riprova disconnessione",

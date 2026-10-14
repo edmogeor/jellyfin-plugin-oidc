@@ -1,3 +1,17 @@
+## [0.3.2.0]
+
+### Changed
+
+- Replace build-specific webpack hooks with page IDs and semantic controls for the administrator OIDC tab, preserving approvals, unlinking, recovery, and native navigation.
+- Anchor the Provider profile card to existing read-only content rather than padding classes.
+
+### Fixed
+
+- Load settings when returning to the configuration page without a browser refresh, and prevent detached pages from updating the current form.
+- Center the sign-in icon and label using a full-width flex layout.
+- Restore native tabs' accessible selection state when leaving OIDC and keep the selected OIDC tab visible on narrow screens.
+- Wait for the login view before displaying sign-in errors so notifications survive initial page rendering.
+
 ## [0.3.1.0]
 
 ### Changed

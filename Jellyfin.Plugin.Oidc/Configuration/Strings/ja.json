@@ -95,6 +95,7 @@
   "adminApprove": "次のサインインでリンク",
   "adminEdit": "承認を編集",
   "adminCancelRequest": "承認を取り消す",
+  "adminCancel": "キャンセル",
   "adminSave": "リンクを承認",
   "adminUnlink": "アカウントのリンクを解除",
   "adminRetrySignOut": "サインアウトを再試行",

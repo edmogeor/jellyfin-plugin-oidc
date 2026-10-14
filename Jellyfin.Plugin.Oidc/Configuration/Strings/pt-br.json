@@ -95,6 +95,7 @@
   "adminApprove": "Vincular no próximo login",
   "adminEdit": "Editar aprovação",
   "adminCancelRequest": "Cancelar aprovação",
+  "adminCancel": "Cancelar",
   "adminSave": "Aprovar vínculo",
   "adminUnlink": "Desvincular conta",
   "adminRetrySignOut": "Tentar encerrar sessões novamente",
