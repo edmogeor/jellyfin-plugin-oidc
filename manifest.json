@@ -9,6 +9,14 @@
     "owner": "jellyfin",
     "versions": [
       {
+        "changelog": "### Changed\n\n- Replace build-specific webpack hooks with page IDs and semantic controls for the administrator OIDC tab, preserving approvals, unlinking, recovery, and native navigation.\n- Anchor the Provider profile card to existing read-only content rather than padding classes.\n\n### Fixed\n\n- Load settings when returning to the configuration page without a browser refresh, and prevent detached pages from updating the current form.\n- Center the sign-in icon and label using a full-width flex layout.\n- Restore native tabs' accessible selection state when leaving OIDC and keep the selected OIDC tab visible on narrow screens.\n- Wait for the login view before displaying sign-in errors so notifications survive initial page rendering.\n\n",
+        "checksum": "ecf98ff7b96eed4f578e353e8b04ce1a",
+        "sourceUrl": "https://github.com/edmogeor/jellyfin-plugin-oidc/releases/download/v0.3.2.0/oidc-authentication_0.3.2.0.zip",
+        "targetAbi": "12.0.0.0",
+        "timestamp": "2026-10-14T17:46:54Z",
+        "version": "0.3.2.0"
+      },
+      {
         "changelog": "### Changed\n\n- Remove the direct sign-in redirection shortcut from General settings; the setting remains in Advanced.\n- Clarify that automatic linking applies to Jellyfin Users who already exist in all supported translations.\n\n### Fixed\n\n- Hide Remember Me on the OIDC-only signed-out page.\n- Show Jellyfin's loading spinner while installing an OIDC session, without flashing provider sign-in controls before the signed-in page.\n\n",
         "checksum": "c0ba16f62e9269f998549315c79fe07e",
         "sourceUrl": "https://github.com/edmogeor/jellyfin-plugin-oidc/releases/download/v0.3.1.0/oidc-authentication_0.3.1.0.zip",
@@ -239,14 +247,6 @@
         "targetAbi": "12.0.0.0",
         "timestamp": "2026-09-16T16:37:21Z",
         "version": "0.1.6.0"
-      },
-      {
-        "changelog": "\n- Package the OpenID Connect runtime dependencies required by Jellyfin.\n\n",
-        "checksum": "ff0c893478217b5a08186a61700831a6",
-        "sourceUrl": "https://github.com/edmogeor/jellyfin-plugin-oidc/releases/download/v0.1.5.0/oidc-authentication_0.1.5.0.zip",
-        "targetAbi": "12.0.0.0",
-        "timestamp": "2026-09-16T15:48:36Z",
-        "version": "0.1.5.0"
       }
     ]
   }
