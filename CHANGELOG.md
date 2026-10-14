@@ -1,3 +1,10 @@
+## [0.3.3.0]
+
+### Changed
+
+- Align the OIDC configuration page width and spacing with Jellyfin's native settings layout, and remove redundant password-policy help text.
+- Simplify OIDC sign-in, linking, logout, and profile-image flows, share browser session helpers and local-password policy checks, and streamline service constructors.
+
 ## [0.3.2.0]
 
 ### Changed
