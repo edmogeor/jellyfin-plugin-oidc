@@ -13,7 +13,6 @@
   "configurationLoadError": "Kunne ikke indlæse indstillingerne. Prøv igen.",
   "administratorGroupValidation": "Angiv en administratorgruppe, før du deaktiverer lokale adgangskoder for alle Jellyfin-brugere.",
   "provisioningEmailHelp": "Kræver en aktuelt bekræftet e-mail. Eksisterende brugere omdøbes aldrig.",
-  "usernameMatchingHelp": "Brug kun dette, når udbyderens brugernavne matcher Jellyfin-brugernavnene.",
   "protocolName": "OIDC",
   "enabledHelp": "Lader kvalificerede brugere logge ind via udbyderen.",
   "connectionHeading": "Udbyderforbindelse",

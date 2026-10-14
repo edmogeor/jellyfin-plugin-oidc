@@ -13,7 +13,6 @@
   "configurationLoadError": "Não foi possível carregar as configurações. Tente novamente.",
   "administratorGroupValidation": "Informe um grupo de administradores antes de desativar as senhas locais para todos os usuários Jellyfin.",
   "provisioningEmailHelp": "Exige um e-mail verificado no momento. Os usuários existentes nunca são renomeados.",
-  "usernameMatchingHelp": "Use apenas quando os nomes de usuário do provedor corresponderem aos nomes de usuário do Jellyfin.",
   "protocolName": "OIDC",
   "enabledHelp": "Permite que usuários elegíveis entrem pelo provedor.",
   "connectionHeading": "Conexão com o provedor",

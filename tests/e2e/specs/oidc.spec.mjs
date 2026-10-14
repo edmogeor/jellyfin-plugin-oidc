@@ -854,10 +854,9 @@ test("navigates settings tabs by keyboard and reveals invalid fields without los
   await page
     .locator("#AutomaticLinkingMode")
     .selectOption("UsernameToUsername");
-  await expect(page.locator("#UsernameMatchingHelp")).toBeVisible();
   await expect(
     page.locator("#AutomaticLinkingMode"),
-  ).toHaveAccessibleDescription(/Only use this when Provider usernames/);
+  ).not.toHaveAccessibleDescription(/Only use this when Provider usernames/);
   await page.locator("#ProvisioningUsernameMode").selectOption("VerifiedEmail");
   await expect(page.locator("#ProvisioningUsernameModeHelp")).toHaveText(
     /Requires currently verified email/,

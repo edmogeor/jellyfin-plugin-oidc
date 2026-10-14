@@ -1,3 +1,9 @@
+## [0.3.4.0]
+
+### Changed
+
+- Remove redundant username-matching help text from the OIDC configuration page and all supported translations.
+
 ## [0.3.3.0]
 
 ### Changed

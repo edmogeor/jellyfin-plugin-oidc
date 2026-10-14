@@ -13,7 +13,6 @@
   "configurationLoadError": "Asetuksia ei voitu ladata. Yritä uudelleen.",
   "administratorGroupValidation": "Anna järjestelmänvalvojaryhmä ennen paikallisten salasanojen poistamista käytöstä kaikilta Jellyfin-käyttäjiltä.",
   "provisioningEmailHelp": "Vaatii kirjautumishetkellä vahvistetun sähköpostin. Nykyisiä käyttäjiä ei koskaan nimetä uudelleen.",
-  "usernameMatchingHelp": "Käytä vain, kun tarjoajan käyttäjänimet vastaavat Jellyfin-käyttäjänimiä.",
   "protocolName": "OIDC",
   "enabledHelp": "Sallii kelvollisten käyttäjien kirjautua tarjoajan kautta.",
   "connectionHeading": "Yhteys tarjoajaan",

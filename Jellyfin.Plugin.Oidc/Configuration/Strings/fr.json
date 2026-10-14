@@ -13,7 +13,6 @@
   "configurationLoadError": "Impossible de charger les paramètres. Réessayez.",
   "administratorGroupValidation": "Saisissez un groupe d’administrateurs avant de désactiver les mots de passe locaux pour tous les utilisateurs Jellyfin.",
   "provisioningEmailHelp": "Exige une adresse e-mail actuellement vérifiée. Les utilisateurs existants ne sont jamais renommés.",
-  "usernameMatchingHelp": "À utiliser uniquement si les noms d’utilisateur du fournisseur correspondent aux noms d’utilisateur Jellyfin.",
   "protocolName": "OIDC",
   "enabledHelp": "Permet aux utilisateurs autorisés de se connecter via le fournisseur.",
   "connectionHeading": "Connexion au fournisseur",

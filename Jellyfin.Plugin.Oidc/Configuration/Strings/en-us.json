@@ -13,7 +13,6 @@
   "configurationLoadError": "Couldn't load settings. Try again.",
   "administratorGroupValidation": "Enter an Administrator group before disabling local passwords for all Jellyfin Users.",
   "provisioningEmailHelp": "Requires currently verified email. Existing users are never renamed.",
-  "usernameMatchingHelp": "Only use this when Provider usernames match Jellyfin usernames.",
   "protocolName": "OIDC",
   "enabledHelp": "Allow eligible users to sign in through the Provider.",
   "connectionHeading": "Provider connection",

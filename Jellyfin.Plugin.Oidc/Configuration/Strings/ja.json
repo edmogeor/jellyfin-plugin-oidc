@@ -13,7 +13,6 @@
   "configurationLoadError": "設定を読み込めませんでした。もう一度お試しください。",
   "administratorGroupValidation": "すべての Jellyfin ユーザーのローカルパスワードを無効にする前に、管理者グループを入力してください。",
   "provisioningEmailHelp": "ログイン時に確認済みのメールアドレスが必要です。既存ユーザーの名前は変更しません。",
-  "usernameMatchingHelp": "プロバイダーのユーザー名が Jellyfin のユーザー名と一致する場合にのみ使用してください。",
   "protocolName": "OIDC",
   "enabledHelp": "許可されたユーザーがプロバイダー経由でサインインできるようにします。",
   "connectionHeading": "プロバイダーへの接続",

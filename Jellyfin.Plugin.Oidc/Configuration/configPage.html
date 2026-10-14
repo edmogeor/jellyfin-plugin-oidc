@@ -630,14 +630,6 @@
                   {{automaticLinkingHelp}}
                 </div>
               </div>
-              <p
-                id="UsernameMatchingHelp"
-                class="fieldDescription"
-                data-i18n="usernameMatchingHelp"
-                hidden
-              >
-                {{usernameMatchingHelp}}
-              </p>
               <div class="checkboxContainer checkboxContainer-withDescription">
                 <label
                   ><input
@@ -876,17 +868,6 @@
                 value("ProvisioningUsernameMode") === "VerifiedEmail"
                   ? "provisioningEmailHelp"
                   : "provisioningUsernameHelp",
-              );
-            page.querySelector("#UsernameMatchingHelp").hidden =
-              value("AutomaticLinkingMode") !== "UsernameToUsername";
-            page
-              .querySelector("#AutomaticLinkingMode")
-              .setAttribute(
-                "aria-describedby",
-                "AutomaticLinkingModeHelp" +
-                  (value("AutomaticLinkingMode") === "UsernameToUsername"
-                    ? " UsernameMatchingHelp"
-                    : ""),
               );
           };
           const loadConfiguration = () => {

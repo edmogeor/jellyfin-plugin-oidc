@@ -13,7 +13,6 @@
   "configurationLoadError": "Instellingen konden niet worden geladen. Probeer het opnieuw.",
   "administratorGroupValidation": "Voer een beheerdersgroep in voordat u lokale wachtwoorden voor alle Jellyfin-gebruikers uitschakelt.",
   "provisioningEmailHelp": "Vereist een momenteel geverifieerd e-mailadres. Bestaande gebruikers worden nooit hernoemd.",
-  "usernameMatchingHelp": "Gebruik dit alleen als de gebruikersnamen van de provider overeenkomen met de Jellyfin-gebruikersnamen.",
   "protocolName": "OIDC",
   "enabledHelp": "Laat bevoegde gebruikers zich aanmelden via de provider.",
   "connectionHeading": "Providerverbinding",

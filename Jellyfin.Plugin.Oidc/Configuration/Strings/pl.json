@@ -13,7 +13,6 @@
   "configurationLoadError": "Nie udało się wczytać ustawień. Spróbuj ponownie.",
   "administratorGroupValidation": "Podaj grupę administratorów przed wyłączeniem lokalnych haseł dla wszystkich użytkowników Jellyfin.",
   "provisioningEmailHelp": "Wymaga adresu e-mail zweryfikowanego podczas logowania. Nazwy istniejących użytkowników nigdy się nie zmieniają.",
-  "usernameMatchingHelp": "Używaj tylko wtedy, gdy nazwy użytkowników dostawcy odpowiadają nazwom użytkowników Jellyfin.",
   "protocolName": "OIDC",
   "enabledHelp": "Umożliwia uprawnionym użytkownikom logowanie przez dostawcę.",
   "connectionHeading": "Połączenie z dostawcą",

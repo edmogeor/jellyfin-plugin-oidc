@@ -13,7 +13,6 @@
   "configurationLoadError": "Kunde inte läsa in inställningarna. Försök igen.",
   "administratorGroupValidation": "Ange en administratörsgrupp innan du inaktiverar lokala lösenord för alla Jellyfin-användare.",
   "provisioningEmailHelp": "Kräver en verifierad e-postadress vid inloggningen. Befintliga användare byter aldrig namn.",
-  "usernameMatchingHelp": "Använd endast detta när leverantörens användarnamn matchar Jellyfin-användarnamnen.",
   "protocolName": "OIDC",
   "enabledHelp": "Låter behöriga användare logga in via leverantören.",
   "connectionHeading": "Leverantörsanslutning",

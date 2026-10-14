@@ -13,7 +13,6 @@
   "configurationLoadError": "无法加载设置，请重试。",
   "administratorGroupValidation": "为所有 Jellyfin 用户禁用本地密码之前，请输入管理员组。",
   "provisioningEmailHelp": "要求本次登录提供已验证的邮箱。现有用户不会被重命名。",
-  "usernameMatchingHelp": "仅在提供方用户名与 Jellyfin 用户名对应时使用。",
   "protocolName": "OIDC",
   "enabledHelp": "允许符合条件的用户通过提供方登录。",
   "connectionHeading": "提供方连接",
