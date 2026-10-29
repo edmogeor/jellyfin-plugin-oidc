@@ -9,6 +9,14 @@
     "owner": "jellyfin",
     "versions": [
       {
+        "changelog": "### Changed\n\n- Update the bundled Microsoft.AspNetCore.Authentication.OpenIdConnect dependency from 10.0.12 to 10.0.13.\n- Update development and test dependencies and the CodeQL workflow.\n\n",
+        "checksum": "3adae3b8a94ed3fc895d02619224af6d",
+        "sourceUrl": "https://github.com/edmogeor/jellyfin-plugin-oidc/releases/download/v0.3.5.0/oidc-authentication_0.3.5.0.zip",
+        "targetAbi": "12.0.0.0",
+        "timestamp": "2026-10-29T19:24:57Z",
+        "version": "0.3.5.0"
+      },
+      {
         "changelog": "### Changed\n\n- Remove redundant username-matching help text from the OIDC configuration page and all supported translations.\n\n",
         "checksum": "521896da4ac4de87a16e2204c48774cf",
         "sourceUrl": "https://github.com/edmogeor/jellyfin-plugin-oidc/releases/download/v0.3.4.0/oidc-authentication_0.3.4.0.zip",
@@ -239,14 +247,6 @@
         "targetAbi": "12.0.0.0",
         "timestamp": "2026-09-16T21:27:18Z",
         "version": "0.1.9.0"
-      },
-      {
-        "changelog": "\n- Make direct Identity Provider redirects opt-in when local passwords are disabled for all Jellyfin Users.\n- Keep the OIDC sign-in button while removing local-login controls without direct redirects.\n- Localize the redirect setting and OIDC signed-out title.\n- Prevent browsers from using stale OIDC login integration and configuration after a plugin update or settings change.\n- Show the OIDC signed-out page when using Jellyfin 12's User Menu logout control.\n\n",
-        "checksum": "57e90572e2a9508866384a9b53aac236",
-        "sourceUrl": "https://github.com/edmogeor/jellyfin-plugin-oidc/releases/download/v0.1.8.0/oidc-authentication_0.1.8.0.zip",
-        "targetAbi": "12.0.0.0",
-        "timestamp": "2026-09-16T20:31:06Z",
-        "version": "0.1.8.0"
       }
     ]
   }
