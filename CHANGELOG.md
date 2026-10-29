@@ -1,3 +1,10 @@
+## [0.3.5.0]
+
+### Changed
+
+- Update the bundled Microsoft.AspNetCore.Authentication.OpenIdConnect dependency from 10.0.12 to 10.0.13.
+- Update development and test dependencies and the CodeQL workflow.
+
 ## [0.3.4.0]
 
 ### Changed
